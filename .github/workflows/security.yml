@@ -23,11 +23,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install uv & ShellCheck
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.12.12"
+
+      - name: Install ShellCheck
         run: |
           sudo apt-get update && sudo apt-get install -y shellcheck
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "/data/data/com.termux/files/home/.cargo/bin" >> 
 
       - name: Install Dependencies
         run: |
