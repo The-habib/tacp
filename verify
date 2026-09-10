@@ -1,0 +1,167 @@
+#!/data/data/com.termux/files/usr/bin/env bash
+# TACP Canonical Local Verifier
+# Runs all deterministic local gates: format, lint, types, unit tests, security tests, and dependency audit.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+REPORT_DIR="$SCRIPT_DIR/artifacts/verification"
+mkdir -p "$REPORT_DIR"
+
+SUMMARY_FILE="$REPORT_DIR/verification-summary.json"
+VENV_BIN="$SCRIPT_DIR/.venv/bin"
+
+START_TIME=$(date +%s)
+FAILED_STAGE=""
+
+echo "=================================================="
+echo "           TACP CANONICAL VERIFIER                "
+echo "=================================================="
+echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+echo "Repo Root: $SCRIPT_DIR"
+echo "=================================================="
+
+# Ensure virtualenv exists
+if [[ ! -x "$VENV_BIN/python" ]]; then
+  echo "[FATAL] Virtual environment not found at $SCRIPT_DIR/.venv"
+  echo "Run: uv venv && uv pip install -e \".[dev]\""
+  exit 1
+fi
+
+# Locate ruff (venv or native)
+RUFF_BIN="$VENV_BIN/ruff"
+if [[ ! -x "$RUFF_BIN" ]]; then
+  RUFF_BIN="$(command -v ruff || true)"
+fi
+
+if [[ -z "$RUFF_BIN" || ! -x "$RUFF_BIN" ]]; then
+  echo "[FATAL] ruff linter/formatter not found in venv or PATH"
+  exit 1
+fi
+
+record_stage() {
+  local stage="$1"
+  local status="$2"
+  echo "Stage [$stage]: $status"
+}
+
+# Stage 1: ShellCheck on project scripts
+echo ">>> [Stage 1/7] ShellCheck (Scripts Hygiene)..."
+if shellcheck "$SCRIPT_DIR/verify" "$SCRIPT_DIR/doctor"; then
+  record_stage "shellcheck" "PASS"
+else
+  record_stage "shellcheck" "FAIL"
+  FAILED_STAGE="shellcheck"
+fi
+
+# Stage 2: Format check (Ruff)
+if [[ -z "$FAILED_STAGE" ]]; then
+  echo ">>> [Stage 2/7] Format Check (Ruff)..."
+  if "$RUFF_BIN" format --check .; then
+    record_stage "format" "PASS"
+  else
+    record_stage "format" "FAIL"
+    FAILED_STAGE="format"
+  fi
+fi
+
+# Stage 3: Lint check (Ruff)
+if [[ -z "$FAILED_STAGE" ]]; then
+  echo ">>> [Stage 3/7] Lint Check (Ruff)..."
+  if "$RUFF_BIN" check .; then
+    record_stage "lint" "PASS"
+  else
+    record_stage "lint" "FAIL"
+    FAILED_STAGE="lint"
+  fi
+fi
+
+# Stage 4: Type check (Mypy)
+if [[ -z "$FAILED_STAGE" ]]; then
+  echo ">>> [Stage 4/7] Type Check (Mypy)..."
+  if "$VENV_BIN/mypy" src tests; then
+    record_stage "typecheck" "PASS"
+  else
+    record_stage "typecheck" "FAIL"
+    FAILED_STAGE="typecheck"
+  fi
+fi
+
+# Stage 5: Unit tests (pytest)
+if [[ -z "$FAILED_STAGE" ]]; then
+  echo ">>> [Stage 5/7] Unit Tests (pytest)..."
+  if "$VENV_BIN/pytest" tests/unit -v --cov=src --cov-report=term-missing; then
+    record_stage "unit_tests" "PASS"
+  else
+    record_stage "unit_tests" "FAIL"
+    FAILED_STAGE="unit_tests"
+  fi
+fi
+
+# Stage 6: Security test suite (pytest)
+if [[ -z "$FAILED_STAGE" ]]; then
+  echo ">>> [Stage 6/7] Security Test Suite..."
+  if "$VENV_BIN/pytest" tests/security -v; then
+    record_stage "security_tests" "PASS"
+  else
+    record_stage "security_tests" "FAIL"
+    FAILED_STAGE="security_tests"
+  fi
+fi
+
+# Stage 7: Dependency audit (pip-audit)
+if [[ -z "$FAILED_STAGE" ]]; then
+  echo ">>> [Stage 7/7] Dependency Audit (pip-audit)..."
+  if "$VENV_BIN/pip-audit"; then
+    record_stage "pip_audit" "PASS"
+  else
+    record_stage "pip_audit" "FAIL"
+    FAILED_STAGE="pip_audit"
+  fi
+fi
+
+END_TIME=$(date +%s)
+DURATION=$((END_TIME - START_TIME))
+
+OVERALL_STATUS="PASS"
+if [[ -n "$FAILED_STAGE" ]]; then
+  OVERALL_STATUS="FAIL"
+fi
+
+COMMIT_HASH="$(git rev-parse HEAD 2>/dev/null || echo "initial")"
+PYTHON_VER="$("$VENV_BIN/python" --version 2>&1)"
+OS_NAME="$(uname -s)"
+KERNEL_VER="$(uname -r)"
+ARCH_NAME="$(uname -m)"
+
+# Generate Machine-Readable Evidence JSON
+cat << EOF > "$SUMMARY_FILE"
+{
+  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "commit": "$COMMIT_HASH",
+  "overall_status": "$OVERALL_STATUS",
+  "failed_stage": "$FAILED_STAGE",
+  "duration_seconds": $DURATION,
+  "environment": {
+    "os": "$OS_NAME",
+    "kernel": "$KERNEL_VER",
+    "arch": "$ARCH_NAME",
+    "python": "$PYTHON_VER"
+  }
+}
+EOF
+
+echo "=================================================="
+echo "Verification Completed in ${DURATION}s"
+echo "Overall Result: $OVERALL_STATUS"
+echo "Evidence written to: $SUMMARY_FILE"
+echo "=================================================="
+
+if [[ "$OVERALL_STATUS" != "PASS" ]]; then
+  echo "[ERROR] Verification failed at stage: $FAILED_STAGE"
+  exit 1
+fi
+
+exit 0

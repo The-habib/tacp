@@ -1,0 +1,39 @@
+# Python environment & artifacts
+__pycache__/
+*.py[cod]
+*.class
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Quality & Test tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local evidence and scratch output
+artifacts/verification/*.json
+artifacts/verification/*.log
+scratch/
+
+# Secrets, keys, credentials (NEVER COMMIT)
+*.env
+*.env.*
+*.key
+*.pem
+*.token
+credentials.json
+secrets/
+
+# IDE / OS specific
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
