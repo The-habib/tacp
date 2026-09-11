@@ -11,6 +11,9 @@ class OutputLimits:
     max_search_results: int = 100
     max_processes: int = 100
     max_audit_results: int = 100
+    max_patch_bytes: int = 262144  # 256 KB
+    max_file_size_bytes: int = 1048576  # 1 MB
+    max_resulting_file_bytes: int = 2097152  # 2 MB
 
 
 @dataclass(frozen=True)
@@ -24,6 +27,7 @@ class TacpConfig:
     db_path: Path = field(default=Path())
     log_level: str = "INFO"
     read_only: bool = True
+    mutation_enabled: bool = False
     limits: OutputLimits = field(default_factory=OutputLimits)
     allowed_workspace_roots: List[Path] = field(default_factory=list)
 
@@ -38,6 +42,9 @@ class TacpConfig:
             # Default to projects directory or current workspace
             default_root = Path.home() / "projects"
             object.__setattr__(self, "allowed_workspace_roots", [default_root])
+        # If mutation is disabled, enforce read_only = True
+        if not self.mutation_enabled:
+            object.__setattr__(self, "read_only", True)
 
     @classmethod
     def load(cls) -> "TacpConfig":
@@ -46,11 +53,20 @@ class TacpConfig:
         db_path_str = os.environ.get("TACP_DB_PATH")
         db_path = Path(db_path_str).resolve() if db_path_str else data_dir / "tacp.db"
         log_level = os.environ.get("TACP_LOG_LEVEL", "INFO").upper()
+        mutation_enabled = os.environ.get("TACP_MUTATION_ENABLED", "0").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        read_only = not mutation_enabled
+        if "TACP_READ_ONLY" in os.environ:
+            read_only = os.environ.get("TACP_READ_ONLY", "1").lower() in ("1", "true", "yes")
 
         return cls(
             data_dir=data_dir,
             db_path=db_path,
             log_level=log_level,
-            read_only=True,
+            read_only=read_only,
+            mutation_enabled=mutation_enabled,
             limits=OutputLimits(),
         )

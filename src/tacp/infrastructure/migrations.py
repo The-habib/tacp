@@ -40,6 +40,71 @@ MIGRATIONS: List[Tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_workspaces_status ON workspaces (status);
         """,
     ),
+    (
+        2,
+        """
+        CREATE TABLE IF NOT EXISTS principals (
+            id TEXT PRIMARY KEY,
+            role TEXT NOT NULL,
+            trust_tier TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL DEFAULT '{}'
+        );
+
+        CREATE TABLE IF NOT EXISTS policies (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            rules_json TEXT NOT NULL,
+            priority INTEGER NOT NULL DEFAULT 100,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS approvals (
+            id TEXT PRIMARY KEY,
+            token TEXT NOT NULL UNIQUE,
+            action_type TEXT NOT NULL,
+            workspace_id TEXT NOT NULL,
+            target_path TEXT NOT NULL,
+            patch_hash TEXT NOT NULL,
+            principal_id TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'PENDING',
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            consumed_at TEXT,
+            consumed_by TEXT,
+            metadata_json TEXT NOT NULL DEFAULT '{}'
+        );
+
+        CREATE TABLE IF NOT EXISTS patches (
+            id TEXT PRIMARY KEY,
+            workspace_id TEXT NOT NULL,
+            target_path TEXT NOT NULL,
+            base_checksum TEXT NOT NULL,
+            result_checksum TEXT NOT NULL,
+            diff_content TEXT NOT NULL,
+            status TEXT NOT NULL,
+            snapshot_path TEXT,
+            applied_at TEXT NOT NULL,
+            applied_by TEXT NOT NULL,
+            rollback_at TEXT,
+            metadata_json TEXT NOT NULL DEFAULT '{}'
+        );
+
+        CREATE TABLE IF NOT EXISTS locks (
+            resource_id TEXT PRIMARY KEY,
+            owner_id TEXT NOT NULL,
+            acquired_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            token TEXT NOT NULL UNIQUE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_approvals_token ON approvals (token);
+        CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals (status);
+        CREATE INDEX IF NOT EXISTS idx_patches_workspace ON patches (workspace_id);
+        CREATE INDEX IF NOT EXISTS idx_locks_expires ON locks (expires_at);
+        """,
+    ),
 ]
 
 

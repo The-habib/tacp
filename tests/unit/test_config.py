@@ -77,3 +77,33 @@ def test_custom_output_limits_assignment(tmp_path: Path) -> None:
     config = TacpConfig(data_dir=tmp_path, limits=custom_limits)
     assert config.limits.max_file_read_bytes == 1024
     assert config.limits.max_dir_entries == 50
+
+
+def test_output_limits_patch_defaults() -> None:
+    limits = OutputLimits()
+    assert limits.max_patch_bytes == 262144
+    assert limits.max_file_size_bytes == 1048576
+    assert limits.max_resulting_file_bytes == 2097152
+
+
+def test_config_mutation_enabled_default_false() -> None:
+    config = TacpConfig()
+    assert config.mutation_enabled is False
+    assert config.read_only is True
+
+
+def test_config_env_override_mutation_enabled() -> None:
+    with patch.dict(os.environ, {"TACP_MUTATION_ENABLED": "1"}):
+        config = TacpConfig.load()
+        assert config.mutation_enabled is True
+        assert config.read_only is False
+
+    with patch.dict(os.environ, {"TACP_MUTATION_ENABLED": "true"}):
+        config = TacpConfig.load()
+        assert config.mutation_enabled is True
+        assert config.read_only is False
+
+    with patch.dict(os.environ, {"TACP_MUTATION_ENABLED": "0"}):
+        config = TacpConfig.load()
+        assert config.mutation_enabled is False
+        assert config.read_only is True

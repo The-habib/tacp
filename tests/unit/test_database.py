@@ -109,3 +109,23 @@ def test_workspace_service_inspect(test_db: Database, tmp_path: Path) -> None:
     assert inspection["workspace"]["id"] == ws.id
     assert inspection["summary"]["file_count"] == 1
     assert inspection["summary"]["total_bytes"] == 5
+
+
+def test_migration_2_tables_created(test_db: Database) -> None:
+    conn = test_db.connect()
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = {row[0] for row in cur.fetchall()}
+    conn.close()
+
+    expected = {
+        "principals",
+        "policies",
+        "approvals",
+        "patches",
+        "locks",
+        "schema_migrations",
+        "workspaces",
+        "audit_logs",
+    }
+    assert expected.issubset(tables)

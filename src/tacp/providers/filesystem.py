@@ -2,12 +2,23 @@
 
 from __future__ import annotations
 
+import hashlib
+import os
 import re
+import shutil
+import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from tacp.domain.classification import DataClassification
-from tacp.domain.errors import ErrorCode, TacpNotFoundError, TacpSecurityError
+from tacp.domain.errors import (
+    ErrorCode,
+    TacpConflictError,
+    TacpNotFoundError,
+    TacpSecurityError,
+    TacpValidationError,
+)
+from tacp.domain.patch import PatchStatus
 from tacp.infrastructure.config import OutputLimits
 from tacp.infrastructure.logging import redact_string
 
@@ -293,6 +304,293 @@ class FilesystemProvider:
             "matches": matches,
             "total_matches": len(matches),
             "truncated": truncated,
+        }
+
+    def _apply_unified_diff(self, orig_text: str, diff_text: str) -> Tuple[str, int, int]:
+        orig_lines = orig_text.splitlines(keepends=True)
+        diff_lines = diff_text.splitlines(keepends=True)
+
+        hunk_regex = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+        i = 0
+        while i < len(diff_lines) and not diff_lines[i].startswith("@@"):
+            i += 1
+
+        if i >= len(diff_lines):
+            raise TacpValidationError("Invalid patch format: no unified diff hunks found")
+
+        result: List[str] = []
+        orig_idx = 0
+        added_count = 0
+        removed_count = 0
+
+        while i < len(diff_lines):
+            m = hunk_regex.match(diff_lines[i])
+            if not m:
+                raise TacpValidationError(f"Invalid hunk header: {diff_lines[i].strip()}")
+
+            old_start = int(m.group(1)) - 1
+            if old_start < 0:
+                old_start = 0
+
+            while orig_idx < old_start and orig_idx < len(orig_lines):
+                result.append(orig_lines[orig_idx])
+                orig_idx += 1
+
+            i += 1
+            while i < len(diff_lines) and not diff_lines[i].startswith("@@"):
+                line = diff_lines[i]
+                if line.startswith("+"):
+                    result.append(line[1:])
+                    added_count += 1
+                elif line.startswith("-"):
+                    if orig_idx >= len(orig_lines):
+                        raise TacpValidationError(
+                            "Hunk mismatch: expected line to remove at line "
+                            f"{orig_idx + 1}, but file ended"
+                        )
+                    expected = orig_lines[orig_idx]
+                    actual_del = line[1:]
+                    if expected != actual_del and expected.rstrip("\r\n") != actual_del.rstrip(
+                        "\r\n"
+                    ):
+                        raise TacpValidationError(
+                            f"Hunk mismatch at line {orig_idx + 1}: "
+                            f"expected {expected.rstrip()!r}, diff has {actual_del.rstrip()!r}"
+                        )
+                    orig_idx += 1
+                    removed_count += 1
+                elif line.startswith(" "):
+                    if orig_idx >= len(orig_lines):
+                        raise TacpValidationError(
+                            "Hunk mismatch: expected context line at line "
+                            f"{orig_idx + 1}, but file ended"
+                        )
+                    expected = orig_lines[orig_idx]
+                    actual_ctx = line[1:]
+                    if expected != actual_ctx and expected.rstrip("\r\n") != actual_ctx.rstrip(
+                        "\r\n"
+                    ):
+                        raise TacpValidationError(
+                            f"Hunk mismatch at line {orig_idx + 1}: "
+                            f"expected context {expected.rstrip()!r}, "
+                            f"diff has {actual_ctx.rstrip()!r}"
+                        )
+                    result.append(orig_lines[orig_idx])
+                    orig_idx += 1
+                elif line.startswith("\\"):
+                    pass
+                i += 1
+
+        while orig_idx < len(orig_lines):
+            result.append(orig_lines[orig_idx])
+            orig_idx += 1
+
+        return "".join(result), added_count, removed_count
+
+    def apply_patch(
+        self,
+        workspace_root: Path,
+        subpath: str,
+        patch_diff: str,
+        base_checksum: str,
+        dry_run: bool = False,
+        patch_id: Optional[str] = None,
+        snapshot_dir: Optional[Path] = None,
+    ) -> Dict[str, Any]:
+        raw_target = workspace_root / subpath.strip()
+        if raw_target.is_symlink():
+            raise TacpSecurityError(ErrorCode.OUTSIDE_WORKSPACE, "Cannot patch symlink")
+
+        target = self._resolve_in_jail(workspace_root, subpath)
+
+        if not target.exists():
+            raise TacpNotFoundError(f"Target file does not exist: {subpath}")
+        if target.is_dir():
+            raise TacpValidationError(f"Target path is a directory, not a file: {subpath}")
+
+        # Secret classification check
+        if self.classify_file(target) in (
+            DataClassification.SECRET,
+            DataClassification.CRITICAL,
+        ):
+            raise TacpSecurityError(
+                ErrorCode.POLICY_DENIED,
+                f"Cannot patch protected/secret file '{target.name}'",
+            )
+
+        # Patch diff size limit
+        diff_bytes = patch_diff.encode("utf-8")
+        if len(diff_bytes) > self.limits.max_patch_bytes:
+            raise TacpValidationError(
+                f"Patch diff size ({len(diff_bytes)} bytes) exceeds limit "
+                f"({self.limits.max_patch_bytes} bytes)"
+            )
+
+        # Existing file size limit
+        target_size = target.stat().st_size
+        if target_size > self.limits.max_file_size_bytes:
+            raise TacpValidationError(
+                f"File size ({target_size} bytes) exceeds limit "
+                f"({self.limits.max_file_size_bytes} bytes)"
+            )
+
+        # Read target bytes & check for binary / null bytes
+        try:
+            file_bytes = target.read_bytes()
+        except OSError as err:
+            raise TacpSecurityError(
+                ErrorCode.INTERNAL_ERROR, f"Failed to read target file: {err}"
+            ) from err
+
+        if b"\0" in file_bytes or "\0" in patch_diff:
+            raise TacpValidationError(
+                "Binary files or null bytes are not supported for patch operations"
+            )
+
+        try:
+            orig_text = file_bytes.decode("utf-8")
+        except UnicodeDecodeError as err:
+            raise TacpValidationError("Target file is not valid UTF-8 text") from err
+
+        # Base checksum check (Optimistic Concurrency Control)
+        current_checksum = hashlib.sha256(file_bytes).hexdigest()
+        if base_checksum.lower().strip() != current_checksum.lower():
+            raise TacpConflictError(
+                f"Base checksum mismatch: expected '{base_checksum}', "
+                f"current file checksum is '{current_checksum}'"
+            )
+
+        # Apply diff
+        resulting_text, added_count, removed_count = self._apply_unified_diff(orig_text, patch_diff)
+
+        resulting_bytes = resulting_text.encode("utf-8")
+        if len(resulting_bytes) > self.limits.max_resulting_file_bytes:
+            raise TacpValidationError(
+                f"Resulting file size ({len(resulting_bytes)} bytes) exceeds limit "
+                f"({self.limits.max_resulting_file_bytes} bytes)"
+            )
+
+        result_checksum = hashlib.sha256(resulting_bytes).hexdigest()
+        pid = patch_id or f"patch-{uuid.uuid4().hex[:8]}"
+
+        if dry_run:
+            return {
+                "patch_id": pid,
+                "status": PatchStatus.SIMULATED,
+                "subpath": subpath,
+                "before_checksum": current_checksum,
+                "after_checksum": result_checksum,
+                "lines_added": added_count,
+                "lines_removed": removed_count,
+                "diff_preview": patch_diff[:500],
+                "snapshot_path": None,
+                "message": "Dry-run patch simulation succeeded",
+            }
+
+        # Live execution: Take snapshot first
+        s_dir = snapshot_dir or (Path.home() / ".tacp" / "snapshots")
+        snap_file = s_dir / pid / target.name
+        try:
+            snap_file.parent.mkdir(parents=True, exist_ok=True)
+            snap_file.write_bytes(file_bytes)
+            with snap_file.open("ab") as f:
+                f.flush()
+                os.fsync(f.fileno())
+        except OSError as err:
+            raise TacpSecurityError(
+                ErrorCode.INTERNAL_ERROR,
+                f"Failed to create pre-patch snapshot: {err}",
+            ) from err
+
+        # Atomic replacement in same parent directory to avoid EXDEV
+        temp_file = target.parent / f".tacp_tmp_{uuid.uuid4().hex}"
+        try:
+            with temp_file.open("wb") as f:
+                f.write(resulting_bytes)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temp_file, target)
+        except Exception as err:
+            if temp_file.exists():
+                temp_file.unlink(missing_ok=True)
+            raise TacpSecurityError(
+                ErrorCode.MUTATION_FAILED,
+                f"Atomic patch write failed: {err}",
+            ) from err
+
+        # Post-write verification
+        try:
+            disk_bytes = target.read_bytes()
+            disk_checksum = hashlib.sha256(disk_bytes).hexdigest()
+            if disk_checksum != result_checksum:
+                # Emergency rollback
+                shutil.copy2(snap_file, target)
+                raise TacpSecurityError(
+                    ErrorCode.MUTATION_FAILED,
+                    "Post-write verification failed: checksum mismatch; rolled back to snapshot",
+                )
+        except OSError as err:
+            shutil.copy2(snap_file, target)
+            raise TacpSecurityError(
+                ErrorCode.MUTATION_FAILED,
+                f"Post-write verification read failed: {err}; rolled back to snapshot",
+            ) from err
+
+        return {
+            "patch_id": pid,
+            "status": PatchStatus.APPLIED,
+            "subpath": subpath,
+            "before_checksum": current_checksum,
+            "after_checksum": result_checksum,
+            "lines_added": added_count,
+            "lines_removed": removed_count,
+            "diff_preview": patch_diff[:500],
+            "snapshot_path": str(snap_file),
+            "message": "Patch applied successfully",
+        }
+
+    def rollback_patch(
+        self,
+        workspace_root: Path,
+        subpath: str,
+        snapshot_path: Path,
+        expected_current_checksum: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        target = self._resolve_in_jail(workspace_root, subpath)
+        if not snapshot_path.exists():
+            raise TacpNotFoundError(f"Snapshot file not found: {snapshot_path}")
+
+        if expected_current_checksum and target.exists():
+            curr_bytes = target.read_bytes()
+            curr_hash = hashlib.sha256(curr_bytes).hexdigest()
+            if curr_hash != expected_current_checksum:
+                raise TacpConflictError(
+                    f"Rollback conflict: file checksum ({curr_hash}) "
+                    f"does not match expected ({expected_current_checksum})"
+                )
+
+        snap_bytes = snapshot_path.read_bytes()
+        temp_file = target.parent / f".tacp_tmp_{uuid.uuid4().hex}"
+        try:
+            with temp_file.open("wb") as f:
+                f.write(snap_bytes)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temp_file, target)
+        except Exception as err:
+            if temp_file.exists():
+                temp_file.unlink(missing_ok=True)
+            raise TacpSecurityError(
+                ErrorCode.ROLLBACK_FAILED,
+                f"Rollback atomic restore failed: {err}",
+            ) from err
+
+        restored_hash = hashlib.sha256(snap_bytes).hexdigest()
+        return {
+            "status": PatchStatus.ROLLED_BACK,
+            "subpath": subpath,
+            "restored_checksum": restored_hash,
+            "message": "File successfully rolled back from snapshot",
         }
 
     # Compatibility aliases

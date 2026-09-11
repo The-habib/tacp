@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import time
 from typing import Any, Dict, List, Optional
 
@@ -10,12 +11,14 @@ from tacp.control.policy import PolicyEngine
 from tacp.core.audit_service import AuditService
 from tacp.core.capability_service import CapabilityService
 from tacp.core.filesystem_service import FilesystemService
+from tacp.core.patch_service import PatchService
 from tacp.core.process_service import ProcessService
 from tacp.core.system_service import SystemService
 from tacp.core.workspace_service import WorkspaceService
 from tacp.domain.audit import AuditEvent
 from tacp.domain.errors import (
     ErrorCode,
+    TacpApprovalRequiredError,
     TacpNotFoundError,
     TacpSecurityError,
     TacpValidationError,
@@ -35,6 +38,7 @@ class McpToolRegistry:
         filesystem_service: FilesystemService,
         process_service: ProcessService,
         system_service: SystemService,
+        patch_service: Optional[PatchService] = None,
     ) -> None:
         self.capability_service = capability_service
         self.policy_engine = policy_engine
@@ -43,11 +47,13 @@ class McpToolRegistry:
         self.filesystem_service = filesystem_service
         self.process_service = process_service
         self.system_service = system_service
+        self.patch_service = patch_service
 
     def list_tools(self) -> List[Dict[str, Any]]:
         """Return tool definitions formatted for MCP tools/list."""
         tools = []
-        for cap in self.capability_service.list_raw():
+        include_mutating = bool(self.patch_service and self.patch_service.config.mutation_enabled)
+        for cap in self.capability_service.list_raw(include_mutating=include_mutating):
             schema = cap.input_schema if cap.input_schema else {"type": "object", "properties": {}}
             tools.append(
                 {
@@ -59,11 +65,17 @@ class McpToolRegistry:
         return tools
 
     def normalize_tool_name(self, name: str) -> str:
-        """Allow both dot-notation (fs.read) and underscore-notation (fs_read)."""
-        valid_names = {c.name for c in self.capability_service.list_raw()}
+        """Allow dot-notation, underscore-notation, and tacp_ prefix."""
+        include_mutating = bool(self.patch_service and self.patch_service.config.mutation_enabled)
+        valid_names = {
+            c.name for c in self.capability_service.list_raw(include_mutating=include_mutating)
+        }
         if name in valid_names:
             return name
-        dot_name = name.replace("_", ".", 1)
+        clean_name = name[5:] if name.startswith("tacp_") else name
+        if clean_name in valid_names:
+            return clean_name
+        dot_name = clean_name.replace("_", ".", 1)
         if dot_name in valid_names:
             return dot_name
         return name
@@ -98,8 +110,22 @@ class McpToolRegistry:
             ws = self.workspace_service.get_workspace(workspace_id)
 
         # 4. Policy evaluation
+        target_path = args.get("subpath") if normalized_name == "workspace.patch" else None
+        dry_run = (
+            bool(args.get("dry_run", False)) if normalized_name == "workspace.patch" else False
+        )
+        has_approval = (
+            bool(args.get("approval_token")) if normalized_name == "workspace.patch" else False
+        )
+
         start_time = time.monotonic()
-        decision = self.policy_engine.evaluate_request(context, workspace=ws)
+        decision = self.policy_engine.evaluate_request(
+            context,
+            workspace=ws,
+            target_path=target_path,
+            dry_run=dry_run,
+            has_approval=has_approval,
+        )
         duration_ms = int((time.monotonic() - start_time) * 1000)
 
         if not decision.allowed:
@@ -107,7 +133,7 @@ class McpToolRegistry:
                 AuditEvent(
                     capability=cap.name,
                     action=cap.name,
-                    policy_decision="DENIED",
+                    policy_decision=decision.decision_type,
                     result="FAILED",
                     duration_ms=duration_ms,
                     principal=client_principal.id,
@@ -116,6 +142,26 @@ class McpToolRegistry:
                     parameters_redacted=redact_dict(args),
                 )
             )
+            if decision.decision_type == "REQUIRE_APPROVAL":
+                if self.patch_service and normalized_name == "workspace.patch":
+                    patch_content = args.get("patch_content", "")
+                    patch_hash = hashlib.sha256(patch_content.encode("utf-8")).hexdigest()
+                    ticket = self.patch_service.approval_engine.create_ticket(
+                        principal_id=client_principal.id,
+                        action_type="workspace.patch",
+                        workspace_id=workspace_id or "",
+                        target_path=args.get("subpath", ""),
+                        patch_hash=patch_hash,
+                        metadata={
+                            "request_id": context.request_id,
+                            "base_checksum": args.get("base_checksum", ""),
+                        },
+                    )
+                    raise TacpApprovalRequiredError(
+                        f"Execution of 'workspace.patch' requires explicit human approval. "
+                        f"Ticket created: {ticket.token} (id: {ticket.id})"
+                    )
+                raise TacpApprovalRequiredError(f"Action requires approval: {decision.reason}")
             raise TacpSecurityError(
                 ErrorCode.NOT_AUTHORIZED,
                 f"Access denied: {decision.reason}",
@@ -220,5 +266,31 @@ class McpToolRegistry:
             limit = args.get("limit", 20)
             events = self.audit_service.get_recent_events(limit=int(limit))
             return {"events": events}
+        elif name == "workspace.patch":
+            if not self.patch_service:
+                raise TacpSecurityError(
+                    ErrorCode.POLICY_DENIED,
+                    "Patch service is not configured or disabled",
+                )
+            ws_id = args.get("workspace_id")
+            subpath = args.get("subpath")
+            patch_content = args.get("patch_content")
+            base_checksum = args.get("base_checksum")
+            if not ws_id or not subpath or not patch_content or not base_checksum:
+                raise TacpValidationError(
+                    "Missing required parameters for workspace.patch: "
+                    "workspace_id, subpath, patch_content, base_checksum"
+                )
+            patch_res = self.patch_service.execute_patch(
+                workspace_id=ws_id,
+                subpath=subpath,
+                patch_content=patch_content,
+                base_checksum=base_checksum,
+                dry_run=bool(args.get("dry_run", False)),
+                approval_token=args.get("approval_token"),
+                principal_id=args.get("principal_id", "mcp-client"),
+                request_id=None,
+            )
+            return patch_res.to_dict()
         else:
             raise TacpNotFoundError(f"Unhandled tool: {name}")

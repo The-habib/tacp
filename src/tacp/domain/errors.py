@@ -12,6 +12,21 @@ class ErrorCode(str, Enum):
     PROVIDER_ERROR = "PROVIDER_ERROR"
     INTERNAL_ERROR = "INTERNAL_ERROR"
     UNAVAILABLE = "UNAVAILABLE"
+    # Phase 2 Governance & Mutation Error Codes
+    POLICY_DENIED = "POLICY_DENIED"
+    MUTATION_DISABLED = "MUTATION_DISABLED"
+    APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
+    APPROVAL_EXPIRED = "APPROVAL_EXPIRED"
+    APPROVAL_ALREADY_USED = "APPROVAL_ALREADY_USED"
+    CONFLICT = "CONFLICT"
+    UNSUPPORTED_FILE = "UNSUPPORTED_FILE"
+    PATCH_INVALID = "PATCH_INVALID"
+    CHECKPOINT_FAILED = "CHECKPOINT_FAILED"
+    MUTATION_FAILED = "MUTATION_FAILED"
+    ROLLBACK_FAILED = "ROLLBACK_FAILED"
+    LOCK_CONFLICT = "LOCK_CONFLICT"
+    LOCK_EXPIRED = "LOCK_EXPIRED"
+    LEASE_EXPIRED = "LEASE_EXPIRED"
 
 
 class TacpError(Exception):
@@ -51,3 +66,18 @@ class TacpNotFoundError(TacpError):
 class TacpValidationError(TacpError):
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(ErrorCode.INVALID_INPUT, message, details)
+
+
+class TacpConflictError(TacpError):
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        super().__init__(ErrorCode.CONFLICT, message, details)
+
+
+class TacpPolicyError(TacpSecurityError):
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        super().__init__(ErrorCode.POLICY_DENIED, message, details)
+
+
+class TacpApprovalRequiredError(TacpSecurityError):
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
+        super().__init__(ErrorCode.APPROVAL_REQUIRED, message, details)

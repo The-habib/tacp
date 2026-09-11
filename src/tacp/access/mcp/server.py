@@ -20,10 +20,13 @@ from tacp.access.mcp.protocol import (
     parse_message,
 )
 from tacp.access.mcp.tools import McpToolRegistry
+from tacp.control.approval import ApprovalEngine
 from tacp.control.policy import PolicyEngine
 from tacp.core.audit_service import AuditService
 from tacp.core.capability_service import CapabilityService
 from tacp.core.filesystem_service import FilesystemService
+from tacp.core.lock_service import LockService
+from tacp.core.patch_service import PatchService
 from tacp.core.process_service import ProcessService
 from tacp.core.system_service import SystemService
 from tacp.core.workspace_service import WorkspaceService
@@ -229,7 +232,10 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
     db.connect()
 
     audit_service = AuditService(db)
-    policy_engine = PolicyEngine(read_only_enforced=cfg.read_only)
+    policy_engine = PolicyEngine(
+        read_only_enforced=cfg.read_only,
+        mutation_enabled=cfg.mutation_enabled,
+    )
     workspace_service = WorkspaceService(db)
 
     # Ensure a default workspace exists
@@ -246,6 +252,19 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
 
     system_service = SystemService(db)
     capability_service = CapabilityService()
+    lock_service = LockService(db)
+    approval_engine = ApprovalEngine(db)
+
+    patch_service = PatchService(
+        db=db,
+        workspace_service=workspace_service,
+        policy_engine=policy_engine,
+        fs_provider=fs_provider,
+        audit_service=audit_service,
+        lock_service=lock_service,
+        approval_engine=approval_engine,
+        config=cfg,
+    )
 
     tool_registry = McpToolRegistry(
         capability_service=capability_service,
@@ -255,6 +274,7 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
         filesystem_service=filesystem_service,
         process_service=process_service,
         system_service=system_service,
+        patch_service=patch_service,
     )
 
     return McpServer(tool_registry=tool_registry, config=cfg)

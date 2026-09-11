@@ -120,21 +120,71 @@ READONLY_CAPABILITIES: List[Capability] = [
     ),
 ]
 
+MUTATING_CAPABILITIES: List[Capability] = [
+    Capability(
+        name="workspace.patch",
+        domain="workspace",
+        description=(
+            "Apply a governed unified diff patch to a text file within an authorized workspace"
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "workspace_id": {
+                    "type": "string",
+                    "description": "Target workspace identifier",
+                },
+                "subpath": {
+                    "type": "string",
+                    "description": "Relative path to target file within workspace",
+                },
+                "patch_content": {
+                    "type": "string",
+                    "description": "Unified diff patch content",
+                },
+                "base_checksum": {
+                    "type": "string",
+                    "description": "Expected SHA-256 hex checksum of target file before patch",
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "Simulate patch application without modifying disk",
+                },
+                "approval_token": {
+                    "type": "string",
+                    "description": "Approval token if live mutation requires human sign-off",
+                },
+            },
+            "required": ["workspace_id", "subpath", "patch_content", "base_checksum"],
+        },
+        output_schema={"type": "object"},
+    ),
+]
+
 
 class CapabilityService:
     @staticmethod
-    def list_capabilities() -> List[Dict[str, Any]]:
-        return [c.to_dict() for c in READONLY_CAPABILITIES]
+    def list_capabilities(include_mutating: bool = False) -> List[Dict[str, Any]]:
+        caps = list(READONLY_CAPABILITIES)
+        if include_mutating:
+            caps.extend(MUTATING_CAPABILITIES)
+        return [c.to_dict() for c in caps]
 
     @staticmethod
-    def list_raw() -> List[Capability]:
-        return list(READONLY_CAPABILITIES)
+    def list_raw(include_mutating: bool = False) -> List[Capability]:
+        caps = list(READONLY_CAPABILITIES)
+        if include_mutating:
+            caps.extend(MUTATING_CAPABILITIES)
+        return caps
 
     @staticmethod
     def get_capability(name: str) -> Capability:
         from tacp.domain.errors import TacpNotFoundError
 
         for c in READONLY_CAPABILITIES:
+            if c.name == name:
+                return c
+        for c in MUTATING_CAPABILITIES:
             if c.name == name:
                 return c
         raise TacpNotFoundError(f"Capability not found: {name}")
