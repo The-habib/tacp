@@ -174,6 +174,33 @@ MIGRATIONS: List[Tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_executions_contract_hash ON executions (contract_hash);
         """,
     ),
+    (
+        7,
+        """
+        CREATE TABLE IF NOT EXISTS leases (
+            id TEXT PRIMARY KEY,
+            lease_id TEXT NOT NULL UNIQUE,
+            principal_id TEXT NOT NULL,
+            workspace_id TEXT NOT NULL,
+            capabilities_json TEXT NOT NULL DEFAULT '[]',
+            resources_json TEXT NOT NULL DEFAULT '[]',
+            risk_ceiling TEXT NOT NULL DEFAULT 'R2',
+            budget INTEGER NOT NULL DEFAULT 1,
+            budget_remaining INTEGER NOT NULL DEFAULT 1,
+            issued_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            trust_profile TEXT NOT NULL DEFAULT 'BALANCED',
+            policy_version INTEGER NOT NULL DEFAULT 1,
+            session_id TEXT,
+            revoked INTEGER NOT NULL DEFAULT 0,
+            metadata_json TEXT NOT NULL DEFAULT '{}'
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_leases_lookup
+            ON leases (lease_id, principal_id, workspace_id);
+        CREATE INDEX IF NOT EXISTS idx_leases_expires ON leases (expires_at);
+        """,
+    ),
 ]
 
 

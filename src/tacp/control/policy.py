@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from tacp.control.identity import Authority, PrincipalType, RequestContext, TrustTier
 from tacp.domain.errors import (
@@ -60,6 +60,7 @@ class PolicyEngine:
         "process.list",
         "process.inspect",
         "audit.recent",
+        "audit.verify_integrity",
     }
 
     MUTATING_CAPABILITIES = {
@@ -94,12 +95,16 @@ class PolicyEngine:
         batch_mutation_enabled: bool = False,
         execution_enabled: bool = False,
         network_enabled: bool = False,
+        trust_profile: str = "BALANCED",
+        lease_engine: Optional[Any] = None,
     ) -> None:
         self.read_only_enforced = read_only_enforced
         self.mutation_enabled = mutation_enabled
         self.batch_mutation_enabled = batch_mutation_enabled
         self.execution_enabled = execution_enabled
         self.network_enabled = network_enabled
+        self.trust_profile = trust_profile.upper() if trust_profile else "BALANCED"
+        self.lease_engine = lease_engine
 
     def _check_target_path(self, target_path: str) -> Optional[PolicyDecision]:
         clean_target = target_path.replace("\\", "/")
@@ -138,6 +143,7 @@ class PolicyEngine:
         dry_run: bool = False,
         has_approval: bool = False,
         target_paths: Optional[list[str]] = None,
+        lease_id: Optional[str] = None,
     ) -> PolicyDecision:
         cap = context.capability
 
@@ -152,6 +158,71 @@ class PolicyEngine:
                 reason=f"Capability '{cap}' is not recognized or forbidden in TACP",
                 decision_type="DENY",
             )
+
+        # Invariant 1b: Trust Profile LOCKDOWN strictly forbids all mutation and execution
+        if self.trust_profile == "LOCKDOWN":
+            if cap in self.MUTATING_CAPABILITIES or cap in self.EXECUTION_CAPABILITIES:
+                return PolicyDecision(
+                    allowed=False,
+                    reason=(
+                        "Mutations and executions are strictly prohibited in LOCKDOWN trust profile"
+                    ),
+                    decision_type="DENY",
+                    risk_level="R0",
+                )
+
+        # Lease Evaluation Helper
+        has_lease = False
+        lease_rejection_reason: Optional[str] = None
+        if lease_id:
+            if not self.lease_engine:
+                lease_rejection_reason = "No lease engine configured"
+            elif self.trust_profile == "STRICT":
+                lease_rejection_reason = (
+                    "Trust profile STRICT requires per-operation human approval; "
+                    "capability leases are not accepted"
+                )
+            else:
+                lease = self.lease_engine.get_lease(lease_id)
+                if not lease:
+                    lease_rejection_reason = f"Capability lease '{lease_id}' not found"
+                elif lease.revoked:
+                    lease_rejection_reason = f"Capability lease '{lease_id}' is revoked"
+                elif not lease.is_active():
+                    lease_rejection_reason = (
+                        f"Capability lease '{lease_id}' is expired or budget exhausted"
+                    )
+                elif lease.principal_id != context.principal.id:
+                    lease_rejection_reason = (
+                        f"Lease principal mismatch: expected '{lease.principal_id}', "
+                        f"got '{context.principal.id}'"
+                    )
+                elif workspace is not None and lease.workspace_id != workspace.id:
+                    lease_rejection_reason = (
+                        f"Lease workspace mismatch: expected '{lease.workspace_id}', "
+                        f"got '{workspace.id}'"
+                    )
+                elif not lease.allows_capability(cap):
+                    lease_rejection_reason = (
+                        f"Capability '{cap}' is not permitted under lease '{lease_id}'"
+                    )
+                else:
+                    lease_targets: list[str] = []
+                    if target_path is not None:
+                        lease_targets.append(target_path)
+                    if target_paths is not None:
+                        lease_targets.extend(target_paths)
+                    if not all(lease.allows_resource(t) for t in lease_targets):
+                        lease_rejection_reason = f"Target resource outside lease '{lease_id}' scope"
+                    else:
+                        req_risk = "R3" if cap in self.EXECUTION_CAPABILITIES else "R2"
+                        if not lease.allows_risk(req_risk):
+                            lease_rejection_reason = (
+                                f"Risk level '{req_risk}' exceeds lease risk ceiling "
+                                f"'{lease.risk_ceiling}'"
+                            )
+                        else:
+                            has_lease = True
 
         # Invariant 2: Execution capability handling
         if cap in self.EXECUTION_CAPABILITIES:
@@ -185,6 +256,7 @@ class PolicyEngine:
                     reason=f"Authorized read-only execution query under {cap}",
                     decision_type="ALLOW",
                     requires_audit=True,
+                    risk_level="R0",
                 )
 
             if cap == "execution.cancel":
@@ -213,6 +285,7 @@ class PolicyEngine:
                         reason="Authorized dry-run evaluation under Execution Policy",
                         decision_type="ALLOW",
                         requires_audit=True,
+                        risk_level="R1",
                     )
 
                 if has_approval:
@@ -221,13 +294,25 @@ class PolicyEngine:
                         reason="Authorized execution request with valid approval",
                         decision_type="ALLOW",
                         requires_audit=True,
+                        risk_level="R3",
+                    )
+
+                if has_lease:
+                    return PolicyDecision(
+                        allowed=True,
+                        reason=f"Authorized execution request under capability lease '{lease_id}'",
+                        decision_type="ALLOW_WITH_LEASE",
+                        requires_audit=True,
+                        risk_level="R3",
                     )
 
                 return PolicyDecision(
                     allowed=False,
-                    reason="Execution of command requires explicit human approval",
+                    reason=lease_rejection_reason
+                    or "Execution of command requires explicit human approval",
                     decision_type="REQUIRE_APPROVAL",
                     requires_audit=True,
+                    risk_level="R3",
                 )
 
         # Invariant 3: Mutating capability handling
@@ -316,6 +401,7 @@ class PolicyEngine:
                     reason="Authorized dry-run evaluation under Workspace Policy",
                     decision_type="ALLOW",
                     requires_audit=True,
+                    risk_level="R1",
                 )
 
             if has_approval:
@@ -324,16 +410,42 @@ class PolicyEngine:
                     reason=f"Authorized mutating {cap} execution with valid approval",
                     decision_type="ALLOW",
                     requires_audit=True,
+                    risk_level="R2",
+                )
+
+            if has_lease:
+                return PolicyDecision(
+                    allowed=True,
+                    reason=(
+                        f"Authorized mutating {cap} execution under capability lease '{lease_id}'"
+                    ),
+                    decision_type="ALLOW_WITH_LEASE",
+                    requires_audit=True,
+                    risk_level="R2",
+                )
+
+            if self.trust_profile == "DEVELOPER" and cap in (
+                "workspace.patch",
+                "workspace.patch_batch",
+            ):
+                return PolicyDecision(
+                    allowed=True,
+                    reason=f"Authorized mutating {cap} execution under DEVELOPER trust profile",
+                    decision_type="ALLOW",
+                    requires_audit=True,
+                    risk_level="R2",
                 )
 
             return PolicyDecision(
                 allowed=False,
-                reason=f"Execution of '{cap}' requires explicit human approval",
+                reason=lease_rejection_reason
+                or f"Execution of '{cap}' requires explicit human approval",
                 decision_type="REQUIRE_APPROVAL",
                 requires_audit=True,
+                risk_level="R2",
             )
 
-        # Invariant 3: Workspace status check for read-only workspace operations
+        # Invariant 4: Workspace status check for read-only workspace operations
         if workspace is not None:
             if workspace.status != "ACTIVE":
                 return PolicyDecision(
@@ -344,9 +456,10 @@ class PolicyEngine:
 
         return PolicyDecision(
             allowed=True,
-            reason="Authorized under TACP 0.1 read-only baseline policy",
+            reason="Authorized under TACP read-only baseline policy",
             decision_type="ALLOW",
             requires_audit=True,
+            risk_level="R0",
         )
 
     def enforce(
@@ -357,6 +470,7 @@ class PolicyEngine:
         dry_run: bool = False,
         has_approval: bool = False,
         target_paths: Optional[list[str]] = None,
+        lease_id: Optional[str] = None,
     ) -> None:
         decision = self.evaluate_request(
             context,
@@ -365,6 +479,7 @@ class PolicyEngine:
             dry_run=dry_run,
             has_approval=has_approval,
             target_paths=target_paths,
+            lease_id=lease_id,
         )
         if not decision.allowed:
             if decision.decision_type == "REQUIRE_APPROVAL":

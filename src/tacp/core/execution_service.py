@@ -53,6 +53,7 @@ class ExecutionService:
         workspace_service: WorkspaceService,
         resolver: Optional[ExecutionResolver] = None,
         executor: Optional[ProcessExecutor] = None,
+        lease_engine: Optional[Any] = None,
     ) -> None:
         self.db = db
         self.config = config
@@ -62,6 +63,7 @@ class ExecutionService:
         self.workspace_service = workspace_service
         self.resolver = resolver or ExecutionResolver(limits=config.limits)
         self.executor = executor or ProcessExecutor()
+        self.lease_engine = lease_engine
 
     def execute_command(
         self,
@@ -76,6 +78,7 @@ class ExecutionService:
         principal_id: str = "local_agent",
         request_id: Optional[str] = None,
         principal: Optional[Principal] = None,
+        lease_id: Optional[str] = None,
     ) -> ExecutionResult:
         """Execute a command through the full 16-stage pipeline."""
         start_perf = time.perf_counter()
@@ -163,8 +166,10 @@ class ExecutionService:
         decision = self.policy_engine.evaluate_request(
             context=context,
             workspace=workspace,
+            target_path=resolved_bin,
             dry_run=dry_run,
             has_approval=bool(approval_token),
+            lease_id=lease_id,
         )
 
         # Stage 11a: Dry-Run Handling
@@ -260,8 +265,17 @@ class ExecutionService:
                 f"Execution denied by policy: {decision.reason}",
             )
 
-        # Stage 12: Approval Token Single-Use Consumption
-        if approval_token:
+        # Stage 12: Approval Token / Lease Single-Use Consumption
+        if lease_id and self.lease_engine:
+            self.lease_engine.verify_and_consume(
+                lease_id=lease_id,
+                principal_id=caller_principal.id,
+                capability="execution.request",
+                workspace_id=workspace_id,
+                risk_level="R3",
+                target_path=resolved_bin,
+            )
+        elif approval_token:
             self.approval_engine.verify_and_consume(
                 token=approval_token,
                 principal_id=caller_principal.id,

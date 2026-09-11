@@ -17,6 +17,24 @@ class RiskLevel(str, Enum):
     CRITICAL = "CRITICAL"
 
 
+class TrustProfile(str, Enum):
+    """User-configurable trust profiles governing approval frequency and lease usage."""
+
+    STRICT = "STRICT"
+    BALANCED = "BALANCED"
+    DEVELOPER = "DEVELOPER"
+    LOCKDOWN = "LOCKDOWN"
+
+
+class PolicyOutcome(str, Enum):
+    """Four formal policy outcomes under Risk-Adaptive Governance."""
+
+    ALLOW = "ALLOW"
+    ALLOW_WITH_LEASE = "ALLOW_WITH_LEASE"
+    REQUIRE_APPROVAL = "REQUIRE_APPROVAL"
+    DENY = "DENY"
+
+
 class RiskEvaluator:
     @staticmethod
     def evaluate(
@@ -24,10 +42,42 @@ class RiskEvaluator:
         is_read_only: bool = True,
         dry_run: bool = False,
     ) -> RiskLevel:
-        if capability == "workspace.patch":
-            return RiskLevel.R1 if dry_run else RiskLevel.R2
+        if dry_run:
+            return RiskLevel.R1
+
+        if capability in ("workspace.patch", "workspace.patch_batch"):
+            return RiskLevel.R2
+
+        if capability == "execution.request":
+            return RiskLevel.R3
+
+        if capability in ("emergency_stop", "policy.reconfigure"):
+            return RiskLevel.R5
+
+        if capability in (
+            "system.inspect",
+            "system.health",
+            "system.version",
+            "capabilities.list",
+            "workspace.list",
+            "workspace.inspect",
+            "fs.list",
+            "fs.stat",
+            "fs.read",
+            "fs.search",
+            "process.list",
+            "process.inspect",
+            "audit.recent",
+            "audit.verify_integrity",
+            "execution.list",
+            "execution.inspect",
+        ):
+            return RiskLevel.R0
+
         if not is_read_only:
             return RiskLevel.CRITICAL
+
         if capability in ["fs.read", "process.inspect"]:
             return RiskLevel.MEDIUM
+
         return RiskLevel.LOW

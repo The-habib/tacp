@@ -1,7 +1,7 @@
 import json
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from tacp.domain.errors import TacpNotFoundError, TacpValidationError
 from tacp.domain.workspace import Workspace
@@ -11,6 +11,13 @@ from tacp.infrastructure.database import Database
 class WorkspaceService:
     def __init__(self, db: Database) -> None:
         self.db = db
+        self._cache: Dict[str, Workspace] = {}
+        self._last_changes: Optional[int] = None
+
+    def invalidate_cache(self) -> None:
+        """Clear the in-memory workspace cache."""
+        self._cache.clear()
+        self._last_changes = None
 
     def register_workspace(
         self,
@@ -51,6 +58,9 @@ class WorkspaceService:
             ),
         )
         conn.commit()
+        self._last_changes = getattr(conn, "total_changes", None)
+        self._cache[ws.id] = ws
+        self._cache[ws.name] = ws
         return ws
 
     def list_workspaces(self) -> List[Dict[str, Any]]:
@@ -76,6 +86,14 @@ class WorkspaceService:
 
     def get_workspace(self, workspace_id: str) -> Workspace:
         conn = self.db.connect()
+        changes = getattr(conn, "total_changes", None)
+        if self._last_changes is not None and changes is not None and changes != self._last_changes:
+            self._cache.clear()
+        self._last_changes = changes
+
+        if workspace_id in self._cache:
+            return self._cache[workspace_id]
+
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -88,7 +106,7 @@ class WorkspaceService:
         if not row:
             raise TacpNotFoundError(f"Workspace not found: {workspace_id}")
 
-        return Workspace(
+        ws = Workspace(
             id=row["id"],
             name=row["name"],
             root_path=Path(row["root_path"]),
@@ -97,6 +115,9 @@ class WorkspaceService:
             created_at=row["created_at"],
             metadata=json.loads(row["metadata_json"]),
         )
+        self._cache[ws.id] = ws
+        self._cache[ws.name] = ws
+        return ws
 
     def inspect_workspace(self, workspace_id: str) -> Dict[str, Any]:
         ws = self.get_workspace(workspace_id)

@@ -44,6 +44,7 @@ class PatchService:
         lock_service: LockService,
         approval_engine: ApprovalEngine,
         config: TacpConfig,
+        lease_engine: Optional[Any] = None,
     ) -> None:
         self.db = db
         self.workspace_service = workspace_service
@@ -53,6 +54,7 @@ class PatchService:
         self.lock_service = lock_service
         self.approval_engine = approval_engine
         self.config = config
+        self.lease_engine = lease_engine
 
     def execute_patch(
         self,
@@ -65,6 +67,7 @@ class PatchService:
         principal_id: str = "agent",
         request_id: Optional[str] = None,
         principal: Optional[Principal] = None,
+        lease_id: Optional[str] = None,
     ) -> PatchResult:
         start_time = time.perf_counter()
         req_id = request_id or str(uuid.uuid4())
@@ -105,6 +108,7 @@ class PatchService:
             target_path=clean_subpath,
             dry_run=dry_run,
             has_approval=bool(approval_token),
+            lease_id=lease_id,
         )
 
         if not decision.allowed:
@@ -155,7 +159,28 @@ class PatchService:
             # Stage 11: Approval Verification & Single-Use Consumption
             patch_hash = hashlib.sha256(patch_content.encode("utf-8")).hexdigest()
             if not dry_run:
-                if not approval_token:
+                if self.config.trust_profile == "DEVELOPER":
+                    pass
+                elif lease_id and self.lease_engine:
+                    self.lease_engine.verify_and_consume(
+                        lease_id=lease_id,
+                        principal_id=principal_id,
+                        capability="workspace.patch",
+                        workspace_id=workspace_id,
+                        risk_level=risk.value,
+                        target_path=clean_subpath,
+                    )
+                elif approval_token:
+                    self.approval_engine.verify_and_consume(
+                        token=approval_token,
+                        principal_id=principal_id,
+                        action_type="workspace.patch",
+                        workspace_id=workspace_id,
+                        target_path=clean_subpath,
+                        patch_hash=patch_hash,
+                        base_checksum=base_checksum,
+                    )
+                else:
                     ticket = self.approval_engine.create_ticket(
                         principal_id=principal_id,
                         action_type="workspace.patch",
@@ -167,16 +192,6 @@ class PatchService:
                         f"Execution of 'workspace.patch' requires explicit human approval. "
                         f"Ticket created: {ticket.token} (id: {ticket.id})"
                     )
-
-                self.approval_engine.verify_and_consume(
-                    token=approval_token,
-                    principal_id=principal_id,
-                    action_type="workspace.patch",
-                    workspace_id=workspace_id,
-                    target_path=clean_subpath,
-                    patch_hash=patch_hash,
-                    base_checksum=base_checksum,
-                )
 
             # Stage 12: Execution Contract Issuance
             contract_id = f"contract-{uuid.uuid4().hex[:8]}"
@@ -482,6 +497,7 @@ class PatchService:
         principal_id: str = "agent",
         request_id: Optional[str] = None,
         principal: Optional[Principal] = None,
+        lease_id: Optional[str] = None,
     ) -> BatchPatchResult:
         start_time = time.perf_counter()
         req_id = request_id or str(uuid.uuid4())
@@ -496,7 +512,7 @@ class PatchService:
         ws = self.workspace_service.get_workspace(workspace_id)
 
         # Stage 6: Validation
-        if not isinstance(patches, list) or len(patches) == 0:
+        if not patches:
             raise TacpValidationError("Patches parameter must be a non-empty list")
 
         if len(patches) > self.config.limits.max_batch_files:
@@ -564,6 +580,7 @@ class PatchService:
             target_paths=subpaths,
             dry_run=dry_run,
             has_approval=bool(approval_token),
+            lease_id=lease_id,
         )
 
         if not decision.allowed:
@@ -622,7 +639,27 @@ class PatchService:
 
             # Stage 11: Approval Verification & Single-Use Consumption
             if not dry_run:
-                if not approval_token:
+                if self.config.trust_profile == "DEVELOPER":
+                    pass
+                elif lease_id and self.lease_engine:
+                    self.lease_engine.verify_and_consume(
+                        lease_id=lease_id,
+                        principal_id=principal_id,
+                        capability="workspace.patch_batch",
+                        workspace_id=workspace_id,
+                        risk_level=risk.value,
+                        target_path="*",
+                    )
+                elif approval_token:
+                    self.approval_engine.verify_and_consume(
+                        token=approval_token,
+                        principal_id=principal_id,
+                        action_type="workspace.patch_batch",
+                        workspace_id=workspace_id,
+                        target_path="*",
+                        patch_hash=batch_hash,
+                    )
+                else:
                     ticket = self.approval_engine.create_ticket(
                         principal_id=principal_id,
                         action_type="workspace.patch_batch",
@@ -639,15 +676,6 @@ class PatchService:
                         f"Execution of 'workspace.patch_batch' requires explicit human approval. "
                         f"Ticket created: {ticket.token} (id: {ticket.id})"
                     )
-
-                self.approval_engine.verify_and_consume(
-                    token=approval_token,
-                    principal_id=principal_id,
-                    action_type="workspace.patch_batch",
-                    workspace_id=workspace_id,
-                    target_path="*",
-                    patch_hash=batch_hash,
-                )
 
             # Stage 12: Execution Contract Issuance
             contract_id = f"contract-{uuid.uuid4().hex[:8]}"

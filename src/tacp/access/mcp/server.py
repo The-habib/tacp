@@ -22,6 +22,7 @@ from tacp.access.mcp.protocol import (
 )
 from tacp.access.mcp.tools import McpToolRegistry
 from tacp.control.approval import ApprovalEngine
+from tacp.control.lease import LeaseEngine
 from tacp.control.policy import PolicyEngine
 from tacp.core.audit_service import AuditService
 from tacp.core.capability_service import CapabilityService
@@ -264,12 +265,15 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
     db.connect()
 
     audit_service = AuditService(db)
+    lease_engine = LeaseEngine(db)
     policy_engine = PolicyEngine(
         read_only_enforced=cfg.read_only,
         mutation_enabled=cfg.mutation_enabled,
         batch_mutation_enabled=cfg.batch_mutation_enabled,
         execution_enabled=cfg.execution_enabled,
         network_enabled=cfg.network_enabled,
+        trust_profile=cfg.trust_profile,
+        lease_engine=lease_engine,
     )
     workspace_service = WorkspaceService(db)
 
@@ -299,6 +303,7 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
         lock_service=lock_service,
         approval_engine=approval_engine,
         config=cfg,
+        lease_engine=lease_engine,
     )
 
     exec_service = ExecutionService(
@@ -308,6 +313,7 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
         approval_engine=approval_engine,
         audit_service=audit_service,
         workspace_service=workspace_service,
+        lease_engine=lease_engine,
     )
 
     tool_registry = McpToolRegistry(
@@ -320,6 +326,7 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
         system_service=system_service,
         patch_service=patch_service,
         execution_service=exec_service,
+        lease_engine=lease_engine,
     )
 
     return McpServer(tool_registry=tool_registry, config=cfg)

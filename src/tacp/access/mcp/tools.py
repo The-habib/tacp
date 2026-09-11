@@ -40,6 +40,7 @@ class McpToolRegistry:
         system_service: SystemService,
         patch_service: Optional[PatchService] = None,
         execution_service: Optional[ExecutionService] = None,
+        lease_engine: Optional[Any] = None,
     ) -> None:
         self.capability_service = capability_service
         self.policy_engine = policy_engine
@@ -50,19 +51,28 @@ class McpToolRegistry:
         self.system_service = system_service
         self.patch_service = patch_service
         self.execution_service = execution_service
+        self.lease_engine = lease_engine
 
     def list_tools(self) -> List[Dict[str, Any]]:
         """Return tool definitions formatted for MCP tools/list."""
         tools = []
-        include_mutating = bool(self.patch_service and self.patch_service.config.mutation_enabled)
-        include_batch = bool(
-            include_mutating
-            and self.patch_service
-            and self.patch_service.config.batch_mutation_enabled
-        )
-        include_execution = bool(
-            self.execution_service and self.execution_service.config.execution_enabled
-        )
+        profile = getattr(self.policy_engine, "trust_profile", "BALANCED")
+        if profile == "LOCKDOWN":
+            include_mutating = False
+            include_batch = False
+            include_execution = False
+        else:
+            include_mutating = bool(
+                self.patch_service and self.patch_service.config.mutation_enabled
+            )
+            include_batch = bool(
+                include_mutating
+                and self.patch_service
+                and self.patch_service.config.batch_mutation_enabled
+            )
+            include_execution = bool(
+                self.execution_service and self.execution_service.config.execution_enabled
+            )
         for cap in self.capability_service.list_raw(
             include_mutating=include_mutating,
             include_batch=include_batch,
@@ -131,12 +141,14 @@ class McpToolRegistry:
 
         # 3. For mutating and execution capabilities, dispatch directly
         # to services (unified pipeline)
+        lease_id = args.get("lease_id")
         if normalized_name in ("workspace.patch", "workspace.patch_batch", "execution.request"):
             return self._dispatch(
                 cap.name,
                 args,
                 principal=client_principal,
                 request_id=context.request_id,
+                lease_id=lease_id,
             )
 
         # 4. Workspace resolution for read-only capabilities if specified
@@ -217,6 +229,7 @@ class McpToolRegistry:
         args: Dict[str, Any],
         principal: Optional[Principal] = None,
         request_id: Optional[str] = None,
+        lease_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Route tool execution to the appropriate service."""
         if name == "system.inspect":
@@ -294,6 +307,9 @@ class McpToolRegistry:
             limit = args.get("limit", 20)
             events = self.audit_service.get_recent_events(limit=int(limit))
             return {"events": events}
+        elif name == "audit.verify_integrity":
+            is_valid = self.audit_service.verify_integrity()
+            return {"valid": is_valid}
         elif name == "workspace.patch":
             if not self.patch_service:
                 raise TacpSecurityError(
@@ -319,6 +335,7 @@ class McpToolRegistry:
                 principal_id=(principal.id if principal else "mcp-client"),
                 request_id=request_id,
                 principal=principal,
+                lease_id=lease_id,
             )
             return patch_res.to_dict()
         elif name == "workspace.patch_batch":
@@ -343,6 +360,7 @@ class McpToolRegistry:
                 principal_id=(principal.id if principal else "mcp-client"),
                 request_id=request_id,
                 principal=principal,
+                lease_id=lease_id,
             )
             return batch_res.to_dict()
         elif name == "execution.request":
@@ -374,6 +392,7 @@ class McpToolRegistry:
                 principal_id=(principal.id if principal else "mcp-client"),
                 request_id=request_id,
                 principal=principal,
+                lease_id=lease_id,
             )
             return exec_res.to_dict()
 

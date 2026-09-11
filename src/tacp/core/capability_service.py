@@ -154,6 +154,13 @@ MUTATING_CAPABILITIES: List[Capability] = [
                     "type": "string",
                     "description": "Approval token if live mutation requires human sign-off",
                 },
+                "lease_id": {
+                    "type": "string",
+                    "description": (
+                        "Optional capability lease identifier for pre-authorized mutation "
+                        "under BALANCED profile"
+                    ),
+                },
             },
             "required": ["workspace_id", "subpath", "patch_content", "base_checksum"],
         },
@@ -192,6 +199,13 @@ MUTATING_CAPABILITIES: List[Capability] = [
                 "approval_token": {
                     "type": "string",
                     "description": "Approval token if live mutation requires human sign-off",
+                },
+                "lease_id": {
+                    "type": "string",
+                    "description": (
+                        "Optional capability lease identifier for pre-authorized batch "
+                        "mutation under BALANCED profile"
+                    ),
                 },
             },
             "required": ["workspace_id", "patches"],
@@ -245,9 +259,27 @@ EXECUTION_CAPABILITIES: List[Capability] = [
                     "type": "string",
                     "description": "Approval token required for non-dry-run execution",
                 },
+                "lease_id": {
+                    "type": "string",
+                    "description": (
+                        "Optional capability lease identifier for pre-authorized execution "
+                        "under BALANCED profile"
+                    ),
+                },
             },
             "required": ["workspace_id", "executable", "argv"],
         },
+        output_schema={"type": "object"},
+    ),
+]
+
+ADMIN_CAPABILITIES: List[Capability] = [
+    Capability(
+        name="audit.verify_integrity",
+        domain="audit",
+        description=(
+            "Verify the cryptographic hash chain and structural integrity of all audit records"
+        ),
         output_schema={"type": "object"},
     ),
 ]
@@ -259,6 +291,7 @@ class CapabilityService:
         include_mutating: bool = False,
         include_batch: bool = False,
         include_execution: bool = False,
+        include_admin: bool = False,
     ) -> List[Dict[str, Any]]:
         caps = list(READONLY_CAPABILITIES)
         if include_mutating:
@@ -267,6 +300,8 @@ class CapabilityService:
                 caps.append(MUTATING_CAPABILITIES[1])  # workspace.patch_batch
         if include_execution:
             caps.extend(EXECUTION_CAPABILITIES)
+        if include_admin:
+            caps.extend(ADMIN_CAPABILITIES)
         return [c.to_dict() for c in caps]
 
     @staticmethod
@@ -274,6 +309,7 @@ class CapabilityService:
         include_mutating: bool = False,
         include_batch: bool = False,
         include_execution: bool = False,
+        include_admin: bool = False,
     ) -> List[Capability]:
         caps = list(READONLY_CAPABILITIES)
         if include_mutating:
@@ -282,6 +318,8 @@ class CapabilityService:
                 caps.append(MUTATING_CAPABILITIES[1])
         if include_execution:
             caps.extend(EXECUTION_CAPABILITIES)
+        if include_admin:
+            caps.extend(ADMIN_CAPABILITIES)
         return caps
 
     @staticmethod
@@ -295,6 +333,9 @@ class CapabilityService:
             if c.name == name:
                 return c
         for c in EXECUTION_CAPABILITIES:
+            if c.name == name:
+                return c
+        for c in ADMIN_CAPABILITIES:
             if c.name == name:
                 return c
         raise TacpNotFoundError(f"Capability not found: {name}")

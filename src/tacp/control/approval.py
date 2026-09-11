@@ -406,9 +406,7 @@ class ApprovalEngine:
             )
 
         clean_target = target_path.strip().lstrip("./")
-        if ticket.target_path != clean_target and not (
-            ticket.action_type == "workspace.patch_batch" and ticket.target_path == "*"
-        ):
+        if ticket.target_path != clean_target and ticket.target_path != "*":
             raise TacpSecurityError(
                 ErrorCode.NOT_AUTHORIZED,
                 f"Approval target path mismatch: expected '{ticket.target_path}', "
@@ -462,3 +460,44 @@ class ApprovalEngine:
             )
 
         return True
+
+    def create_group_ticket(
+        self,
+        principal_id: str,
+        action_type: str,
+        workspace_id: str,
+        plan_hash: str,
+        ttl_seconds: int = 900,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> ApprovalTicket:
+        """Issue a grouped approval ticket bound to an entire verified operation plan."""
+        meta = dict(metadata or {})
+        meta["is_group"] = True
+        meta["plan_hash"] = plan_hash
+        return self.create_ticket(
+            principal_id=principal_id,
+            action_type=action_type,
+            workspace_id=workspace_id,
+            target_path="*",
+            patch_hash=plan_hash,
+            ttl_seconds=ttl_seconds,
+            metadata=meta,
+        )
+
+    def verify_and_consume_group(
+        self,
+        token: str,
+        principal_id: str,
+        action_type: str,
+        workspace_id: str,
+        plan_hash: str,
+    ) -> bool:
+        """Verify and atomically consume a grouped approval ticket."""
+        return self.verify_and_consume(
+            token=token,
+            principal_id=principal_id,
+            action_type=action_type,
+            workspace_id=workspace_id,
+            target_path="*",
+            patch_hash=plan_hash,
+        )

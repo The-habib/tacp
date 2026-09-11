@@ -15,8 +15,10 @@ from tacp.control.identity import (
     RequestContext,
     TrustTier,
 )
+from tacp.control.lease import LeaseEngine
 from tacp.control.policy import PolicyDecision, PolicyEngine
-from tacp.control.risk import RiskEvaluator, RiskLevel
+from tacp.control.risk import PolicyOutcome, RiskEvaluator, RiskLevel, TrustProfile
+from tacp.domain.lease import CapabilityLease
 
 __all__ = [
     "Principal",
@@ -28,8 +30,12 @@ __all__ = [
     "PolicyEngine",
     "RiskLevel",
     "RiskEvaluator",
+    "TrustProfile",
+    "PolicyOutcome",
     "ApprovalEngine",
     "ApprovalTicket",
+    "LeaseEngine",
+    "CapabilityLease",
     "STATUS_PENDING",
     "STATUS_APPROVED",
     "STATUS_DENIED",

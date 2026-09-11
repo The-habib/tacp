@@ -48,6 +48,12 @@ class AuditService:
 
     def __init__(self, db: Database) -> None:
         self.db = db
+        self._latest_entry_hash: Optional[str] = None
+
+    def invalidate_hash_cache(self) -> None:
+        """Invalidate the cached latest audit entry hash."""
+        with self._lock:
+            self._latest_entry_hash = None
 
     def record_event(self, event: AuditEvent) -> str:
         """Record an audit event and link it into the tamper-evident hash chain."""
@@ -58,10 +64,13 @@ class AuditService:
             conn = self.db.connect()
             conn.execute("BEGIN IMMEDIATE;")
             try:
-                cursor = conn.cursor()
-                cursor.execute("SELECT entry_hash FROM audit_logs ORDER BY rowid DESC LIMIT 1;")
-                row = cursor.fetchone()
-                prev_hash = row["entry_hash"] if row and row["entry_hash"] else GENESIS_HASH
+                if self._latest_entry_hash is None:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT entry_hash FROM audit_logs ORDER BY rowid DESC LIMIT 1;")
+                    row = cursor.fetchone()
+                    prev_hash = row["entry_hash"] if row and row["entry_hash"] else GENESIS_HASH
+                else:
+                    prev_hash = self._latest_entry_hash
 
                 entry_hash = compute_audit_entry_hash(
                     prev_hash=prev_hash,
@@ -103,8 +112,10 @@ class AuditService:
                     ),
                 )
                 conn.commit()
+                self._latest_entry_hash = entry_hash
             except Exception:
                 conn.rollback()
+                self._latest_entry_hash = None
                 raise
         return entry_hash
 

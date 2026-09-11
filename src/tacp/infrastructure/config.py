@@ -43,6 +43,11 @@ class TacpConfig:
     execution_enabled: bool = False
     network_enabled: bool = False
     remote_execution_enabled: bool = False
+    trust_profile: str = field(
+        default_factory=lambda: os.environ.get("TACP_TRUST_PROFILE", "BALANCED").upper()
+    )
+    lease_default_duration_seconds: int = 1200
+    lease_max_duration_seconds: int = 3600
     limits: OutputLimits = field(default_factory=OutputLimits)
     allowed_workspace_roots: List[Path] = field(default_factory=list)
 

@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0-rc.1] - 2026-09-11
+
+### Phase 6: Local-First Performance, Risk-Adaptive Governance & Trust Profiles
+
+#### Risk-Adaptive Governance & Trust Profiles
+- **Risk Ladder ($R_0 \to R_5$)**: Integrated risk categorization (`READ_ONLY`, `MUTATION_REVERSIBLE`, `MUTATION_SIGNIFICANT`, `EXECUTION_CONTROLLED`, `ADMIN_INSPECT`, `SYSTEM_BOUNDARY`) into `RiskEvaluator` and `PolicyEngine`.
+- **Trust Profiles**: Introduced `LOCKDOWN`, `STRICT`, `BALANCED` (default), and `DEVELOPER` profiles to allow operators to tailor friction and paranoia levels without modifying code.
+- **Dynamic Tool Exposure**: In `LOCKDOWN` mode, mutating and executing tools are stripped from discovery, presenting a read-only surface to clients.
+- **Negative Invariant Preserved**: Even in `DEVELOPER` profile, process execution (`execution.request`) strictly requires human approval or an explicit capability lease—the agent is never sovereign.
+
+#### Bounded Capability Leases (Migration 7)
+- **Delegated Authority (`CapabilityLease`)**: Time-bounded, budget-limited, and scope-restricted capability leases stored in the new `leases` table with atomic conditional SQLite decrements.
+- **Multi-Dimensional Scoping**: Validates principal ID, workspace ID, allowed capability whitelist, resource glob patterns, risk ceilings, and UTC expiration.
+- **Instant Revocation**: Supports individual and workspace-wide lease revocation with immediate flight invalidation.
+
+#### Plan-First UX & Grouped Approvals
+- **Dry-Run Simulation**: Enables agents to generate simulated diffs and execution plans (`dry_run=True`) for human review.
+- **Grouped Approval Tickets**: Added `create_group_ticket` and `verify_and_consume_group` to approve multi-step workflows under a single atomic plan hash.
+
+#### Local-First Performance Optimization
+- **In-Memory Caching**: Added thread-safe in-memory caching to `WorkspaceService` with zero staleness risk via `conn.total_changes` detection.
+- **Audit Hash Cache**: Tracked latest audit entry hash in-memory in `AuditService` to eliminate preflight SQL queries.
+- **Sub-15ms Latency**: Achieved ~1.2ms warm read preflights on Termux `aarch64`.
+
+#### Administrative Capabilities
+- **`audit.verify_integrity`**: Exposed cryptographic audit chain verification as an administrative capability for continuous verification.
+
+---
+
 ## [0.4.0-rc.1] - 2026-09-11
 
 ### Phase 4: Controlled Command Execution (Execution Boundary Architecture & First Vertical Slice)
