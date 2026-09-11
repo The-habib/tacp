@@ -92,7 +92,7 @@ fi
 # Stage 5: Unit tests (pytest)
 if [[ -z "$FAILED_STAGE" ]]; then
   echo ">>> [Stage 5/7] Unit Tests (pytest)..."
-  if "$VENV_BIN/pytest" tests/unit -v --cov=src --cov-report=term-missing; then
+  if "$VENV_BIN/pytest" tests/unit tests/integration tests/device -v --cov=src --cov-report=term-missing; then
     record_stage "unit_tests" "PASS"
   else
     record_stage "unit_tests" "FAIL"

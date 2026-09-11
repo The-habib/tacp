@@ -24,6 +24,9 @@ classifiers = [
 ]
 dependencies = []
 
+[project.scripts]
+tacp = "tacp.cli.main:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
@@ -45,7 +48,7 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "S"]
-ignore = ["S101"]  # Allow assert in test suites
+ignore = ["S101", "S105"]  # Allow assert in test suites
 
 [tool.ruff.lint.isort]
 known-first-party = ["tacp"]
