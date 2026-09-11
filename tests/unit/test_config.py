@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
+from tacp import __version__
 from tacp.infrastructure.config import OutputLimits, TacpConfig
 
 
@@ -16,7 +17,7 @@ def test_default_config_creation() -> None:
     assert config.log_level == "INFO"
     assert isinstance(config.data_dir, Path)
     assert isinstance(config.db_path, Path)
-    assert config.version == "0.1.0-rc.1"
+    assert config.version == __version__
 
 
 def test_config_immutability_frozen() -> None:

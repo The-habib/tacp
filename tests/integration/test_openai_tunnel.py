@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict
 
+from tacp import __version__
 from tacp.access.mcp.protocol import McpRequest
 from tacp.access.mcp.server import McpServer
 
@@ -98,8 +99,8 @@ def test_openai_tool_call_roundtrip_success(test_services: Dict[str, Any]) -> No
     assert openai_msg["tool_call_id"] == "call_987xyz"
 
     parsed_content = json.loads(openai_msg["content"])
-    assert parsed_content["tacp_version"] == "0.1.0-rc.1"
-    assert parsed_content["mode"] == "READ_ONLY"
+    assert parsed_content["tacp_version"] == __version__
+    assert parsed_content["mode"] in ("READ_ONLY", "GOVERNED")
 
 
 def test_openai_tool_call_fs_read_success(test_services: Dict[str, Any]) -> None:

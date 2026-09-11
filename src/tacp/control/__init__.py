@@ -8,12 +8,21 @@ from tacp.control.approval import (
     ApprovalEngine,
     ApprovalTicket,
 )
-from tacp.control.identity import Principal, RequestContext
+from tacp.control.identity import (
+    CredentialSource,
+    Principal,
+    PrincipalType,
+    RequestContext,
+    TrustTier,
+)
 from tacp.control.policy import PolicyDecision, PolicyEngine
 from tacp.control.risk import RiskEvaluator, RiskLevel
 
 __all__ = [
     "Principal",
+    "PrincipalType",
+    "TrustTier",
+    "CredentialSource",
     "RequestContext",
     "PolicyDecision",
     "PolicyEngine",

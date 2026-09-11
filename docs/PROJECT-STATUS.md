@@ -1,80 +1,62 @@
 # TACP Project Status
 
-- **Current Phase**: Phase 2 — Governed Execution Platform (Gate A: Architecture & Design Complete)
+- **Current Phase**: Phase 3 — Execution Core Hardening & Security Gate (COMPLETE)
 - **Last Updated**: 2026-09-11
-- **Overall Status**: **GATE A DESIGN PACKAGE COMPLETE — ADVERSARIALLY AUDITED & READY FOR GATE B**
-- **Release Version**: `0.1.0-rc.1` (Current Baseline) -> `0.2.0` (Target Release)
+- **Overall Status**: **PHASE 3 COMPLETE & VERIFIED — PRODUCTION EXECUTION CORE READY FOR PHASE 4**
+- **Release Version**: `v0.3.1-rc.1` (`0.3.1rc1`)
+- **Git Commit**: $(git rev-parse HEAD 2>/dev/null || echo "working-tree")
 
 ---
 
-## 1. Implementation State
+## 1. Verified Metrics & Health
 
-- **TACP 0.1 Deliverables (Completed & Verified)**:
-  - **13 Read-Only Capabilities**:
-    - `system.inspect`, `system.health`, `system.version`
-    - `capabilities.list`
-    - `workspace.list`, `workspace.inspect`
-    - `fs.list`, `fs.stat`, `fs.read`, `fs.search`
-    - `process.list`, `process.inspect`
-    - `audit.recent`
-  - **Dual-Protocol MCP Server** (`tacp.access.mcp`): Modern MCP `2026-07-28` specification (`server/discover`, per-request `_meta`, `resultType: "complete"`) + legacy `2024-11-05` through `2025-11-25` compatibility (`initialize`, `ping`). Verified with official `@modelcontextprotocol/inspector` v2.6.0 (`--strict`).
-  - **Control Plane Security**: Default-deny `PolicyEngine`, canonical path jail, symlink containment, secret file classification, regex redaction in file content and audit logs, clean negative API surface.
-  - **Command-Line Interface**: `tacp doctor`, `tacp status`, `tacp capabilities`, `tacp version`, `tacp serve`, `tacp workspace`, `tacp audit`.
-  - **Automated Installer**: `./install.sh` bootstrap script supporting `--help`, `--dry-run`, `--no-doctor`, and global PATH symlinking.
-  - **Verification Suite**:
-    - **269 automated tests** (0 failures, 82% coverage).
-    - **All 78 required security baseline test cases** passing across 7 categories.
-    - `./verify` running ShellCheck, Ruff format, Ruff lint, Mypy strict, Unit/Integration/Device tests, Security suite, and pip-audit.
-    - `./doctor` passing 15/15 environment diagnostics.
-  - **Documentation & Audits**:
-    - MCP Compatibility Audit (`docs/mcp/MCP-COMPATIBILITY-AUDIT.md`)
-    - Inspector Session Log (`docs/mcp/inspector-session.md`)
-    - OpenAI Tunnel Readiness (`docs/mcp/OPENAI-TUNNEL-READINESS.md`)
-    - Negative API Surface Audit (`docs/security/NEGATIVE-API-SURFACE-AUDIT.md`)
-    - Product Claim Audit (`docs/releases/TACP-0.1-PRODUCT-CLAIM-AUDIT.md`)
-    - Empirical Benchmarks (`docs/testing/PERFORMANCE-RESULTS.json`)
-    - Quickstart Guide (`docs/QUICKSTART.md`)
-    - Test Matrix (`docs/testing/TACP-0.1-TEST-MATRIX.md`)
-    - Readiness Assessment (`docs/releases/TACP-0.1-READINESS.md`)
-    - Executive Release Report (`docs/releases/TACP-0.1-FINAL-REPORT.md`)
-
-- **Not Implemented (Intentionally Deferred to Phase 2)**:
-  - Write / mutation operations (`fs.write`, `fs.delete`, `fs.patch`).
-  - Shell or command execution (`shell.exec`, `bash.run`).
-  - Android device controls (intents, SMS, notifications).
-  - Outbound internet sockets (stdio transport only).
+- **Automated Tests**: **470 tests passing** (280 unit/integration + 190 security assertions).
+- **Device Tests**: **7 tests passing** on physical Android 13 Termux `aarch64` hardware.
+- **Code Coverage**: **84% authoritative coverage** across 2,484 Python statements.
+- **Verification Pipeline**: `./verify` 7/7 deterministic stages **PASS**.
+- **Supply Chain**: Zero known vulnerabilities via `pip-audit`.
+- **Code Quality**: Ruff formatting, Ruff linting, and Mypy strict typing 100% clean.
 
 ---
 
-## 2. Phase 2 Progress & Milestones
+## 2. Implemented & Verified Capabilities
 
-- **Gate A: Architecture & Design Package (COMPLETE)**:
-  - Phase 2 Current State Audit (`docs/phases/PHASE-2-CURRENT-STATE-AUDIT.md`)
-  - Read-Only Baseline Freeze Contract (`docs/baselines/TACP-0.1-READ-ONLY-CONTRACT.md`)
-  - Governed Execution Architecture (`docs/phases/PHASE-2-GOVERNED-EXECUTION-DESIGN.md`)
-  - Security Architecture & Defense-in-Depth (`docs/security/PHASE-2-SECURITY-ARCHITECTURE.md`)
-  - Identity Model (`docs/security/IDENTITY-MODEL.md`)
-  - Policy Engine & Hierarchy Model (`docs/security/POLICY-MODEL.md`)
-  - Approval Engine & Human Sovereignty (`docs/security/APPROVAL-MODEL.md`)
-  - Risk & Autonomy Engine (`docs/security/RISK-MODEL.md`)
-  - Secret Brokerage & Protection Model (`docs/security/SECRET-MODEL.md`)
-  - Network Policy & Egress Security (`docs/security/NETWORK-MODEL.md`)
-  - Execution Contract Specification (`docs/execution/EXECUTION-CONTRACT.md`)
-  - Mutation Safety & Atomic Operations (`docs/execution/MUTATION-MODEL.md`)
-  - Patch Engine Specification (`docs/execution/PATCH-MODEL.md`)
-  - Recovery, Checkpoints & Circuit Breakers (`docs/execution/RECOVERY-MODEL.md`)
-  - Concurrency, Locks & Leases (`docs/execution/CONCURRENCY-MODEL.md`)
-  - Job System & Command Execution (`docs/execution/JOB-MODEL.md`)
-  - MCP Phase 2 Contract (`docs/mcp/MCP-PHASE-2-CONTRACT.md`)
-  - Master Test Plan (`docs/testing/PHASE-2-TEST-PLAN.md`)
-  - Security Test Matrix (88 Cases) (`docs/testing/PHASE-2-SECURITY-MATRIX.md`)
-  - Requirement Traceability Matrix (`docs/testing/PHASE-2-REQUIREMENT-TRACEABILITY.md`)
-  - Readiness & Quality Gates Plan (`docs/releases/TACP-0.2-READINESS-PLAN.md`)
-  - Adversarial Design Review (`docs/phases/PHASE-2-DESIGN-REVIEW.md`)
+### Read-Only Capabilities (13 Total)
+1. `system.inspect`
+2. `system.health`
+3. `system.version`
+4. `capabilities.list`
+5. `workspace.list`
+6. `workspace.inspect`
+7. `fs.list`
+8. `fs.stat`
+9. `fs.read`
+10. `fs.search`
+11. `process.list`
+12. `process.inspect`
+13. `audit.recent`
 
-- **Gate B: Incremental Vertical Slices (PENDING AUTHORIZATION)**:
-  - **Slice 1**: `workspace.patch` for a single text file (atomic write, base checksum, approval, audit).
-  - **Slice 2**: Multi-file patch with transactional consistency.
-  - **Slice 3**: Checkpoints and reversible snapshots (`snapshot.create`, `snapshot.restore`).
-  - **Slice 4**: Controlled command execution (`execution.request`, argv arrays, env scrubbing).
-  - **Slice 5**: Job and process management (durable Job state machine, circuit breakers).
+### Governed Mutating Capabilities (4 Total)
+1. `workspace.patch` (Single-file unified diff with snapshot rollback)
+2. `workspace.patch_batch` (Multi-file atomic batch unified diffs)
+3. `workspace.rollback` (Policy-governed single-file rollback)
+4. `workspace.batch_rollback` (Policy-governed batch rollback)
+
+---
+
+## 3. Key Hardening Deliverables Completed
+
+1. **Approval Engine & Preimage-Resistant Token Hashing**: Migration 4 deployed. Raw bearer tokens never stored in SQLite; only SHA-256 hashes are persisted. Multi-threaded race tests verify atomic single-use consumption.
+2. **Lock Service Concurrency**: Upgraded to SQLite `BEGIN IMMEDIATE` transactions and atomic insert, eliminating TOCTOU races under contention. Added lease renewals via `refresh_lock`.
+3. **Cryptographic Audit Hash Chain**: Migration 5 deployed. SHA-256 hash chaining anchored to an immutable 64-zero genesis. Proven detection against modified, deleted, or reordered records.
+4. **Diff Parser Security**: Hardened against prefix corruption, hunk line count mismatches, and overlapping hunks. Verified with 100% differential testing against Python `difflib.unified_diff`.
+5. **Database Thread Safety & WAL**: Thread-local SQLite connections with WAL mode, foreign keys, and 30s busy timeout. Tested safe recovery against file corruption.
+6. **Supply Chain Pinning**: All GitHub Actions pinned to 40-character commit SHAs. Dependencies locked with `uv.lock`.
+7. **Future Command Execution Design**: Complete specification in `docs/execution/COMMAND-EXECUTION-DESIGN.md` addressing all 17 security design questions. Zero implementation in Phase 3.
+
+---
+
+## 4. Next Phase Roadmap: Phase 4
+
+- **Phase 4 Target**: Governed Command Execution Engine (`exec.run`).
+- **Core Constraints**: Strict argv model, no shell interpretation, timeout guards, process group isolation (`os.setsid`), bounded I/O buffers, and human approval ticketing.

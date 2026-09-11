@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import hashlib
 import time
+import uuid
 from typing import Any, Dict, List, Optional
 
 from tacp.control.identity import Principal, RequestContext
@@ -18,7 +18,6 @@ from tacp.core.workspace_service import WorkspaceService
 from tacp.domain.audit import AuditEvent
 from tacp.domain.errors import (
     ErrorCode,
-    TacpApprovalRequiredError,
     TacpNotFoundError,
     TacpSecurityError,
     TacpValidationError,
@@ -100,6 +99,7 @@ class McpToolRegistry:
         name: str,
         arguments: Optional[Dict[str, Any]] = None,
         principal: Optional[Principal] = None,
+        request_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Execute a tool with policy enforcement and audit logging."""
         args = arguments or {}
@@ -109,52 +109,34 @@ class McpToolRegistry:
         cap = self.capability_service.get_capability(normalized_name)
 
         # 2. Build Principal and Context
-        client_principal = principal or Principal(
-            id="mcp-client",
-            role="agent",
-        )
+        client_principal = principal or Principal.local_agent(agent_id="mcp-client")
         context = RequestContext(
             capability=cap.name,
             principal=client_principal,
+            request_id=request_id or str(uuid.uuid4()),
         )
 
-        # 3. Workspace resolution if specified
+        # 3. For mutating capabilities, dispatch directly to PatchService (unified pipeline)
+        # PatchService authoritatively executes policy enforcement, ticket issuance, locking,
+        # execution, persistence, and audit logging with context.request_id.
+        if normalized_name in ("workspace.patch", "workspace.patch_batch"):
+            return self._dispatch(
+                cap.name,
+                args,
+                principal=client_principal,
+                request_id=context.request_id,
+            )
+
+        # 4. Workspace resolution for read-only capabilities if specified
         ws = None
         workspace_id = args.get("workspace_id")
         if workspace_id:
             ws = self.workspace_service.get_workspace(workspace_id)
 
-        # 4. Policy evaluation
-        target_path = args.get("subpath") if normalized_name == "workspace.patch" else None
-        target_paths: Optional[List[str]] = None
-        if normalized_name == "workspace.patch_batch":
-            raw_patches = args.get("patches", [])
-            if isinstance(raw_patches, list):
-                target_paths = [
-                    str(p.get("subpath"))
-                    for p in raw_patches
-                    if isinstance(p, dict) and p.get("subpath") is not None
-                ]
-
-        dry_run = (
-            bool(args.get("dry_run", False))
-            if normalized_name in ("workspace.patch", "workspace.patch_batch")
-            else False
-        )
-        has_approval = (
-            bool(args.get("approval_token"))
-            if normalized_name in ("workspace.patch", "workspace.patch_batch")
-            else False
-        )
-
         start_time = time.monotonic()
         decision = self.policy_engine.evaluate_request(
             context,
             workspace=ws,
-            target_path=target_path,
-            target_paths=target_paths,
-            dry_run=dry_run,
-            has_approval=has_approval,
         )
         duration_ms = int((time.monotonic() - start_time) * 1000)
 
@@ -172,64 +154,19 @@ class McpToolRegistry:
                     parameters_redacted=redact_dict(args),
                 )
             )
-            if decision.decision_type == "REQUIRE_APPROVAL":
-                if self.patch_service and normalized_name == "workspace.patch":
-                    patch_content = args.get("patch_content", "")
-                    patch_hash = hashlib.sha256(patch_content.encode("utf-8")).hexdigest()
-                    ticket = self.patch_service.approval_engine.create_ticket(
-                        principal_id=client_principal.id,
-                        action_type="workspace.patch",
-                        workspace_id=workspace_id or "",
-                        target_path=args.get("subpath", ""),
-                        patch_hash=patch_hash,
-                        metadata={
-                            "request_id": context.request_id,
-                            "base_checksum": args.get("base_checksum", ""),
-                        },
-                    )
-                    raise TacpApprovalRequiredError(
-                        f"Execution of 'workspace.patch' requires explicit human approval. "
-                        f"Ticket created: {ticket.token} (id: {ticket.id})"
-                    )
-                if self.patch_service and normalized_name == "workspace.patch_batch":
-                    raw_patches = args.get("patches", [])
-                    clean_patches = [
-                        {
-                            "subpath": p.get("subpath", ""),
-                            "patch_content": p.get("patch_content", ""),
-                            "base_checksum": p.get("base_checksum", ""),
-                        }
-                        for p in raw_patches
-                        if isinstance(p, dict)
-                    ]
-                    from tacp.control.approval import compute_canonical_batch_hash
-
-                    batch_hash = compute_canonical_batch_hash(clean_patches)
-                    ticket = self.patch_service.approval_engine.create_ticket(
-                        principal_id=client_principal.id,
-                        action_type="workspace.patch_batch",
-                        workspace_id=workspace_id or "",
-                        target_path="*",
-                        patch_hash=batch_hash,
-                        metadata={
-                            "request_id": context.request_id,
-                            "patch_count": len(clean_patches),
-                            "subpaths": [p["subpath"] for p in clean_patches],
-                        },
-                    )
-                    raise TacpApprovalRequiredError(
-                        f"Execution of 'workspace.patch_batch' requires explicit human approval. "
-                        f"Ticket created: {ticket.token} (id: {ticket.id})"
-                    )
-                raise TacpApprovalRequiredError(f"Action requires approval: {decision.reason}")
             raise TacpSecurityError(
                 ErrorCode.NOT_AUTHORIZED,
                 f"Access denied: {decision.reason}",
             )
 
-        # 5. Dispatch to core service
+        # 5. Dispatch to read-only service
         try:
-            result = self._dispatch(cap.name, args, principal=client_principal)
+            result = self._dispatch(
+                cap.name,
+                args,
+                principal=client_principal,
+                request_id=context.request_id,
+            )
             duration_ms = int((time.monotonic() - start_time) * 1000)
             self.audit_service.record_event(
                 AuditEvent(
@@ -267,6 +204,7 @@ class McpToolRegistry:
         name: str,
         args: Dict[str, Any],
         principal: Optional[Principal] = None,
+        request_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Route tool execution to the appropriate service."""
         if name == "system.inspect":
@@ -367,7 +305,8 @@ class McpToolRegistry:
                 dry_run=bool(args.get("dry_run", False)),
                 approval_token=args.get("approval_token"),
                 principal_id=(principal.id if principal else "mcp-client"),
-                request_id=None,
+                request_id=request_id,
+                principal=principal,
             )
             return patch_res.to_dict()
         elif name == "workspace.patch_batch":
@@ -390,8 +329,10 @@ class McpToolRegistry:
                 dry_run=bool(args.get("dry_run", False)),
                 approval_token=args.get("approval_token"),
                 principal_id=(principal.id if principal else "mcp-client"),
-                request_id=None,
+                request_id=request_id,
+                principal=principal,
             )
             return batch_res.to_dict()
+
         else:
             raise TacpNotFoundError(f"Unhandled tool: {name}")

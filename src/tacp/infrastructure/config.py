@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
 
+from tacp import __version__
+
 
 @dataclass(frozen=True)
 class OutputLimits:
@@ -26,7 +28,7 @@ class TacpConfig:
             os.environ.get("TACP_DATA_DIR", Path.home() / ".tacp")
         ).resolve()
     )
-    version: str = "0.1.0-rc.1"
+    version: str = __version__
     db_path: Path = field(default=Path())
     log_level: str = "INFO"
     read_only: bool = True

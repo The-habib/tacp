@@ -5,8 +5,12 @@ import platform
 import sys
 from pathlib import Path
 
+import pytest
+
 from tacp.providers.process import ProcessProvider
 from tacp.providers.system import SystemProvider
+
+pytestmark = pytest.mark.device
 
 
 def test_device_is_linux_or_android() -> None:

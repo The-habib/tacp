@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tacp"
-version = "0.1.0rc1"
+version = "0.3.1rc1"
 description = "Termux AI Control Plane"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -60,6 +60,9 @@ known-first-party = ["tacp"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra -q --strict-markers"
+markers = [
+    "device: marks tests requiring a real Termux or Android device environment (DEVICE-ONLY)",
+]
 
 [tool.mypy]
 strict = true

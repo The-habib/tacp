@@ -47,13 +47,13 @@ record_stage() {
   echo "Stage [$stage]: $status"
 }
 
-# Stage 1: ShellCheck on project scripts
-echo ">>> [Stage 1/7] ShellCheck (Scripts Hygiene)..."
-if shellcheck "$SCRIPT_DIR/verify" "$SCRIPT_DIR/doctor"; then
-  record_stage "shellcheck" "PASS"
+# Stage 1: Lockfile Consistency & ShellCheck on project scripts
+echo ">>> [Stage 1/7] Hygiene (uv.lock & ShellCheck)..."
+if uv lock --check && shellcheck "$SCRIPT_DIR/verify" "$SCRIPT_DIR/doctor"; then
+  record_stage "hygiene" "PASS"
 else
-  record_stage "shellcheck" "FAIL"
-  FAILED_STAGE="shellcheck"
+  record_stage "hygiene" "FAIL"
+  FAILED_STAGE="hygiene"
 fi
 
 # Stage 2: Format check (Ruff)

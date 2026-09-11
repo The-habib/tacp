@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
+from tacp import __version__
 from tacp.cli.main import main
 
 
@@ -13,7 +14,7 @@ def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
     code = main(["version"])
     assert code == 0
     captured = capsys.readouterr()
-    assert "TACP v0.1.0-rc.1" in captured.out
+    assert f"TACP v{__version__}" in captured.out
     assert "MCP 2026-07-28" in captured.out
 
 

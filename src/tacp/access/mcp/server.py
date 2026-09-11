@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import TextIO
@@ -33,8 +34,11 @@ from tacp.core.workspace_service import WorkspaceService
 from tacp.domain.errors import TacpError
 from tacp.infrastructure.config import TacpConfig
 from tacp.infrastructure.database import Database
+from tacp.infrastructure.logging import redact_secrets
 from tacp.providers.filesystem import FilesystemProvider
 from tacp.providers.process import ProcessProvider
+
+logger = logging.getLogger(__name__)
 
 # Backward compatibility alias
 MCP_PROTOCOL_VERSION = LEGACY_PROTOCOL_VERSION
@@ -71,9 +75,9 @@ class McpServer:
                     "ttlMs": 60000,
                     "resultType": "complete",
                     "instructions": (
-                        "TACP (Termux AI Control Plane) is a strictly read-only MCP server "
-                        "providing safe inspection of Termux workspaces, processes, "
-                        "system status, and audit logs. Mutation is not permitted."
+                        "TACP (Termux AI Control Plane) is a governed MCP server "
+                        "providing safe inspection and policy-controlled workspace operations "
+                        "for Termux workspaces, processes, system status, and audit logs."
                     ),
                 },
             )
@@ -100,7 +104,8 @@ class McpServer:
                         "version": self.config.version,
                     },
                     "instructions": (
-                        "TACP (Termux AI Control Plane) is a strictly read-only MCP server."
+                        "TACP (Termux AI Control Plane) is a governed MCP server "
+                        "providing safe inspection and policy-controlled workspace operations."
                     ),
                 },
             )
@@ -143,8 +148,16 @@ class McpServer:
                     error={"code": INVALID_PARAMS, "message": "'_meta' must be an object"},
                 )
 
+            request_id = None
+            if _meta:
+                request_id = str(_meta.get("requestId") or _meta.get("progressToken") or "")
+            if not request_id:
+                request_id = str(req_id)
+
             try:
-                result = self.tool_registry.execute_tool(tool_name, arguments)
+                result = self.tool_registry.execute_tool(
+                    tool_name, arguments, request_id=request_id
+                )
                 return McpResponse(
                     id=req_id,
                     result={
@@ -159,27 +172,35 @@ class McpServer:
                     },
                 )
             except TacpError as exc:
+                safe_msg = redact_secrets(exc.message)
                 return McpResponse(
                     id=req_id,
                     result={
                         "content": [
                             {
                                 "type": "text",
-                                "text": f"Error ({exc.code.value}): {exc.message}",
+                                "text": f"Error ({exc.code.value}): {safe_msg}",
                             }
                         ],
                         "isError": True,
                         "resultType": "complete",
                     },
                 )
-            except Exception as exc:
+            except Exception:
+                logger.exception(
+                    "Internal error in tools/call for %s (req_id=%s)", tool_name, req_id
+                )
+                err_text = (
+                    "Internal Error: An unexpected internal error occurred "
+                    f"(Request ID: {request_id})"
+                )
                 return McpResponse(
                     id=req_id,
                     result={
                         "content": [
                             {
                                 "type": "text",
-                                "text": f"Internal Error: {exc}",
+                                "text": err_text,
                             }
                         ],
                         "isError": True,

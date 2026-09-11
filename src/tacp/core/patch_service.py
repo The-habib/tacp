@@ -64,13 +64,14 @@ class PatchService:
         approval_token: Optional[str] = None,
         principal_id: str = "agent",
         request_id: Optional[str] = None,
+        principal: Optional[Principal] = None,
     ) -> PatchResult:
         start_time = time.perf_counter()
         req_id = request_id or str(uuid.uuid4())
-        principal = Principal(id=principal_id)
+        caller_principal = principal or Principal.local_agent(principal_id)
         ctx = RequestContext(
             capability="workspace.patch",
-            principal=principal,
+            principal=caller_principal,
             request_id=req_id,
         )
 
@@ -163,8 +164,10 @@ class PatchService:
                         patch_hash=patch_hash,
                     )
                     raise TacpApprovalRequiredError(
-                        f"Execution requires human approval ticket: {ticket.token}"
+                        f"Execution of 'workspace.patch' requires explicit human approval. "
+                        f"Ticket created: {ticket.token} (id: {ticket.id})"
                     )
+
                 self.approval_engine.verify_and_consume(
                     token=approval_token,
                     principal_id=principal_id,
@@ -279,9 +282,27 @@ class PatchService:
         patch_id: str,
         principal_id: str = "human_operator",
         request_id: Optional[str] = None,
+        principal: Optional[Principal] = None,
+        approval_token: Optional[str] = None,
     ) -> PatchResult:
         start_time = time.perf_counter()
         req_id = request_id or str(uuid.uuid4())
+
+        is_human = (
+            principal_id in ("human_operator", "operator")
+            or "operator" in principal_id
+            or "human" in principal_id
+        )
+        caller_principal = principal or (
+            Principal.human_operator(principal_id)
+            if is_human
+            else Principal.local_agent(principal_id)
+        )
+        context = RequestContext(
+            capability="workspace.rollback",
+            principal=caller_principal,
+            request_id=req_id,
+        )
 
         conn = self.db.connect()
         cur = conn.cursor()
@@ -311,9 +332,20 @@ class PatchService:
             raise TacpNotFoundError(f"No snapshot available for patch '{patch_id}'")
 
         ws = self.workspace_service.get_workspace(ws_id)
+
+        # Policy enforcement for rollback capability
+        self.policy_engine.enforce(
+            context=context,
+            workspace=ws,
+            target_path=target_path,
+            has_approval=bool(approval_token),
+        )
+
         resource_id = f"{ws_id}:{target_path}"
 
-        with self.lock_service.hold(resource_id=resource_id, owner_id=principal_id, ttl_seconds=30):
+        with self.lock_service.hold(
+            resource_id=resource_id, owner_id=caller_principal.id, ttl_seconds=30
+        ):
             restore_res = self.fs_provider.rollback_patch(
                 workspace_root=ws.root_path,
                 subpath=target_path,
@@ -323,24 +355,24 @@ class PatchService:
 
             now_iso = datetime.now(timezone.utc).isoformat()
             conn = self.db.connect()
-            conn.execute(
-                """
-                UPDATE patches
-                SET status = 'ROLLED_BACK', rollback_at = ?
-                WHERE id = ?;
-                """,
-                (now_iso, patch_id),
-            )
-            conn.commit()
+            with conn:
+                conn.execute(
+                    """
+                    UPDATE patches
+                    SET status = 'ROLLED_BACK', rollback_at = ?
+                    WHERE id = ?;
+                    """,
+                    (now_iso, patch_id),
+                )
 
             duration_ms = int((time.perf_counter() - start_time) * 1000)
             audit_event = AuditEvent(
-                capability="workspace.patch",
+                capability="workspace.rollback",
                 action="patch_rollback",
                 policy_decision="ALLOW",
                 result="SUCCESS",
                 duration_ms=duration_ms,
-                principal=principal_id,
+                principal=caller_principal.id,
                 request_id=req_id,
                 workspace_id=ws_id,
                 parameters_redacted={
@@ -449,13 +481,14 @@ class PatchService:
         approval_token: Optional[str] = None,
         principal_id: str = "agent",
         request_id: Optional[str] = None,
+        principal: Optional[Principal] = None,
     ) -> BatchPatchResult:
         start_time = time.perf_counter()
         req_id = request_id or str(uuid.uuid4())
-        principal = Principal(id=principal_id)
+        caller_principal = principal or Principal.local_agent(principal_id)
         ctx = RequestContext(
             capability="workspace.patch_batch",
-            principal=principal,
+            principal=caller_principal,
             request_id=req_id,
         )
 
@@ -603,7 +636,8 @@ class PatchService:
                         },
                     )
                     raise TacpApprovalRequiredError(
-                        f"Execution requires human approval ticket: {ticket.token}"
+                        f"Execution of 'workspace.patch_batch' requires explicit human approval. "
+                        f"Ticket created: {ticket.token} (id: {ticket.id})"
                     )
 
                 self.approval_engine.verify_and_consume(
@@ -730,9 +764,27 @@ class PatchService:
         batch_id: str,
         principal_id: str = "human_operator",
         request_id: Optional[str] = None,
+        principal: Optional[Principal] = None,
+        approval_token: Optional[str] = None,
     ) -> BatchPatchResult:
         start_time = time.perf_counter()
         req_id = request_id or str(uuid.uuid4())
+
+        is_human = (
+            principal_id in ("human_operator", "operator")
+            or "operator" in principal_id
+            or "human" in principal_id
+        )
+        caller_principal = principal or (
+            Principal.human_operator(principal_id)
+            if is_human
+            else Principal.local_agent(principal_id)
+        )
+        context = RequestContext(
+            capability="workspace.batch_rollback",
+            principal=caller_principal,
+            request_id=req_id,
+        )
 
         conn = self.db.connect()
         cur = conn.cursor()
@@ -762,10 +814,19 @@ class PatchService:
 
         ws = self.workspace_service.get_workspace(ws_id)
         subpaths = list(snapshot_manifest.keys())
+
+        # Policy enforcement for batch rollback capability
+        self.policy_engine.enforce(
+            context=context,
+            workspace=ws,
+            target_paths=subpaths,
+            has_approval=bool(approval_token),
+        )
+
         resource_ids = [f"{ws_id}:{sp}" for sp in sorted(subpaths)]
 
         with self.lock_service.hold_many(
-            resource_ids=resource_ids, owner_id=principal_id, ttl_seconds=45
+            resource_ids=resource_ids, owner_id=caller_principal.id, ttl_seconds=45
         ):
             expected_checksums = {r["subpath"]: r["after_checksum"] for r in results_json}
             restore_res = self.fs_provider.rollback_patch_batch(
@@ -776,24 +837,24 @@ class PatchService:
 
             now_iso = datetime.now(timezone.utc).isoformat()
             conn = self.db.connect()
-            conn.execute(
-                """
-                UPDATE batches
-                SET status = 'ROLLED_BACK', rollback_at = ?
-                WHERE id = ?;
-                """,
-                (now_iso, batch_id),
-            )
-            conn.commit()
+            with conn:
+                conn.execute(
+                    """
+                    UPDATE batches
+                    SET status = 'ROLLED_BACK', rollback_at = ?
+                    WHERE id = ?;
+                    """,
+                    (now_iso, batch_id),
+                )
 
             duration_ms = int((time.perf_counter() - start_time) * 1000)
             audit_event = AuditEvent(
-                capability="workspace.patch_batch",
+                capability="workspace.batch_rollback",
                 action="batch_rollback",
                 policy_decision="ALLOW",
                 result="SUCCESS",
                 duration_ms=duration_ms,
-                principal=principal_id,
+                principal=caller_principal.id,
                 request_id=req_id,
                 workspace_id=ws_id,
                 parameters_redacted={
@@ -801,6 +862,7 @@ class PatchService:
                     "restored_files": [f["subpath"] for f in restore_res["restored_files"]],
                 },
             )
+
             self.audit_service.record_event(audit_event)
 
             rolled_back_results = []

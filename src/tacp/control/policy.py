@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from tacp.control.identity import RequestContext
+from tacp.control.identity import PrincipalType, RequestContext, TrustTier
 from tacp.domain.errors import (
     ErrorCode,
     TacpApprovalRequiredError,
@@ -48,6 +48,8 @@ class PolicyEngine:
     MUTATING_CAPABILITIES = {
         "workspace.patch",
         "workspace.patch_batch",
+        "workspace.rollback",
+        "workspace.batch_rollback",
     }
 
     PROTECTED_PATTERNS = {
@@ -166,6 +168,38 @@ class PolicyEngine:
                 denial = self._check_target_path(target)
                 if denial:
                     return denial
+
+            # Special authorization governance for rollback operations
+            if cap in ("workspace.rollback", "workspace.batch_rollback"):
+                is_elevated_type = context.principal.principal_type in (
+                    PrincipalType.HUMAN,
+                    PrincipalType.SYSTEM,
+                )
+                if (
+                    context.principal.trust_tier == TrustTier.PRIVILEGED
+                    or is_elevated_type
+                    or context.principal.role == "operator"
+                    or context.principal.id in ("operator", "human_operator")
+                ):
+                    return PolicyDecision(
+                        allowed=True,
+                        reason=f"Authorized operator rollback under {cap}",
+                        decision_type="ALLOW",
+                        requires_audit=True,
+                    )
+                if has_approval:
+                    return PolicyDecision(
+                        allowed=True,
+                        reason=f"Authorized {cap} execution with valid approval",
+                        decision_type="ALLOW",
+                        requires_audit=True,
+                    )
+                return PolicyDecision(
+                    allowed=False,
+                    reason=f"Execution of '{cap}' by agent requires explicit human approval",
+                    decision_type="REQUIRE_APPROVAL",
+                    requires_audit=True,
+                )
 
             if dry_run:
                 return PolicyDecision(

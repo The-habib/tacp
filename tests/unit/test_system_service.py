@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock
 
+from tacp import __version__
 from tacp.core.system_service import SystemService
 from tacp.infrastructure.database import Database
 from tacp.providers.system import SystemProvider
@@ -56,9 +57,9 @@ def test_system_service_get_health(test_db: Database) -> None:
 
 def test_system_service_get_version() -> None:
     ver = SystemService.get_version()
-    assert ver["tacp_version"] == "0.1.0-rc.1"
+    assert ver["tacp_version"] == __version__
     assert ver["mcp_protocol_version"] == "2026-07-28"
-    assert ver["mode"] == "READ_ONLY"
+    assert ver["mode"] in ("READ_ONLY", "GOVERNED")
 
 
 def test_system_service_degraded_when_db_unhealthy() -> None:

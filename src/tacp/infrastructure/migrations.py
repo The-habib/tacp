@@ -125,6 +125,21 @@ MIGRATIONS: List[Tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_batches_workspace ON batches (workspace_id);
         """,
     ),
+    (
+        4,
+        """
+        ALTER TABLE approvals ADD COLUMN token_hash TEXT;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_approvals_token_hash ON approvals (token_hash);
+        """,
+    ),
+    (
+        5,
+        """
+        ALTER TABLE audit_logs ADD COLUMN prev_hash TEXT;
+        ALTER TABLE audit_logs ADD COLUMN entry_hash TEXT;
+        CREATE INDEX IF NOT EXISTS idx_audit_entry_hash ON audit_logs (entry_hash);
+        """,
+    ),
 ]
 
 

@@ -1,5 +1,6 @@
 from typing import Any, Dict
 
+from tacp import __version__
 from tacp.infrastructure.database import Database
 from tacp.providers.system import SystemProvider
 
@@ -26,9 +27,9 @@ class SystemService:
     @staticmethod
     def get_version() -> Dict[str, Any]:
         return {
-            "tacp_version": "0.1.0-rc.1",
+            "tacp_version": __version__,
             "mcp_protocol_version": "2026-07-28",
             "supported_mcp_versions": ["2026-07-28", "2024-11-05"],
-            "phase": "0.1",
-            "mode": "READ_ONLY",
+            "phase": "3.0",
+            "mode": "GOVERNED",
         }

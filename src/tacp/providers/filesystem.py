@@ -43,6 +43,14 @@ SECRET_PATTERNS = [
 ]
 
 
+def _secure_file_perms(path: Path, mode: int) -> None:
+    """Set filesystem mode permissions safely, ignoring OS limitations."""
+    try:
+        os.chmod(path, mode)
+    except OSError:
+        pass
+
+
 class FilesystemProvider:
     """Provides path jailing, reading, listing, and searching inside authorized workspaces."""
 
@@ -340,22 +348,37 @@ class FilesystemProvider:
         while i < len(diff_lines):
             m = hunk_regex.match(diff_lines[i])
             if not m:
-                raise TacpValidationError(f"Invalid hunk header: {diff_lines[i].strip()}")
+                raise TacpValidationError(f"Invalid hunk header: {diff_lines[i].strip()!r}")
 
-            old_start = int(m.group(1)) - 1
-            if old_start < 0:
-                old_start = 0
+            old_start_1based = int(m.group(1))
+            old_count = int(m.group(2)) if m.group(2) is not None else 1
+            new_count = int(m.group(4)) if m.group(4) is not None else 1
+
+            if old_count == 0:
+                old_start = old_start_1based
+            else:
+                old_start = max(0, old_start_1based - 1)
+
+            if old_start < orig_idx and not (old_count == 0 and old_start == orig_idx):
+                raise TacpValidationError(
+                    f"Overlapping or out-of-order hunk: hunk start line {old_start + 1} "
+                    f"is before current line {orig_idx + 1}"
+                )
 
             while orig_idx < old_start and orig_idx < len(orig_lines):
                 result.append(orig_lines[orig_idx])
                 orig_idx += 1
 
             i += 1
+            hunk_old_lines = 0
+            hunk_new_lines = 0
+
             while i < len(diff_lines) and not diff_lines[i].startswith("@@"):
                 line = diff_lines[i]
                 if line.startswith("+"):
                     result.append(line[1:])
                     added_count += 1
+                    hunk_new_lines += 1
                 elif line.startswith("-"):
                     if orig_idx >= len(orig_lines):
                         raise TacpValidationError(
@@ -373,6 +396,7 @@ class FilesystemProvider:
                         )
                     orig_idx += 1
                     removed_count += 1
+                    hunk_old_lines += 1
                 elif line.startswith(" "):
                     if orig_idx >= len(orig_lines):
                         raise TacpValidationError(
@@ -391,9 +415,30 @@ class FilesystemProvider:
                         )
                     result.append(orig_lines[orig_idx])
                     orig_idx += 1
+                    hunk_old_lines += 1
+                    hunk_new_lines += 1
                 elif line.startswith("\\"):
-                    pass
+                    if not line.startswith("\\ No newline at end of file"):
+                        raise TacpValidationError(
+                            f"Invalid hunk marker at diff line {i + 1}: {line.strip()!r}"
+                        )
+                else:
+                    raise TacpValidationError(
+                        f"Invalid diff line prefix at line {i + 1}: expected '+', '-', or ' ', "
+                        f"got {line[:20]!r}"
+                    )
                 i += 1
+
+            if hunk_old_lines != old_count:
+                raise TacpValidationError(
+                    f"Hunk old line count mismatch: header specifies {old_count} lines, "
+                    f"found {hunk_old_lines}"
+                )
+            if hunk_new_lines != new_count:
+                raise TacpValidationError(
+                    f"Hunk new line count mismatch: header specifies {new_count} lines, "
+                    f"found {hunk_new_lines}"
+                )
 
         while orig_idx < len(orig_lines):
             result.append(orig_lines[orig_idx])
@@ -516,16 +561,21 @@ class FilesystemProvider:
         s_dir = snapshot_dir or (Path.home() / ".tacp" / "snapshots")
         snap_file = s_dir / pid / target.name
         try:
-            snap_file.parent.mkdir(parents=True, exist_ok=True)
+            snap_file.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            _secure_file_perms(snap_file.parent, 0o700)
             snap_file.write_bytes(file_bytes)
             with snap_file.open("ab") as f:
                 f.flush()
                 os.fsync(f.fileno())
+            _secure_file_perms(snap_file, 0o600)
         except OSError as err:
             raise TacpSecurityError(
                 ErrorCode.INTERNAL_ERROR,
                 f"Failed to create pre-patch snapshot: {err}",
             ) from err
+
+        # Preserve file permissions across atomic replacement
+        orig_mode = target.stat().st_mode
 
         # Atomic replacement in same parent directory to avoid EXDEV
         temp_file = target.parent / f".tacp_tmp_{uuid.uuid4().hex}"
@@ -534,6 +584,7 @@ class FilesystemProvider:
                 f.write(resulting_bytes)
                 f.flush()
                 os.fsync(f.fileno())
+            _secure_file_perms(temp_file, orig_mode)
             os.replace(temp_file, target)
         except Exception as err:
             if temp_file.exists():
@@ -795,7 +846,8 @@ class FilesystemProvider:
         # Live Execution:
         s_dir = snapshot_dir or (Path.home() / ".tacp" / "snapshots")
         batch_snap_dir = s_dir / bid
-        batch_snap_dir.mkdir(parents=True, exist_ok=True)
+        batch_snap_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        _secure_file_perms(batch_snap_dir, 0o700)
 
         snapshot_manifest: Dict[str, str] = {}
         # 1. Create snapshots
@@ -806,6 +858,7 @@ class FilesystemProvider:
                 with snap_file.open("ab") as f:
                     f.flush()
                     os.fsync(f.fileno())
+                _secure_file_perms(snap_file, 0o600)
                 snapshot_manifest[d["subpath"]] = str(snap_file)
                 d["snap_file"] = snap_file
             except OSError as err:
@@ -818,11 +871,13 @@ class FilesystemProvider:
         staged_files: List[Tuple[Path, Path, str, Path]] = []
         try:
             for idx, d in enumerate(preflight_data):
+                orig_mode = d["target"].stat().st_mode
                 temp_file = d["target"].parent / f".tacp_tmp_{bid}_{idx}_{uuid.uuid4().hex}"
                 with temp_file.open("wb") as f:
                     f.write(d["resulting_bytes"])
                     f.flush()
                     os.fsync(f.fileno())
+                _secure_file_perms(temp_file, orig_mode)
                 staged_files.append((temp_file, d["target"], d["after_checksum"], d["snap_file"]))
         except Exception as stage_err:
             for tfile, _, _, _ in staged_files:

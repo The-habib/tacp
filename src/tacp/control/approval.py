@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
+from tacp.control.identity import Principal, PrincipalType, TrustTier
 from tacp.domain.errors import (
     ErrorCode,
     TacpApprovalRequiredError,
@@ -55,6 +56,7 @@ class ApprovalTicket:
     consumed_at: Optional[str] = None
     consumed_by: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    token_hash: Optional[str] = None
 
 
 class ApprovalEngine:
@@ -72,7 +74,8 @@ class ApprovalEngine:
         metadata: Optional[Dict[str, Any]] = None,
     ) -> ApprovalTicket:
         ticket_id = f"appr-{uuid.uuid4().hex[:8]}"
-        token = f"tacp_appr_{secrets.token_hex(16)}"
+        raw_token = f"tacp_appr_{secrets.token_hex(16)}"
+        token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
         now = datetime.now(timezone.utc)
         created_at = now.isoformat()
         expires_at = (now + timedelta(seconds=ttl_seconds)).isoformat()
@@ -81,34 +84,39 @@ class ApprovalEngine:
         # Normalize target_path
         clean_target = target_path.strip().lstrip("./")
 
+        # In SQLite, store token_hash in token_hash column, and masked prefix in token column
+        # Raw bearer token is NEVER persisted in plaintext to the database.
+        masked_token = f"tacp_appr_hash:{token_hash[:16]}"
+
         conn = self.db.connect()
-        conn.execute(
-            """
-            INSERT INTO approvals (
-                id, token, action_type, workspace_id, target_path,
-                patch_hash, principal_id, status, created_at, expires_at,
-                metadata_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-            """,
-            (
-                ticket_id,
-                token,
-                action_type,
-                workspace_id,
-                clean_target,
-                patch_hash,
-                principal_id,
-                STATUS_PENDING,
-                created_at,
-                expires_at,
-                json.dumps(meta),
-            ),
-        )
-        conn.commit()
+        with conn:
+            conn.execute(
+                """
+                INSERT INTO approvals (
+                    id, token, token_hash, action_type, workspace_id, target_path,
+                    patch_hash, principal_id, status, created_at, expires_at,
+                    metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    ticket_id,
+                    masked_token,
+                    token_hash,
+                    action_type,
+                    workspace_id,
+                    clean_target,
+                    patch_hash,
+                    principal_id,
+                    STATUS_PENDING,
+                    created_at,
+                    expires_at,
+                    json.dumps(meta),
+                ),
+            )
 
         return ApprovalTicket(
             id=ticket_id,
-            token=token,
+            token=raw_token,
             action_type=action_type,
             workspace_id=workspace_id,
             target_path=clean_target,
@@ -118,19 +126,56 @@ class ApprovalEngine:
             created_at=created_at,
             expires_at=expires_at,
             metadata=meta,
+            token_hash=token_hash,
         )
 
     def get_ticket(self, token: str) -> Optional[ApprovalTicket]:
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         conn = self.db.connect()
         cur = conn.cursor()
         cur.execute(
             """
             SELECT id, token, action_type, workspace_id, target_path,
                    patch_hash, principal_id, status, created_at, expires_at,
-                   consumed_at, consumed_by, metadata_json
-            FROM approvals WHERE token = ?;
+                   consumed_at, consumed_by, metadata_json, token_hash
+            FROM approvals
+            WHERE token_hash = ? OR token = ?;
             """,
-            (token,),
+            (token_hash, token),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+
+        return ApprovalTicket(
+            id=row[0],
+            token=token,
+            action_type=row[2],
+            workspace_id=row[3],
+            target_path=row[4],
+            patch_hash=row[5],
+            principal_id=row[6],
+            status=row[7],
+            created_at=row[8],
+            expires_at=row[9],
+            consumed_at=row[10],
+            consumed_by=row[11],
+            metadata=json.loads(row[12]) if row[12] else {},
+            token_hash=row[13] or token_hash,
+        )
+
+    def get_ticket_by_id(self, ticket_id: str) -> Optional[ApprovalTicket]:
+        conn = self.db.connect()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT id, token, action_type, workspace_id, target_path,
+                   patch_hash, principal_id, status, created_at, expires_at,
+                   consumed_at, consumed_by, metadata_json, token_hash
+            FROM approvals
+            WHERE id = ?;
+            """,
+            (ticket_id,),
         )
         row = cur.fetchone()
         if not row:
@@ -150,9 +195,15 @@ class ApprovalEngine:
             consumed_at=row[10],
             consumed_by=row[11],
             metadata=json.loads(row[12]) if row[12] else {},
+            token_hash=row[13],
         )
 
-    def approve(self, token: str, approved_by: str = "human_operator") -> ApprovalTicket:
+    def approve(
+        self,
+        token: str,
+        approved_by: str = "human_operator",
+        approver_principal: Optional[Principal] = None,
+    ) -> ApprovalTicket:
         ticket = self.get_ticket(token)
         if not ticket:
             raise TacpNotFoundError(f"Approval ticket token '{token}' not found")
@@ -163,14 +214,28 @@ class ApprovalEngine:
                 f"Cannot approve ticket in state '{ticket.status}'",
             )
 
+        # Invariant: Verify approver authority
+        if approver_principal is not None:
+            if (
+                approver_principal.principal_type == PrincipalType.AGENT
+                or approver_principal.trust_tier == TrustTier.RESTRICTED
+            ):
+                raise TacpSecurityError(
+                    ErrorCode.NOT_AUTHORIZED,
+                    f"Principal '{approver_principal.id}' cannot approve tickets: "
+                    f"insufficient authority (trust tier: {approver_principal.trust_tier.value})",
+                )
+            approved_by = approver_principal.id
+
         now = datetime.now(timezone.utc)
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         if now > datetime.fromisoformat(ticket.expires_at):
             conn = self.db.connect()
-            conn.execute(
-                "UPDATE approvals SET status = ? WHERE token = ?;",
-                (STATUS_EXPIRED, token),
-            )
-            conn.commit()
+            with conn:
+                conn.execute(
+                    "UPDATE approvals SET status = ? WHERE token_hash = ? OR token = ?;",
+                    (STATUS_EXPIRED, token_hash, token),
+                )
             raise TacpSecurityError(
                 ErrorCode.APPROVAL_EXPIRED,
                 f"Approval ticket '{token}' has expired",
@@ -181,15 +246,15 @@ class ApprovalEngine:
         meta["approved_at"] = now.isoformat()
 
         conn = self.db.connect()
-        conn.execute(
-            """
-            UPDATE approvals
-            SET status = ?, metadata_json = ?
-            WHERE token = ?;
-            """,
-            (STATUS_APPROVED, json.dumps(meta), token),
-        )
-        conn.commit()
+        with conn:
+            conn.execute(
+                """
+                UPDATE approvals
+                SET status = ?, metadata_json = ?
+                WHERE token_hash = ? OR token = ?;
+                """,
+                (STATUS_APPROVED, json.dumps(meta), token_hash, token),
+            )
 
         updated = self.get_ticket(token)
         assert updated is not None
@@ -207,16 +272,17 @@ class ApprovalEngine:
         meta["denied_at"] = datetime.now(timezone.utc).isoformat()
         meta["deny_reason"] = reason
 
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         conn = self.db.connect()
-        conn.execute(
-            """
-            UPDATE approvals
-            SET status = ?, metadata_json = ?
-            WHERE token = ?;
-            """,
-            (STATUS_DENIED, json.dumps(meta), token),
-        )
-        conn.commit()
+        with conn:
+            conn.execute(
+                """
+                UPDATE approvals
+                SET status = ?, metadata_json = ?
+                WHERE token_hash = ? OR token = ?;
+                """,
+                (STATUS_DENIED, json.dumps(meta), token_hash, token),
+            )
 
         updated = self.get_ticket(token)
         assert updated is not None
@@ -234,16 +300,17 @@ class ApprovalEngine:
         meta["revoked_at"] = datetime.now(timezone.utc).isoformat()
         meta["revoke_reason"] = reason
 
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         conn = self.db.connect()
-        conn.execute(
-            """
-            UPDATE approvals
-            SET status = ?, metadata_json = ?
-            WHERE token = ?;
-            """,
-            (STATUS_REVOKED, json.dumps(meta), token),
-        )
-        conn.commit()
+        with conn:
+            conn.execute(
+                """
+                UPDATE approvals
+                SET status = ?, metadata_json = ?
+                WHERE token_hash = ? OR token = ?;
+                """,
+                (STATUS_REVOKED, json.dumps(meta), token_hash, token),
+            )
 
         updated = self.get_ticket(token)
         assert updated is not None
@@ -266,15 +333,16 @@ class ApprovalEngine:
                 f"Approval ticket '{token}' not found",
             )
 
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         now = datetime.now(timezone.utc)
         expires_at = datetime.fromisoformat(ticket.expires_at)
         if now > expires_at:
             conn = self.db.connect()
-            conn.execute(
-                "UPDATE approvals SET status = ? WHERE token = ?;",
-                (STATUS_EXPIRED, token),
-            )
-            conn.commit()
+            with conn:
+                conn.execute(
+                    "UPDATE approvals SET status = ? WHERE token_hash = ? OR token = ?;",
+                    (STATUS_EXPIRED, token_hash, token),
+                )
             raise TacpSecurityError(
                 ErrorCode.APPROVAL_EXPIRED,
                 f"Approval ticket '{token}' expired at {ticket.expires_at}",
@@ -340,20 +408,20 @@ class ApprovalEngine:
                 f"got '{base_checksum}'",
             )
 
-        # Atomic single-use consumption
+        # Atomic single-use consumption inside write transaction
         consumed_at = now.isoformat()
         conn = self.db.connect()
-        cur = conn.cursor()
-        cur.execute(
-            """
-            UPDATE approvals
-            SET status = ?, consumed_at = ?, consumed_by = ?
-            WHERE token = ? AND status = ?;
-            """,
-            (STATUS_CONSUMED, consumed_at, principal_id, token, STATUS_APPROVED),
-        )
-        conn.commit()
-        rows_updated = cur.rowcount
+        with conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                UPDATE approvals
+                SET status = ?, consumed_at = ?, consumed_by = ?
+                WHERE (token_hash = ? OR token = ?) AND status = ?;
+                """,
+                (STATUS_CONSUMED, consumed_at, principal_id, token_hash, token, STATUS_APPROVED),
+            )
+            rows_updated = cur.rowcount
 
         if rows_updated != 1:
             raise TacpSecurityError(

@@ -1,4 +1,4 @@
-"""Unit sanity test verifying TACP package skeleton."""
+import re
 
 import tacp
 
@@ -6,4 +6,4 @@ import tacp
 def test_package_metadata() -> None:
     assert hasattr(tacp, "__version__")
     assert isinstance(tacp.__version__, str)
-    assert tacp.__version__.startswith("0.1.0")
+    assert re.match(r"^\d+\.\d+\.\d+", tacp.__version__)

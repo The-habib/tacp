@@ -4,6 +4,7 @@ import io
 import json
 from typing import Any, Dict
 
+from tacp import __version__
 from tacp.access.mcp.protocol import METHOD_NOT_FOUND, McpRequest
 from tacp.access.mcp.server import MCP_PROTOCOL_VERSION, McpServer
 
@@ -19,7 +20,7 @@ def test_mcp_initialize(test_services: Dict[str, Any]) -> None:
     assert isinstance(resp.result, dict)
     assert resp.result["protocolVersion"] == MCP_PROTOCOL_VERSION
     assert resp.result["serverInfo"]["name"] == "tacp"
-    assert resp.result["serverInfo"]["version"] == "0.1.0-rc.1"
+    assert resp.result["serverInfo"]["version"] == __version__
     assert "tools" in resp.result["capabilities"]
 
 
@@ -89,7 +90,7 @@ def test_mcp_call_system_version(test_services: Dict[str, Any]) -> None:
     assert isinstance(resp.result, dict)
     assert resp.result["isError"] is False
     content = json.loads(resp.result["content"][0]["text"])
-    assert content["tacp_version"] == "0.1.0-rc.1"
+    assert content["tacp_version"] == __version__
     assert content["mcp_protocol_version"] == "2026-07-28"
 
 
@@ -216,7 +217,7 @@ def test_mcp_server_discover(test_services: Dict[str, Any]) -> None:
     assert resp.result["cacheScope"] == "public"
     assert resp.result["ttlMs"] == 60000
     assert resp.result["resultType"] == "complete"
-    assert "strictly read-only" in resp.result["instructions"]
+    assert "governed MCP server" in resp.result["instructions"]
 
 
 def test_mcp_initialize_negotiation(test_services: Dict[str, Any]) -> None:
