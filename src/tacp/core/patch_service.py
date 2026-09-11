@@ -164,6 +164,7 @@ class PatchService:
                     workspace_id=workspace_id,
                     target_path=clean_subpath,
                     patch_hash=patch_hash,
+                    base_checksum=base_checksum,
                 )
 
             # Stage 12: Execution Contract Issuance

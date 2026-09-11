@@ -283,3 +283,30 @@ def test_verify_and_consume_scope_mismatch(approval_engine: ApprovalEngine) -> N
             patch_hash="hash999",
         )
     assert exc.value.code == ErrorCode.NOT_AUTHORIZED
+
+
+def test_verify_and_consume_base_checksum_mismatch(
+    approval_engine: ApprovalEngine,
+) -> None:
+    ticket = approval_engine.create_ticket(
+        principal_id="agent-1",
+        action_type="workspace.patch",
+        workspace_id="ws-1",
+        target_path="src/main.py",
+        patch_hash="hash999",
+        metadata={"base_checksum": "abc123expected"},
+    )
+    approval_engine.approve(ticket.token)
+
+    with pytest.raises(TacpSecurityError) as exc:
+        approval_engine.verify_and_consume(
+            token=ticket.token,
+            principal_id="agent-1",
+            action_type="workspace.patch",
+            workspace_id="ws-1",
+            target_path="src/main.py",
+            patch_hash="hash999",
+            base_checksum="wrong_base_hash",
+        )
+    assert exc.value.code == ErrorCode.NOT_AUTHORIZED
+    assert "Approval base checksum mismatch" in exc.value.message

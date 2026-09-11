@@ -202,3 +202,47 @@ def test_mcp_tool_call_when_mutation_disabled_fails(mcp_fixture: Dict[str, Any])
     assert resp is not None
     assert resp.result["isError"] is True
     assert "NOT_AUTHORIZED" in resp.result["content"][0]["text"]
+
+
+def test_mcp_tool_call_principal_argument_cannot_spoof(mcp_fixture: Dict[str, Any]) -> None:
+    server_mut = mcp_fixture["server_mut"]
+    ws = mcp_fixture["ws"]
+    sample_file = mcp_fixture["sample_file"]
+    base_hash = hashlib.sha256(sample_file.read_bytes()).hexdigest()
+
+    diff = "--- a/src/code.py\n+++ b/src/code.py\n@@ -1,2 +1,2 @@\n-a = 1\n+a = 10\n b = 2\n"
+    diff_hash = hashlib.sha256(diff.encode("utf-8")).hexdigest()
+
+    # Create ticket specifically for spoofed principal
+    appr_engine = ApprovalEngine(mcp_fixture["db"])
+    ticket = appr_engine.create_ticket(
+        principal_id="spoofed_admin",
+        action_type="workspace.patch",
+        workspace_id=ws.id,
+        target_path="src/code.py",
+        patch_hash=diff_hash,
+    )
+    appr_engine.approve(ticket.token)
+
+    # Calling tool passing arguments["principal_id"] = "spoofed_admin"
+    # should fail because connection principal is "mcp-client", not "spoofed_admin"
+    req = McpRequest(
+        id=14,
+        method="tools/call",
+        params={
+            "name": "workspace.patch",
+            "arguments": {
+                "workspace_id": ws.id,
+                "subpath": "src/code.py",
+                "patch_content": diff,
+                "base_checksum": base_hash,
+                "dry_run": False,
+                "approval_token": ticket.token,
+                "principal_id": "spoofed_admin",
+            },
+        },
+    )
+    resp = server_mut.handle_request(req)
+    assert resp is not None
+    assert resp.result["isError"] is True
+    assert "Approval principal mismatch" in resp.result["content"][0]["text"]

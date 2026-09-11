@@ -169,7 +169,7 @@ class McpToolRegistry:
 
         # 5. Dispatch to core service
         try:
-            result = self._dispatch(cap.name, args)
+            result = self._dispatch(cap.name, args, principal=client_principal)
             duration_ms = int((time.monotonic() - start_time) * 1000)
             self.audit_service.record_event(
                 AuditEvent(
@@ -202,7 +202,12 @@ class McpToolRegistry:
             )
             raise
 
-    def _dispatch(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _dispatch(
+        self,
+        name: str,
+        args: Dict[str, Any],
+        principal: Optional[Principal] = None,
+    ) -> Dict[str, Any]:
         """Route tool execution to the appropriate service."""
         if name == "system.inspect":
             return self.system_service.inspect_system()
@@ -288,7 +293,7 @@ class McpToolRegistry:
                 base_checksum=base_checksum,
                 dry_run=bool(args.get("dry_run", False)),
                 approval_token=args.get("approval_token"),
-                principal_id=args.get("principal_id", "mcp-client"),
+                principal_id=(principal.id if principal else "mcp-client"),
                 request_id=None,
             )
             return patch_res.to_dict()

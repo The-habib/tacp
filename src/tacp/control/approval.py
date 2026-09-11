@@ -240,6 +240,7 @@ class ApprovalEngine:
         workspace_id: str,
         target_path: str,
         patch_hash: str,
+        base_checksum: Optional[str] = None,
     ) -> bool:
         ticket = self.get_ticket(token)
         if not ticket:
@@ -306,6 +307,18 @@ class ApprovalEngine:
                 ErrorCode.NOT_AUTHORIZED,
                 f"Approval principal mismatch: expected '{ticket.principal_id}', "
                 f"got '{principal_id}'",
+            )
+
+        approved_base = ticket.metadata.get("base_checksum")
+        if (
+            approved_base
+            and base_checksum
+            and approved_base.lower().strip() != base_checksum.lower().strip()
+        ):
+            raise TacpSecurityError(
+                ErrorCode.NOT_AUTHORIZED,
+                f"Approval base checksum mismatch: expected '{approved_base}', "
+                f"got '{base_checksum}'",
             )
 
         # Atomic single-use consumption
