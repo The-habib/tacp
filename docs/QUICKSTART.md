@@ -2,7 +2,7 @@
 
 The **Termux AI Control Plane (TACP)** provides a secure, auditable, high-performance execution bridge between AI agents and local Termux environments on Android.
 
-TACP 0.1 establishes a **strictly read-only baseline**, guaranteeing zero unintended modifications while granting AI assistants full situational awareness.
+TACP 0.1 establishes a **strictly read-only baseline**, eliminating unauthorized mutations and shell execution while providing safe visibility into authorized workspaces.
 
 ---
 
@@ -80,7 +80,7 @@ tacp workspace add ~/projects/my-web-app --name web-app
 
 ## 4. Connecting AI Clients (MCP Server)
 
-TACP includes a pure-Python, zero-dependency **Model Context Protocol (MCP)** server communicating over standard I/O (`stdio`).
+TACP includes a pure-Python, zero-dependency **Model Context Protocol (MCP)** server communicating over standard I/O (`stdio`). It supports both the modern **MCP 2026-07-28** specification and legacy **2024-11-05 through 2025-11-25** handshakes.
 
 ### Claude Desktop / Cursor / Antigravity MCP Config
 
@@ -129,6 +129,7 @@ tacp audit --limit 20
 ## 6. Running Project Tests
 
 ```bash
-# Run the complete test suite (173 tests)
+# Run the complete test suite (269 tests across 11 categories)
 ./verify
 ```
+

@@ -7,15 +7,17 @@ SECRET_PATTERNS = [
     re.compile(r"-----(BEGIN|END) [A-Z ]+ PRIVATE KEY-----"),
     re.compile(r"ghp_[A-Za-z0-9_]{36,}"),
     re.compile(r"github_pat_[A-Za-z0-9_]{82,}"),
-    re.compile(r"sk-[A-Za-z0-9_-]{32,}"),
+    re.compile(r"sk-[A-Za-z0-9_-]{16,}"),
     re.compile(r"ya29\.[A-Za-z0-9_\-]+"),
     re.compile(r"(Bearer\s+)[A-Za-z0-9_\-\.]+", re.IGNORECASE),
     re.compile(r"(password|secret|token|api_key)=([^\s&]+)", re.IGNORECASE),
 ]
 
+_DB_URL_PATTERN = re.compile(r"(://[^:\s]+:)([^@\s]+)(@)")
+
 
 def redact_secrets(text: str) -> str:
-    redacted = text
+    redacted = _DB_URL_PATTERN.sub(r"\g<1>[REDACTED]\g<3>", text)
     for pattern in SECRET_PATTERNS:
         redacted = pattern.sub("[REDACTED]", redacted)
     return redacted

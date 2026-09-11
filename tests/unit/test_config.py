@@ -16,7 +16,7 @@ def test_default_config_creation() -> None:
     assert config.log_level == "INFO"
     assert isinstance(config.data_dir, Path)
     assert isinstance(config.db_path, Path)
-    assert config.version == "0.1.0"
+    assert config.version == "0.1.0-rc.1"
 
 
 def test_config_immutability_frozen() -> None:

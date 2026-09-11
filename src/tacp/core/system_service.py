@@ -26,8 +26,9 @@ class SystemService:
     @staticmethod
     def get_version() -> Dict[str, Any]:
         return {
-            "tacp_version": "0.1.0",
-            "mcp_protocol_version": "2024-11-05",
+            "tacp_version": "0.1.0-rc.1",
+            "mcp_protocol_version": "2026-07-28",
+            "supported_mcp_versions": ["2026-07-28", "2024-11-05"],
             "phase": "0.1",
             "mode": "READ_ONLY",
         }

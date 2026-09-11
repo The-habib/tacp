@@ -56,8 +56,8 @@ def test_system_service_get_health(test_db: Database) -> None:
 
 def test_system_service_get_version() -> None:
     ver = SystemService.get_version()
-    assert ver["tacp_version"] == "0.1.0"
-    assert ver["mcp_protocol_version"] == "2024-11-05"
+    assert ver["tacp_version"] == "0.1.0-rc.1"
+    assert ver["mcp_protocol_version"] == "2026-07-28"
     assert ver["mode"] == "READ_ONLY"
 
 

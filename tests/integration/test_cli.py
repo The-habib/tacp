@@ -13,8 +13,8 @@ def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
     code = main(["version"])
     assert code == 0
     captured = capsys.readouterr()
-    assert "TACP v0.1.0" in captured.out
-    assert "MCP 2024-11-05" in captured.out
+    assert "TACP v0.1.0-rc.1" in captured.out
+    assert "MCP 2026-07-28" in captured.out
 
 
 def test_cli_capabilities(capsys: pytest.CaptureFixture[str]) -> None:

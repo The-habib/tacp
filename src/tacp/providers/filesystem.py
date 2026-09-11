@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 from tacp.domain.classification import DataClassification
 from tacp.domain.errors import ErrorCode, TacpNotFoundError, TacpSecurityError
 from tacp.infrastructure.config import OutputLimits
+from tacp.infrastructure.logging import redact_string
 
 SECRET_EXTENSIONS = {".env", ".key", ".pem", ".token", ".crt", ".pfx", ".p12"}
 SECRET_FILENAMES = {
@@ -34,7 +35,14 @@ class FilesystemProvider:
     def __init__(self, limits: Optional[OutputLimits] = None) -> None:
         self.limits = limits or OutputLimits()
 
-    def resolve_safe_path(self, workspace_root: Path, subpath: str) -> Path:
+    def _resolve_in_jail(self, workspace_root: Path, subpath: str) -> Path:
+        """Resolve a subpath within workspace_root, enforcing strict jail invariants."""
+        if len(str(subpath)) > 4096:
+            raise TacpSecurityError(
+                ErrorCode.INVALID_INPUT,
+                "Path exceeds maximum allowed length of 4096 characters",
+            )
+
         # Null-byte and URL-encoding defenses
         if "\0" in subpath or "%" in subpath:
             raise TacpSecurityError(
@@ -219,7 +227,7 @@ class FilesystemProvider:
         bytes_read = len(content.encode("utf-8"))
         return {
             "path": subpath,
-            "content": content,
+            "content": redact_string(content),
             "bytes_read": bytes_read,
             "truncated": truncated,
             "total_bytes": total_bytes,
@@ -260,11 +268,13 @@ class FilesystemProvider:
                         for idx, line in enumerate(f, start=1):
                             comp_line = line if case_sensitive else line.lower()
                             if target_query in comp_line:
+                                snippet_clean = redact_string(line.strip()[:200])
                                 matches.append(
                                     {
                                         "file": rel_path,
                                         "line": idx,
-                                        "snippet": line.strip()[:200],
+                                        "snippet": snippet_clean,
+                                        "line_content": snippet_clean,
                                     }
                                 )
                                 if len(matches) >= self.limits.max_search_results:
@@ -286,5 +296,5 @@ class FilesystemProvider:
         }
 
     # Compatibility aliases
-    _resolve_in_jail = resolve_safe_path
+    resolve_safe_path = _resolve_in_jail
     _classify_path = classify_file

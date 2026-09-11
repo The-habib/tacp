@@ -20,7 +20,7 @@ class TacpConfig:
             os.environ.get("TACP_DATA_DIR", Path.home() / ".tacp")
         ).resolve()
     )
-    version: str = "0.1.0"
+    version: str = "0.1.0-rc.1"
     db_path: Path = field(default=Path())
     log_level: str = "INFO"
     read_only: bool = True

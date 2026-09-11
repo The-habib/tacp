@@ -20,6 +20,7 @@ from tacp.domain.errors import (
     TacpSecurityError,
     TacpValidationError,
 )
+from tacp.infrastructure.logging import redact_dict
 
 
 class McpToolRegistry:
@@ -47,11 +48,12 @@ class McpToolRegistry:
         """Return tool definitions formatted for MCP tools/list."""
         tools = []
         for cap in self.capability_service.list_raw():
+            schema = cap.input_schema if cap.input_schema else {"type": "object", "properties": {}}
             tools.append(
                 {
                     "name": cap.name,
                     "description": cap.description,
-                    "inputSchema": cap.input_schema,
+                    "inputSchema": schema,
                 }
             )
         return tools
@@ -111,7 +113,7 @@ class McpToolRegistry:
                     principal=client_principal.id,
                     request_id=context.request_id,
                     workspace_id=workspace_id,
-                    parameters_redacted=args,
+                    parameters_redacted=redact_dict(args),
                 )
             )
             raise TacpSecurityError(
@@ -133,7 +135,7 @@ class McpToolRegistry:
                     principal=client_principal.id,
                     request_id=context.request_id,
                     workspace_id=workspace_id,
-                    parameters_redacted=args,
+                    parameters_redacted=redact_dict(args),
                 )
             )
             return result
@@ -149,7 +151,7 @@ class McpToolRegistry:
                     principal=client_principal.id,
                     request_id=context.request_id,
                     workspace_id=workspace_id,
-                    parameters_redacted=args,
+                    parameters_redacted=redact_dict(args),
                 )
             )
             raise

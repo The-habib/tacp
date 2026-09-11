@@ -1,28 +1,37 @@
-# TACP 0.1 Final Release Report
+# TACP 0.1 Release Candidate 1 Report
 
-**To:** Project Owner / CEO  
-**From:** Lead Staff Engineer & Principal Architect  
-**Date:** September 11, 2026  
-**Status:** Complete & Independently Verified  
-**Release Tag:** `v0.1.0`  
+- **To:** Project Owner / CEO
+- **From:** Lead Staff Engineer & Principal Architect
+- **Date:** September 11, 2026
+- **Status:** Release Ready with Documented Limitations
+- **Release Tag:** `v0.1.0-rc.1`
 
 ---
 
 ## 1. Executive Summary
 
-We have completed **Phase 1: TACP 0.1 — Usable Read-Only Control Plane + Verification Baseline**.
+We have completed **Phase 1.5: Release Hardening, MCP Modernization & Independent Product Audit**.
 
-TACP is now an active, working product running natively on Android inside Termux. It provides AI agents (such as Claude, Cursor, or Antigravity) with a high-speed, secure, read-only bridge to inspect the device, browse codebases, search files, check running processes, and monitor system health—with **zero risk of unintended modifications, data loss, or privilege escalation**.
+TACP 0.1 is now a verified, release-hardened product baseline running natively inside Termux on Android (`aarch64`). It provides external AI agents with a strictly read-only control plane to safely inspect system metrics, browse codebases, search workspace contents, inspect user processes, and record tamper-evident audit events.
+
+### Security Boundary Clarification
+- **What Read-Only Eliminates**: All risks of unauthorized file modifications, file deletions, code corruption, shell command execution, process termination, and privilege escalation.
+- **What Read-Only Does Not Eliminate**: Information disclosure, secret exposure, data exfiltration, malicious input injection, or resource abuse. These risks are mitigated via strict canonical path jailing, secret classification filters, automated regex redaction, and strict output size bounds.
 
 ---
 
-## 2. Key Deliverables Completed
+## 2. Key Deliverables & Enhancements
 
-### A. The 13 Read-Only Capabilities
-All 13 specified capabilities have been implemented, tested, and wired into the MCP tool registry:
+### A. Dual-Protocol MCP Server (`tacp serve`)
+- Modernized to support **MCP 2026-07-28** (`server/discover`, per-request `_meta`, `resultType: "complete"`, public caching directives).
+- Retains full backward compatibility for **MCP 2024-11-05 through 2025-11-25** legacy clients (`initialize` negotiation, `ping`).
+- Verified independently against official `@modelcontextprotocol/inspector` v2.6.0 with `--strict` schema validation. All 13 read-only tools passed with 0 warnings and 0 schema errors.
+
+### B. The 13 Read-Only Capabilities
+All 13 specified capabilities are fully wired and tested:
 1. `system.inspect` — Host OS, CPU architecture, memory, and Termux details.
 2. `system.health` — Subsystem health, storage margins, and database checks.
-3. `system.version` — Version reporting and protocol compliance.
+3. `system.version` — Version reporting (`0.1.0-rc.1`) and protocol compliance (`2026-07-28`).
 4. `capabilities.list` — Self-documenting capability catalog with parameter schemas.
 5. `workspace.list` — Catalog of registered workspace roots and statuses.
 6. `workspace.inspect` — File counts, disk usage, and git metadata for a workspace.
@@ -34,58 +43,46 @@ All 13 specified capabilities have been implemented, tested, and wired into the 
 12. `process.inspect` — Detailed process statistics for user-owned PIDs.
 13. `audit.recent` — Tamper-evident audit log of all system decisions.
 
-### B. Lightweight MCP Server (`tacp serve`)
-- Built in pure standard Python with **zero external protocol dependencies**.
-- Conforms fully to the **Model Context Protocol (MCP) 2024-11-05 specification** over standard I/O (`stdio`).
-- Starts in **$< 20$ milliseconds** and consumes **$< 16$ MB RAM**, preventing mobile OOM kills.
-- Connects directly to any MCP client (Claude Desktop, Cursor, Antigravity, MCP Inspector).
-
-### C. Security Baseline & Defenses
-- **Default-Deny Policy Engine**: Any operation not on the strict read-only allowlist (e.g. `fs.write`, `shell.exec`, `android.intent`) is immediately blocked and audited.
-- **Canonical Path Jail**: AI agents cannot escape the designated workspace boundary using directory traversal (`../`) or symlink attacks.
-- **Secret Redaction**: API keys (GitHub, Anthropic, OpenAI), OAuth tokens, SSH keys, and `.env` files are blocked from inspection and scrubbed from audit logs.
-- **Process Sandbox**: AI cannot probe system or other applications' processes.
+### C. Security Baseline & Negative API Surface
+- **All 78/78 Security Baseline Test Cases** passing across 7 categories (Path Traversal, Authorization, Secrets, Input Validation, Output Bounds, Resource Abuse, Untrusted Data).
+- **Negative API Surface Audit**: Complete audit of `src/` confirmed **0 unauthorized mutation primitives**, **0 shell execution calls**, and **0 outbound network sockets**.
+- **Automated Secret Redaction**: In-line content redaction and audit log parameter sanitization covering OpenAI, Anthropic, GitHub tokens, database passwords, and private keys.
 
 ### D. Comprehensive Verification Suite
-- **173 automated tests** passing with **0 failures** (exceeding the target of 120–150 tests).
+- **269 automated tests** passing with **0 failures** across 11 test categories.
 - **82% test coverage** across all application modules.
-- **40/40 required security test cases** passing, validating defenses against real-world attack vectors.
-- **100% clean type checking** under `mypy --strict`.
-- **100% clean linting and formatting** under native `ruff`.
-
-### E. User Experience & CLI Tooling
-- `./install.sh`: One-step deterministic installer that configures Python, sets up `.venv`, registers the workspace, and creates a global `tacp` command.
-- `tacp doctor`: 1-second comprehensive diagnostics check.
-- `tacp status`: Live runtime status, memory, and database health.
-- `tacp capabilities`: Clean capability directory.
-- `tacp workspace`: Add and list authorized directories.
-- `tacp audit`: Human-readable and JSON audit logs.
+- **Mypy Strict**: 100% clean static type validation.
+- **Ruff**: 100% clean formatting and linting.
+- **pip-audit**: Zero vulnerable dependencies.
 
 ---
 
-## 3. Verification Evidence
+## 3. Empirical Performance Distributions (N=35 Runs)
 
-The canonical verifier (`./verify`) executed all 7 validation stages with zero errors:
+All performance metrics were empirically measured using `scripts/measure_performance.py` on real device hardware inside Termux:
 
-```
->>> [Stage 1/7] ShellCheck (Scripts Hygiene)... PASS
->>> [Stage 2/7] Format Check (Ruff)... PASS
->>> [Stage 3/7] Lint Check (Ruff)... PASS
->>> [Stage 4/7] Type Check (Mypy)... PASS
->>> [Stage 5/7] Unit, Integration & Device Tests (pytest)... 131 passed, PASS
->>> [Stage 6/7] Security Test Suite (pytest)... 42 passed, PASS
->>> [Stage 7/7] Dependency Audit (pip-audit)... PASS
-==================================================
-Overall Result: PASS (Duration: 42s)
-==================================================
-```
+| Metric | Min | Median | P95 | Max | Unit |
+|---|---|---|---|---|---|
+| **Cold CLI Startup** (`tacp version`) | 177.67 | 194.14 | 246.12 | 247.00 | ms |
+| **Memory RSS at Rest** | 21.40 | 21.40 | 21.40 | 21.40 | MB |
+| **`fs.read` Latency** | 1.22 | 1.45 | 3.12 | 5.37 | ms |
+| **`fs.list` Latency** | 1.30 | 1.74 | 1.98 | 2.16 | ms |
+| **`fs.search` Latency** | 6.83 | 7.15 | 9.18 | 9.32 | ms |
+| **`process.list` Latency** | 1.82 | 2.14 | 3.08 | 5.31 | ms |
+| **MCP `ping` Round-trip** | 0.00 | 0.00 | 0.00 | 0.01 | ms |
+| **MCP `tools/call` Round-trip** | 0.11 | 0.12 | 0.17 | 0.19 | ms |
 
 ---
 
-## 4. Next Steps (Phase 2 Preview)
+## 4. Documented Limitations for 0.1
 
-With the read-only baseline established, verified, and locked in Git, the project is ready for **Phase 2: Controlled Mutations & Execution**:
-1. Explicit user consent dialogs for write operations.
-2. Sandboxed write primitives (`fs.write`, `fs.patch`).
-3. Managed command execution with timeout and output capture.
-4. Granular per-workspace access tokens.
+1. **GitHub Free Repository Protection**: Server-side branch protection rulesets are unavailable on the current GitHub Free private repository plan. Enforcement is guaranteed locally via `./verify` canonical gatekeeper and GitHub Actions CI.
+2. **Tasks Extension**: Tasks (`tasks/*`) is deferred from the official MCP SDK v2.2.0 schema and is not supported in TACP 0.1.
+3. **Transport Scope**: Remote ingress over tunnels (Tailscale / Cloudflare / SSH) is documented and architecturally validated in `docs/mcp/OPENAI-TUNNEL-READINESS.md`, while the server binary runs locally over `stdio`.
+
+---
+
+## 5. Release Verdict
+
+**VERDICT: RELEASE READY WITH DOCUMENTED LIMITATIONS (v0.1.0-rc.1)**  
+The baseline is stable, reproducible, independently verified, and ready for release tagging.

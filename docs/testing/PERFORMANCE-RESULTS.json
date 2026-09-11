@@ -1,0 +1,63 @@
+{
+  "metadata": {
+    "platform": "android",
+    "python_version": "3.14.6",
+    "iterations": 35,
+    "timestamp": "2026-09-11T04:14:29Z"
+  },
+  "cold_startup_ms": {
+    "min_ms": 177.67,
+    "median_ms": 194.14,
+    "p95_ms": 246.12,
+    "max_ms": 247.0,
+    "mean_ms": 200.09
+  },
+  "memory_rss_mb": {
+    "min_mb": 21.4,
+    "median_mb": 21.4,
+    "p95_mb": 21.4,
+    "max_mb": 21.4
+  },
+  "fs_read_ms": {
+    "min_ms": 1.22,
+    "median_ms": 1.45,
+    "p95_ms": 3.12,
+    "max_ms": 5.37,
+    "mean_ms": 1.81
+  },
+  "fs_list_ms": {
+    "min_ms": 1.3,
+    "median_ms": 1.74,
+    "p95_ms": 1.98,
+    "max_ms": 2.16,
+    "mean_ms": 1.69
+  },
+  "fs_search_ms": {
+    "min_ms": 6.83,
+    "median_ms": 7.15,
+    "p95_ms": 9.18,
+    "max_ms": 9.32,
+    "mean_ms": 7.44
+  },
+  "process_list_ms": {
+    "min_ms": 1.82,
+    "median_ms": 2.14,
+    "p95_ms": 3.08,
+    "max_ms": 5.31,
+    "mean_ms": 2.26
+  },
+  "mcp_ping_ms": {
+    "min_ms": 0.0,
+    "median_ms": 0.0,
+    "p95_ms": 0.0,
+    "max_ms": 0.01,
+    "mean_ms": 0.0
+  },
+  "mcp_call_ms": {
+    "min_ms": 0.11,
+    "median_ms": 0.12,
+    "p95_ms": 0.17,
+    "max_ms": 0.19,
+    "mean_ms": 0.13
+  }
+}

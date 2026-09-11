@@ -10,9 +10,48 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+show_help() {
+  cat <<EOF
+Usage: ./install.sh [OPTIONS]
+
+TACP (Termux AI Control Plane) Installation Script.
+
+Options:
+  -h, --help       Show this help message and exit
+  --dry-run        Check prerequisites without modifying system
+  --no-doctor      Skip post-installation doctor diagnostics
+EOF
+}
+
+DRY_RUN=false
+SKIP_DOCTOR=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      show_help
+      exit 0
+      ;;
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    --no-doctor)
+      SKIP_DOCTOR=true
+      shift
+      ;;
+    *)
+      echo "[ERROR] Unknown option: $1" >&2
+      show_help >&2
+      exit 1
+      ;;
+  esac
+done
+
 echo "============================================================"
 echo " TACP 0.1 — Termux AI Control Plane Installation"
 echo "============================================================"
+
 
 # 1. Environment and Python check
 PYTHON_BIN=""
@@ -32,6 +71,11 @@ done
 if [[ -z "$PYTHON_BIN" ]]; then
   echo "[ERROR] Python 3.11 or higher is required. Please install Python in Termux (pkg install python)."
   exit 1
+fi
+
+if [[ "$DRY_RUN" == "true" ]]; then
+  echo "[OK] Dry run prerequisite check passed. No changes made."
+  exit 0
 fi
 
 # 2. Virtual Environment Setup
@@ -60,8 +104,10 @@ else
 fi
 
 # 4. Initialize Data Directory and Run Doctor
-echo "[*] Initializing TACP database and running diagnostics..."
-"$SCRIPT_DIR/.venv/bin/tacp" doctor
+if [[ "$SKIP_DOCTOR" != "true" ]]; then
+  echo "[*] Initializing TACP database and running diagnostics..."
+  "$SCRIPT_DIR/.venv/bin/tacp" doctor
+fi
 
 # 5. Ensure Default Workspace
 echo "[*] Registering current directory as default workspace..."

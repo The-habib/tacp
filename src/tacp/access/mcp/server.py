@@ -8,8 +8,11 @@ from pathlib import Path
 from typing import TextIO
 
 from tacp.access.mcp.protocol import (
+    DEFAULT_PROTOCOL_VERSION,
     INTERNAL_ERROR,
     INVALID_PARAMS,
+    KNOWN_PROTOCOL_VERSIONS,
+    LEGACY_PROTOCOL_VERSION,
     METHOD_NOT_FOUND,
     McpProtocolError,
     McpRequest,
@@ -30,11 +33,15 @@ from tacp.infrastructure.database import Database
 from tacp.providers.filesystem import FilesystemProvider
 from tacp.providers.process import ProcessProvider
 
-MCP_PROTOCOL_VERSION = "2024-11-05"
+# Backward compatibility alias
+MCP_PROTOCOL_VERSION = LEGACY_PROTOCOL_VERSION
 
 
 class McpServer:
-    """Synchronous stdio Model Context Protocol (MCP) server."""
+    """Synchronous stdio Model Context Protocol (MCP) server.
+
+    Supports modern (2026-07-28) and legacy (2024-11-05) protocol revisions.
+    """
 
     def __init__(self, tool_registry: McpToolRegistry, config: TacpConfig) -> None:
         self.tool_registry = tool_registry
@@ -48,11 +55,40 @@ class McpServer:
         method = request.method
         req_id = request.id
 
-        if method == "initialize":
+        if method == "server/discover":
+            # MCP 2026-07-28 stateless server discovery
             return McpResponse(
                 id=req_id,
                 result={
-                    "protocolVersion": MCP_PROTOCOL_VERSION,
+                    "supportedVersions": list(KNOWN_PROTOCOL_VERSIONS),
+                    "capabilities": {
+                        "tools": {},
+                    },
+                    "cacheScope": "public",
+                    "ttlMs": 60000,
+                    "resultType": "complete",
+                    "instructions": (
+                        "TACP (Termux AI Control Plane) is a strictly read-only MCP server "
+                        "providing safe inspection of Termux workspaces, processes, "
+                        "system status, and audit logs. Mutation is not permitted."
+                    ),
+                },
+            )
+
+        elif method == "initialize":
+            # MCP 2024-11-05 through 2025-11-25 handshake negotiation
+            client_version = request.params.get("protocolVersion")
+            if client_version in KNOWN_PROTOCOL_VERSIONS:
+                negotiated_version = client_version
+            elif client_version:
+                negotiated_version = DEFAULT_PROTOCOL_VERSION
+            else:
+                negotiated_version = LEGACY_PROTOCOL_VERSION
+
+            return McpResponse(
+                id=req_id,
+                result={
+                    "protocolVersion": negotiated_version,
                     "capabilities": {
                         "tools": {},
                     },
@@ -60,6 +96,9 @@ class McpServer:
                         "name": "tacp",
                         "version": self.config.version,
                     },
+                    "instructions": (
+                        "TACP (Termux AI Control Plane) is a strictly read-only MCP server."
+                    ),
                 },
             )
 
@@ -68,7 +107,15 @@ class McpServer:
 
         elif method == "tools/list":
             tools = self.tool_registry.list_tools()
-            return McpResponse(id=req_id, result={"tools": tools})
+            return McpResponse(
+                id=req_id,
+                result={
+                    "tools": tools,
+                    "cacheScope": "public",
+                    "ttlMs": 60000,
+                    "resultType": "complete",
+                },
+            )
 
         elif method == "tools/call":
             tool_name = request.params.get("name")
@@ -85,6 +132,14 @@ class McpServer:
                     error={"code": INVALID_PARAMS, "message": "'arguments' must be an object"},
                 )
 
+            # Handle per-request _meta parameter (MCP 2026-07-28 progress tokens, correlation IDs)
+            _meta = request.params.get("_meta")
+            if _meta is not None and not isinstance(_meta, dict):
+                return McpResponse(
+                    id=req_id,
+                    error={"code": INVALID_PARAMS, "message": "'_meta' must be an object"},
+                )
+
             try:
                 result = self.tool_registry.execute_tool(tool_name, arguments)
                 return McpResponse(
@@ -97,6 +152,7 @@ class McpServer:
                             }
                         ],
                         "isError": False,
+                        "resultType": "complete",
                     },
                 )
             except TacpError as exc:
@@ -110,6 +166,7 @@ class McpServer:
                             }
                         ],
                         "isError": True,
+                        "resultType": "complete",
                     },
                 )
             except Exception as exc:
@@ -123,6 +180,7 @@ class McpServer:
                             }
                         ],
                         "isError": True,
+                        "resultType": "complete",
                     },
                 )
 

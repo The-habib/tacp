@@ -70,3 +70,20 @@ class AuditService:
                 }
             )
         return events
+
+    def verify_integrity(self) -> bool:
+        """Verify the structural and JSON integrity of all stored audit log records."""
+        conn = self.db.connect()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, timestamp, parameters_json FROM audit_logs ORDER BY timestamp ASC;"
+        )
+        rows = cursor.fetchall()
+        for r in rows:
+            if not r["id"] or not r["timestamp"]:
+                return False
+            try:
+                json.loads(r["parameters_json"])
+            except Exception:
+                return False
+        return True
