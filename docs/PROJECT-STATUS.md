@@ -1,9 +1,9 @@
 # TACP Project Status
 
-- **Current Phase**: Phase 1.5 — Release Hardening, MCP Modernization & Independent Product Audit (Completed)
+- **Current Phase**: Phase 2 — Governed Execution Platform (Gate A: Architecture & Design Complete)
 - **Last Updated**: 2026-09-11
-- **Overall Status**: **RELEASE CANDIDATE READY — VERIFIED ON-DEVICE IN TERMUX**
-- **Release Version**: `0.1.0-rc.1` (Git tag: `v0.1.0-rc.1`)
+- **Overall Status**: **GATE A DESIGN PACKAGE COMPLETE — ADVERSARIALLY AUDITED & READY FOR GATE B**
+- **Release Version**: `0.1.0-rc.1` (Current Baseline) -> `0.2.0` (Target Release)
 
 ---
 
@@ -46,9 +46,35 @@
 
 ---
 
-## 2. Next Milestone
+## 2. Phase 2 Progress & Milestones
 
-**Phase 2: Controlled Mutations & Sandboxed Execution**
-- Human confirmation dialogs and access tokens.
-- Sandboxed file modifications with automatic rollback.
-- Controlled command execution with strict timeouts.
+- **Gate A: Architecture & Design Package (COMPLETE)**:
+  - Phase 2 Current State Audit (`docs/phases/PHASE-2-CURRENT-STATE-AUDIT.md`)
+  - Read-Only Baseline Freeze Contract (`docs/baselines/TACP-0.1-READ-ONLY-CONTRACT.md`)
+  - Governed Execution Architecture (`docs/phases/PHASE-2-GOVERNED-EXECUTION-DESIGN.md`)
+  - Security Architecture & Defense-in-Depth (`docs/security/PHASE-2-SECURITY-ARCHITECTURE.md`)
+  - Identity Model (`docs/security/IDENTITY-MODEL.md`)
+  - Policy Engine & Hierarchy Model (`docs/security/POLICY-MODEL.md`)
+  - Approval Engine & Human Sovereignty (`docs/security/APPROVAL-MODEL.md`)
+  - Risk & Autonomy Engine (`docs/security/RISK-MODEL.md`)
+  - Secret Brokerage & Protection Model (`docs/security/SECRET-MODEL.md`)
+  - Network Policy & Egress Security (`docs/security/NETWORK-MODEL.md`)
+  - Execution Contract Specification (`docs/execution/EXECUTION-CONTRACT.md`)
+  - Mutation Safety & Atomic Operations (`docs/execution/MUTATION-MODEL.md`)
+  - Patch Engine Specification (`docs/execution/PATCH-MODEL.md`)
+  - Recovery, Checkpoints & Circuit Breakers (`docs/execution/RECOVERY-MODEL.md`)
+  - Concurrency, Locks & Leases (`docs/execution/CONCURRENCY-MODEL.md`)
+  - Job System & Command Execution (`docs/execution/JOB-MODEL.md`)
+  - MCP Phase 2 Contract (`docs/mcp/MCP-PHASE-2-CONTRACT.md`)
+  - Master Test Plan (`docs/testing/PHASE-2-TEST-PLAN.md`)
+  - Security Test Matrix (88 Cases) (`docs/testing/PHASE-2-SECURITY-MATRIX.md`)
+  - Requirement Traceability Matrix (`docs/testing/PHASE-2-REQUIREMENT-TRACEABILITY.md`)
+  - Readiness & Quality Gates Plan (`docs/releases/TACP-0.2-READINESS-PLAN.md`)
+  - Adversarial Design Review (`docs/phases/PHASE-2-DESIGN-REVIEW.md`)
+
+- **Gate B: Incremental Vertical Slices (PENDING AUTHORIZATION)**:
+  - **Slice 1**: `workspace.patch` for a single text file (atomic write, base checksum, approval, audit).
+  - **Slice 2**: Multi-file patch with transactional consistency.
+  - **Slice 3**: Checkpoints and reversible snapshots (`snapshot.create`, `snapshot.restore`).
+  - **Slice 4**: Controlled command execution (`execution.request`, argv arrays, env scrubbing).
+  - **Slice 5**: Job and process management (durable Job state machine, circuit breakers).
