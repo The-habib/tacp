@@ -66,3 +66,55 @@ def test_hold_context_manager_cleans_up_on_exception(lock_service: LockService) 
     # Resource should be released despite exception
     token = lock_service.acquire_lock("ws-1:src/crash.py", "owner-2", ttl_seconds=10)
     assert token
+
+
+def test_hold_many_acquires_all_and_releases(lock_service: LockService) -> None:
+    rids = ["ws-1:b.py", "ws-1:a.py", "ws-1:c.py"]
+    with lock_service.hold_many(rids, "owner-1", ttl_seconds=10) as locks:
+        assert len(locks) == 3
+        assert set(locks.keys()) == set(rids)
+        # Any other owner trying to acquire any locked resource should fail
+        for r in rids:
+            with pytest.raises(TacpConflictError):
+                lock_service.acquire_lock(r, "owner-2", ttl_seconds=10)
+
+    # After block exits, all are unlocked
+    for r in rids:
+        t = lock_service.acquire_lock(r, "owner-2", ttl_seconds=10)
+        assert t
+        lock_service.release_lock(r, t)
+
+
+def test_hold_many_fails_atomically_if_one_locked(lock_service: LockService) -> None:
+    # Pre-lock ws-1:b.py with owner-2
+    tok = lock_service.acquire_lock("ws-1:b.py", "owner-2", ttl_seconds=30)
+    assert tok
+
+    # Attempt to hold_many(["ws-1:a.py", "ws-1:b.py", "ws-1:c.py"]) with owner-1
+    # Sorted order means ws-1:a.py will be acquired first, then ws-1:b.py will conflict
+    with pytest.raises(TacpConflictError) as exc:
+        with lock_service.hold_many(["ws-1:a.py", "ws-1:b.py", "ws-1:c.py"], "owner-1"):
+            pass
+    assert "locked by 'owner-2'" in str(exc.value)
+
+    # Invariant: ws-1:a.py MUST have been released in rollback!
+    tok_a = lock_service.acquire_lock("ws-1:a.py", "owner-3", ttl_seconds=10)
+    assert tok_a
+    # ws-1:c.py was never locked
+    tok_c = lock_service.acquire_lock("ws-1:c.py", "owner-3", ttl_seconds=10)
+    assert tok_c
+
+
+def test_hold_many_cleans_up_on_exception(lock_service: LockService) -> None:
+    rids = ["ws-1:x.py", "ws-1:y.py"]
+    try:
+        with lock_service.hold_many(rids, "owner-1", ttl_seconds=10):
+            raise ValueError("Processing exploded")
+    except ValueError:
+        pass
+
+    # Both must be unlocked
+    for r in rids:
+        tok = lock_service.acquire_lock(r, "owner-2", ttl_seconds=10)
+        assert tok
+        lock_service.release_lock(r, tok)

@@ -151,3 +151,90 @@ def test_missing_workspace_denied() -> None:
     assert decision.allowed is False
     assert decision.decision_type == "DENY"
     assert "requires an active workspace" in decision.reason
+
+
+def test_batch_mutation_disabled_when_mutation_disabled(active_ws: Workspace) -> None:
+    pe = PolicyEngine(mutation_enabled=False, batch_mutation_enabled=True)
+    ctx = RequestContext(capability="workspace.patch_batch", principal=Principal(id="agent"))
+    decision = pe.evaluate_request(ctx, workspace=active_ws)
+    assert decision.allowed is False
+    assert decision.decision_type == "DENY"
+    assert "mutation is disabled" in decision.reason
+
+
+def test_batch_mutation_disabled_when_batch_flag_false(active_ws: Workspace) -> None:
+    pe = PolicyEngine(mutation_enabled=True, batch_mutation_enabled=False)
+    ctx = RequestContext(capability="workspace.patch_batch", principal=Principal(id="agent"))
+    decision = pe.evaluate_request(ctx, workspace=active_ws)
+    assert decision.allowed is False
+    assert decision.decision_type == "DENY"
+    assert "batch mutation is disabled" in decision.reason
+
+
+def test_batch_mutation_dry_run_allowed_when_both_enabled(active_ws: Workspace) -> None:
+    pe = PolicyEngine(mutation_enabled=True, batch_mutation_enabled=True)
+    ctx = RequestContext(capability="workspace.patch_batch", principal=Principal(id="agent"))
+    decision = pe.evaluate_request(
+        ctx,
+        workspace=active_ws,
+        target_paths=["src/a.py", "src/b.py"],
+        dry_run=True,
+    )
+    assert decision.allowed is True
+    assert decision.decision_type == "ALLOW"
+
+
+def test_batch_mutation_live_requires_approval(active_ws: Workspace) -> None:
+    pe = PolicyEngine(mutation_enabled=True, batch_mutation_enabled=True)
+    ctx = RequestContext(capability="workspace.patch_batch", principal=Principal(id="agent"))
+    decision = pe.evaluate_request(
+        ctx,
+        workspace=active_ws,
+        target_paths=["src/a.py", "src/b.py"],
+        dry_run=False,
+        has_approval=False,
+    )
+    assert decision.allowed is False
+    assert decision.decision_type == "REQUIRE_APPROVAL"
+
+
+def test_batch_mutation_live_allowed_with_approval(active_ws: Workspace) -> None:
+    pe = PolicyEngine(mutation_enabled=True, batch_mutation_enabled=True)
+    ctx = RequestContext(capability="workspace.patch_batch", principal=Principal(id="agent"))
+    decision = pe.evaluate_request(
+        ctx,
+        workspace=active_ws,
+        target_paths=["src/a.py", "src/b.py"],
+        dry_run=False,
+        has_approval=True,
+    )
+    assert decision.allowed is True
+    assert decision.decision_type == "ALLOW"
+
+
+def test_batch_target_paths_traversal_denied(active_ws: Workspace) -> None:
+    pe = PolicyEngine(mutation_enabled=True, batch_mutation_enabled=True)
+    ctx = RequestContext(capability="workspace.patch_batch", principal=Principal(id="agent"))
+    decision = pe.evaluate_request(
+        ctx,
+        workspace=active_ws,
+        target_paths=["src/clean.py", "src/../../etc/shadow"],
+        dry_run=True,
+    )
+    assert decision.allowed is False
+    assert decision.decision_type == "DENY"
+    assert "traversal" in decision.reason.lower()
+
+
+def test_batch_target_paths_protected_denied(active_ws: Workspace) -> None:
+    pe = PolicyEngine(mutation_enabled=True, batch_mutation_enabled=True)
+    ctx = RequestContext(capability="workspace.patch_batch", principal=Principal(id="agent"))
+    decision = pe.evaluate_request(
+        ctx,
+        workspace=active_ws,
+        target_paths=["src/clean.py", ".git/HEAD"],
+        dry_run=True,
+    )
+    assert decision.allowed is False
+    assert decision.decision_type == "DENY"
+    assert "protected resource" in decision.reason

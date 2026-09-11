@@ -159,22 +159,67 @@ MUTATING_CAPABILITIES: List[Capability] = [
         },
         output_schema={"type": "object"},
     ),
+    Capability(
+        name="workspace.patch_batch",
+        domain="workspace",
+        description=(
+            "Apply a governed atomic multi-file patch batch within an authorized workspace"
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "workspace_id": {
+                    "type": "string",
+                    "description": "Target workspace identifier",
+                },
+                "patches": {
+                    "type": "array",
+                    "description": "List of patch items to apply atomically",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "subpath": {"type": "string"},
+                            "patch_content": {"type": "string"},
+                            "base_checksum": {"type": "string"},
+                        },
+                        "required": ["subpath", "patch_content", "base_checksum"],
+                    },
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "Simulate batch patch application without modifying disk",
+                },
+                "approval_token": {
+                    "type": "string",
+                    "description": "Approval token if live mutation requires human sign-off",
+                },
+            },
+            "required": ["workspace_id", "patches"],
+        },
+        output_schema={"type": "object"},
+    ),
 ]
 
 
 class CapabilityService:
     @staticmethod
-    def list_capabilities(include_mutating: bool = False) -> List[Dict[str, Any]]:
+    def list_capabilities(
+        include_mutating: bool = False, include_batch: bool = False
+    ) -> List[Dict[str, Any]]:
         caps = list(READONLY_CAPABILITIES)
         if include_mutating:
-            caps.extend(MUTATING_CAPABILITIES)
+            caps.append(MUTATING_CAPABILITIES[0])  # workspace.patch
+            if include_batch:
+                caps.append(MUTATING_CAPABILITIES[1])  # workspace.patch_batch
         return [c.to_dict() for c in caps]
 
     @staticmethod
-    def list_raw(include_mutating: bool = False) -> List[Capability]:
+    def list_raw(include_mutating: bool = False, include_batch: bool = False) -> List[Capability]:
         caps = list(READONLY_CAPABILITIES)
         if include_mutating:
-            caps.extend(MUTATING_CAPABILITIES)
+            caps.append(MUTATING_CAPABILITIES[0])
+            if include_batch:
+                caps.append(MUTATING_CAPABILITIES[1])
         return caps
 
     @staticmethod

@@ -71,3 +71,44 @@ class PatchResult:
             "message": self.message,
             "details": self.details,
         }
+
+
+@dataclass(frozen=True)
+class BatchPatchItem:
+    subpath: str
+    patch_content: str
+    base_checksum: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "subpath": self.subpath,
+            "patch_content": self.patch_content,
+            "base_checksum": self.base_checksum,
+        }
+
+
+@dataclass(frozen=True)
+class BatchPatchResult:
+    batch_id: str
+    status: PatchStatus
+    workspace_id: str
+    results: list[PatchResult] = field(default_factory=list)
+    audit_id: str = ""
+    message: str = ""
+    details: Dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def changed_files(self) -> list[str]:
+        return [r.subpath for r in self.results]
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "batch_id": self.batch_id,
+            "status": self.status.value,
+            "workspace_id": self.workspace_id,
+            "changed_files": self.changed_files,
+            "results": [r.to_dict() for r in self.results],
+            "audit_id": self.audit_id,
+            "message": self.message,
+            "details": self.details,
+        }

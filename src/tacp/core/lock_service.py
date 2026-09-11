@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+import logging
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -9,6 +8,8 @@ from tacp.domain.errors import (
     TacpConflictError,
 )
 from tacp.infrastructure.database import Database
+
+logger = logging.getLogger(__name__)
 
 
 class LockService:
@@ -83,3 +84,28 @@ class LockService:
             yield token
         finally:
             self.release_lock(resource_id, token)
+
+    def release_many(self, locks: dict[str, str]) -> None:
+        for rid, token in reversed(list(locks.items())):
+            try:
+                self.release_lock(rid, token)
+            except Exception as exc:
+                logger.debug("Failed to release lock %s: %s", rid, exc)
+
+    @contextmanager
+    def hold_many(
+        self,
+        resource_ids: list[str],
+        owner_id: str,
+        ttl_seconds: int = 45,
+    ) -> Generator[dict[str, str], None, None]:
+        # Sort lexicographically to guarantee deterministic global lock acquisition order
+        sorted_ids = sorted(resource_ids)
+        acquired: dict[str, str] = {}
+        try:
+            for rid in sorted_ids:
+                token = self.acquire_lock(rid, owner_id, ttl_seconds)
+                acquired[rid] = token
+            yield acquired
+        finally:
+            self.release_many(acquired)

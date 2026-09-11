@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 import re
 import shutil
@@ -21,6 +22,8 @@ from tacp.domain.errors import (
 from tacp.domain.patch import PatchStatus
 from tacp.infrastructure.config import OutputLimits
 from tacp.infrastructure.logging import redact_string
+
+logger = logging.getLogger(__name__)
 
 SECRET_EXTENSIONS = {".env", ".key", ".pem", ".token", ".crt", ".pfx", ".p12"}
 SECRET_FILENAMES = {
@@ -408,11 +411,22 @@ class FilesystemProvider:
         patch_id: Optional[str] = None,
         snapshot_dir: Optional[Path] = None,
     ) -> Dict[str, Any]:
-        raw_target = workspace_root / subpath.strip()
+        raw_subp = subpath.strip()
+        if raw_subp.startswith("/") or raw_subp.startswith("\\") or Path(raw_subp).is_absolute():
+            raise TacpSecurityError(
+                ErrorCode.OUTSIDE_WORKSPACE,
+                f"Absolute path '{raw_subp}' is forbidden",
+            )
+        clean_subp = raw_subp.replace("\\", "/")
+        while clean_subp.startswith("./"):
+            clean_subp = clean_subp[2:]
+        clean_subp = clean_subp.strip("/")
+
+        raw_target = workspace_root / clean_subp
         if raw_target.is_symlink():
             raise TacpSecurityError(ErrorCode.OUTSIDE_WORKSPACE, "Cannot patch symlink")
 
-        target = self._resolve_in_jail(workspace_root, subpath)
+        target = self._resolve_in_jail(workspace_root, clean_subp)
 
         if not target.exists():
             raise TacpNotFoundError(f"Target file does not exist: {subpath}")
@@ -602,6 +616,331 @@ class FilesystemProvider:
             "subpath": subpath,
             "restored_checksum": restored_hash,
             "message": "File successfully rolled back from snapshot",
+        }
+
+    def apply_patch_batch(
+        self,
+        workspace_root: Path,
+        patches: List[Dict[str, Any]],
+        dry_run: bool = False,
+        batch_id: Optional[str] = None,
+        snapshot_dir: Optional[Path] = None,
+    ) -> Dict[str, Any]:
+        bid = batch_id or f"batch-{uuid.uuid4().hex[:8]}"
+
+        # Check batch file count limit
+        if len(patches) > self.limits.max_batch_files:
+            raise TacpValidationError(
+                f"Batch item count ({len(patches)}) exceeds limit ({self.limits.max_batch_files})"
+            )
+
+        # Preflight validation & simulation for all items
+        total_diff_bytes = 0
+        total_resulting_bytes = 0
+        preflight_data: List[Dict[str, Any]] = []
+
+        for item in patches:
+            raw_subp = item["subpath"].strip()
+            if (
+                raw_subp.startswith("/")
+                or raw_subp.startswith("\\")
+                or Path(raw_subp).is_absolute()
+            ):
+                raise TacpSecurityError(
+                    ErrorCode.OUTSIDE_WORKSPACE,
+                    f"Absolute path '{raw_subp}' is forbidden",
+                )
+            subpath = raw_subp.replace("\\", "/")
+            while subpath.startswith("./"):
+                subpath = subpath[2:]
+            subpath = subpath.strip("/")
+
+            patch_diff = item["patch_content"]
+            base_checksum = item["base_checksum"]
+
+            raw_target = workspace_root / subpath
+            if raw_target.is_symlink():
+                raise TacpSecurityError(
+                    ErrorCode.OUTSIDE_WORKSPACE, f"Cannot patch symlink: {subpath}"
+                )
+
+            target = self._resolve_in_jail(workspace_root, subpath)
+
+            if not target.exists():
+                raise TacpNotFoundError(f"Target file does not exist: {subpath}")
+            if target.is_dir():
+                raise TacpValidationError(f"Target path is a directory, not a file: {subpath}")
+
+            # Secret classification check
+            if self.classify_file(target) in (
+                DataClassification.SECRET,
+                DataClassification.CRITICAL,
+            ):
+                raise TacpSecurityError(
+                    ErrorCode.POLICY_DENIED,
+                    f"Cannot patch protected/secret file '{target.name}'",
+                )
+
+            # Diff size check
+            diff_bytes = patch_diff.encode("utf-8")
+            if len(diff_bytes) > self.limits.max_patch_bytes:
+                raise TacpValidationError(
+                    f"Patch diff size ({len(diff_bytes)} bytes) for '{subpath}' "
+                    f"exceeds limit ({self.limits.max_patch_bytes} bytes)"
+                )
+            total_diff_bytes += len(diff_bytes)
+
+            # Target file size check
+            target_size = target.stat().st_size
+            if target_size > self.limits.max_file_size_bytes:
+                raise TacpValidationError(
+                    f"File size ({target_size} bytes) for '{subpath}' "
+                    f"exceeds limit ({self.limits.max_file_size_bytes} bytes)"
+                )
+
+            # Read target bytes & check for binary / null bytes
+            try:
+                file_bytes = target.read_bytes()
+            except OSError as err:
+                raise TacpSecurityError(
+                    ErrorCode.INTERNAL_ERROR, f"Failed to read target file '{subpath}': {err}"
+                ) from err
+
+            if b"\0" in file_bytes or "\0" in patch_diff:
+                raise TacpValidationError(
+                    f"Binary files or null bytes are not supported: '{subpath}'"
+                )
+
+            try:
+                orig_text = file_bytes.decode("utf-8")
+            except UnicodeDecodeError as err:
+                raise TacpValidationError(
+                    f"Target file is not valid UTF-8 text: '{subpath}'"
+                ) from err
+
+            # Base checksum check (Optimistic Concurrency Control)
+            current_checksum = hashlib.sha256(file_bytes).hexdigest()
+            if base_checksum.lower().strip() != current_checksum.lower():
+                raise TacpConflictError(
+                    f"Base checksum mismatch for '{subpath}': expected '{base_checksum}', "
+                    f"current file checksum is '{current_checksum}'"
+                )
+
+            # Apply diff simulation
+            resulting_text, added_count, removed_count = self._apply_unified_diff(
+                orig_text, patch_diff
+            )
+            resulting_bytes = resulting_text.encode("utf-8")
+
+            if len(resulting_bytes) > self.limits.max_resulting_file_bytes:
+                raise TacpValidationError(
+                    f"Resulting file size ({len(resulting_bytes)} bytes) for '{subpath}' "
+                    f"exceeds limit ({self.limits.max_resulting_file_bytes} bytes)"
+                )
+            total_resulting_bytes += len(resulting_bytes)
+
+            res_checksum = hashlib.sha256(resulting_bytes).hexdigest()
+            preflight_data.append(
+                {
+                    "subpath": subpath,
+                    "target": target,
+                    "file_bytes": file_bytes,
+                    "resulting_bytes": resulting_bytes,
+                    "current_checksum": current_checksum,
+                    "after_checksum": res_checksum,
+                    "added_count": added_count,
+                    "removed_count": removed_count,
+                    "patch_diff": patch_diff,
+                }
+            )
+
+        # Aggregate limits check
+        if total_diff_bytes > self.limits.max_batch_patch_total_bytes:
+            raise TacpValidationError(
+                f"Total batch patch diff size ({total_diff_bytes} bytes) exceeds limit "
+                f"({self.limits.max_batch_patch_total_bytes} bytes)"
+            )
+        if total_resulting_bytes > self.limits.max_batch_resulting_total_bytes:
+            raise TacpValidationError(
+                f"Total batch resulting size ({total_resulting_bytes} bytes) exceeds limit "
+                f"({self.limits.max_batch_resulting_total_bytes} bytes)"
+            )
+
+        # Dry run return
+        if dry_run:
+            item_results = []
+            for d in preflight_data:
+                item_results.append(
+                    {
+                        "patch_id": f"{bid}_{d['subpath']}",
+                        "status": PatchStatus.SIMULATED,
+                        "subpath": d["subpath"],
+                        "before_checksum": d["current_checksum"],
+                        "after_checksum": d["after_checksum"],
+                        "lines_added": d["added_count"],
+                        "lines_removed": d["removed_count"],
+                        "diff_preview": d["patch_diff"][:500],
+                        "snapshot_path": None,
+                        "message": "Dry-run patch simulation succeeded",
+                    }
+                )
+            return {
+                "batch_id": bid,
+                "status": PatchStatus.SIMULATED,
+                "results": item_results,
+                "snapshot_manifest": {},
+                "message": "Dry-run batch simulation succeeded",
+            }
+
+        # Live Execution:
+        s_dir = snapshot_dir or (Path.home() / ".tacp" / "snapshots")
+        batch_snap_dir = s_dir / bid
+        batch_snap_dir.mkdir(parents=True, exist_ok=True)
+
+        snapshot_manifest: Dict[str, str] = {}
+        # 1. Create snapshots
+        for idx, d in enumerate(preflight_data):
+            snap_file = batch_snap_dir / f"{idx}_{d['target'].name}"
+            try:
+                snap_file.write_bytes(d["file_bytes"])
+                with snap_file.open("ab") as f:
+                    f.flush()
+                    os.fsync(f.fileno())
+                snapshot_manifest[d["subpath"]] = str(snap_file)
+                d["snap_file"] = snap_file
+            except OSError as err:
+                raise TacpSecurityError(
+                    ErrorCode.INTERNAL_ERROR,
+                    f"Failed to create pre-patch snapshot for '{d['subpath']}': {err}",
+                ) from err
+
+        # 2. Stage temporary files in each target's parent directory
+        staged_files: List[Tuple[Path, Path, str, Path]] = []
+        try:
+            for idx, d in enumerate(preflight_data):
+                temp_file = d["target"].parent / f".tacp_tmp_{bid}_{idx}_{uuid.uuid4().hex}"
+                with temp_file.open("wb") as f:
+                    f.write(d["resulting_bytes"])
+                    f.flush()
+                    os.fsync(f.fileno())
+                staged_files.append((temp_file, d["target"], d["after_checksum"], d["snap_file"]))
+        except Exception as stage_err:
+            for tfile, _, _, _ in staged_files:
+                if tfile.exists():
+                    tfile.unlink(missing_ok=True)
+            raise TacpSecurityError(
+                ErrorCode.MUTATION_FAILED,
+                f"Batch staging failed: {stage_err}",
+            ) from stage_err
+
+        # 3. Commit Phase with Atomic Rename & Rollback on failure
+        committed: List[Tuple[str, Path, Path]] = []
+        try:
+            for idx, (temp_file, target, after_checksum, snap_file) in enumerate(staged_files):
+                subpath = preflight_data[idx]["subpath"]
+                os.replace(temp_file, target)
+                committed.append((subpath, target, snap_file))
+                # Post-write verify
+                disk_bytes = target.read_bytes()
+                if hashlib.sha256(disk_bytes).hexdigest() != after_checksum:
+                    raise TacpSecurityError(
+                        ErrorCode.MUTATION_FAILED,
+                        f"Post-write verification failed for '{subpath}': checksum mismatch",
+                    )
+        except Exception as commit_err:
+            for _, tgt, sfile in reversed(committed):
+                try:
+                    shutil.copy2(sfile, tgt)
+                except Exception as exc:
+                    logger.warning("Failed to restore snapshot during rollback: %s", exc)
+            for tfile, _, _, _ in staged_files:
+                if tfile.exists():
+                    tfile.unlink(missing_ok=True)
+            raise TacpSecurityError(
+                ErrorCode.MUTATION_FAILED,
+                f"Batch commit failed; all modified files rolled back: {commit_err}",
+            ) from commit_err
+
+        # Success: build results
+        item_results = []
+        for d in preflight_data:
+            item_results.append(
+                {
+                    "patch_id": f"{bid}_{d['subpath']}",
+                    "status": PatchStatus.APPLIED,
+                    "subpath": d["subpath"],
+                    "before_checksum": d["current_checksum"],
+                    "after_checksum": d["after_checksum"],
+                    "lines_added": d["added_count"],
+                    "lines_removed": d["removed_count"],
+                    "diff_preview": d["patch_diff"][:500],
+                    "snapshot_path": snapshot_manifest[d["subpath"]],
+                    "message": "Patch applied successfully",
+                }
+            )
+
+        return {
+            "batch_id": bid,
+            "status": PatchStatus.APPLIED,
+            "results": item_results,
+            "snapshot_manifest": snapshot_manifest,
+            "message": f"Successfully applied batch patch to {len(item_results)} files",
+        }
+
+    def rollback_patch_batch(
+        self,
+        workspace_root: Path,
+        snapshot_manifest: Dict[str, str],
+        expected_checksums: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        targets_to_restore = []
+        for subpath, snap_path_str in snapshot_manifest.items():
+            snap_path = Path(snap_path_str)
+            if not snap_path.exists():
+                raise TacpNotFoundError(f"Snapshot file not found for '{subpath}': {snap_path_str}")
+            target = self._resolve_in_jail(workspace_root, subpath)
+            if expected_checksums and subpath in expected_checksums and target.exists():
+                curr_bytes = target.read_bytes()
+                curr_hash = hashlib.sha256(curr_bytes).hexdigest()
+                exp_hash = expected_checksums[subpath]
+                if curr_hash != exp_hash:
+                    raise TacpConflictError(
+                        f"Rollback conflict for '{subpath}': checksum ({curr_hash}) "
+                        f"does not match expected ({exp_hash})"
+                    )
+            targets_to_restore.append((subpath, target, snap_path))
+
+        restored_results = []
+        for subpath, target, snap_path in targets_to_restore:
+            snap_bytes = snap_path.read_bytes()
+            temp_file = target.parent / f".tacp_tmp_rb_{uuid.uuid4().hex}"
+            try:
+                with temp_file.open("wb") as f:
+                    f.write(snap_bytes)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(temp_file, target)
+            except Exception as err:
+                if temp_file.exists():
+                    temp_file.unlink(missing_ok=True)
+                raise TacpSecurityError(
+                    ErrorCode.ROLLBACK_FAILED,
+                    f"Rollback atomic restore failed for '{subpath}': {err}",
+                ) from err
+            restored_hash = hashlib.sha256(snap_bytes).hexdigest()
+            restored_results.append(
+                {
+                    "subpath": subpath,
+                    "restored_checksum": restored_hash,
+                }
+            )
+
+        return {
+            "status": PatchStatus.ROLLED_BACK,
+            "restored_files": restored_results,
+            "message": (
+                f"Successfully rolled back {len(restored_results)} files from batch snapshots"
+            ),
         }
 
     # Compatibility aliases

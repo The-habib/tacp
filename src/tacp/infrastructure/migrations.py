@@ -105,6 +105,26 @@ MIGRATIONS: List[Tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_locks_expires ON locks (expires_at);
         """,
     ),
+    (
+        3,
+        """
+        CREATE TABLE IF NOT EXISTS batches (
+            id TEXT PRIMARY KEY,
+            workspace_id TEXT NOT NULL,
+            batch_hash TEXT NOT NULL,
+            patch_count INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            applied_at TEXT NOT NULL,
+            applied_by TEXT NOT NULL,
+            rollback_at TEXT,
+            snapshot_manifest_json TEXT NOT NULL DEFAULT '{}',
+            results_json TEXT NOT NULL DEFAULT '[]',
+            metadata_json TEXT NOT NULL DEFAULT '{}'
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_batches_workspace ON batches (workspace_id);
+        """,
+    ),
 ]
 
 

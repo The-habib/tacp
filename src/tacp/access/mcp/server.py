@@ -235,6 +235,7 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
     policy_engine = PolicyEngine(
         read_only_enforced=cfg.read_only,
         mutation_enabled=cfg.mutation_enabled,
+        batch_mutation_enabled=cfg.batch_mutation_enabled,
     )
     workspace_service = WorkspaceService(db)
 

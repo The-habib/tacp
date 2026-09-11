@@ -14,6 +14,9 @@ class OutputLimits:
     max_patch_bytes: int = 262144  # 256 KB
     max_file_size_bytes: int = 1048576  # 1 MB
     max_resulting_file_bytes: int = 2097152  # 2 MB
+    max_batch_files: int = 10
+    max_batch_patch_total_bytes: int = 1048576  # 1 MB
+    max_batch_resulting_total_bytes: int = 5242880  # 5 MB
 
 
 @dataclass(frozen=True)
@@ -28,6 +31,7 @@ class TacpConfig:
     log_level: str = "INFO"
     read_only: bool = True
     mutation_enabled: bool = False
+    batch_mutation_enabled: bool = False
     limits: OutputLimits = field(default_factory=OutputLimits)
     allowed_workspace_roots: List[Path] = field(default_factory=list)
 
@@ -42,9 +46,10 @@ class TacpConfig:
             # Default to projects directory or current workspace
             default_root = Path.home() / "projects"
             object.__setattr__(self, "allowed_workspace_roots", [default_root])
-        # If mutation is disabled, enforce read_only = True
+        # If mutation is disabled, enforce read_only = True and batch_mutation_enabled = False
         if not self.mutation_enabled:
             object.__setattr__(self, "read_only", True)
+            object.__setattr__(self, "batch_mutation_enabled", False)
 
     @classmethod
     def load(cls) -> "TacpConfig":
@@ -54,6 +59,11 @@ class TacpConfig:
         db_path = Path(db_path_str).resolve() if db_path_str else data_dir / "tacp.db"
         log_level = os.environ.get("TACP_LOG_LEVEL", "INFO").upper()
         mutation_enabled = os.environ.get("TACP_MUTATION_ENABLED", "0").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        batch_mutation_enabled = os.environ.get("TACP_BATCH_MUTATION_ENABLED", "0").lower() in (
             "1",
             "true",
             "yes",
@@ -68,5 +78,6 @@ class TacpConfig:
             log_level=log_level,
             read_only=read_only,
             mutation_enabled=mutation_enabled,
+            batch_mutation_enabled=batch_mutation_enabled,
             limits=OutputLimits(),
         )

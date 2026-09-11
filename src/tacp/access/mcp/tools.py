@@ -53,7 +53,14 @@ class McpToolRegistry:
         """Return tool definitions formatted for MCP tools/list."""
         tools = []
         include_mutating = bool(self.patch_service and self.patch_service.config.mutation_enabled)
-        for cap in self.capability_service.list_raw(include_mutating=include_mutating):
+        include_batch = bool(
+            include_mutating
+            and self.patch_service
+            and self.patch_service.config.batch_mutation_enabled
+        )
+        for cap in self.capability_service.list_raw(
+            include_mutating=include_mutating, include_batch=include_batch
+        ):
             schema = cap.input_schema if cap.input_schema else {"type": "object", "properties": {}}
             tools.append(
                 {
@@ -67,8 +74,16 @@ class McpToolRegistry:
     def normalize_tool_name(self, name: str) -> str:
         """Allow dot-notation, underscore-notation, and tacp_ prefix."""
         include_mutating = bool(self.patch_service and self.patch_service.config.mutation_enabled)
+        include_batch = bool(
+            include_mutating
+            and self.patch_service
+            and self.patch_service.config.batch_mutation_enabled
+        )
         valid_names = {
-            c.name for c in self.capability_service.list_raw(include_mutating=include_mutating)
+            c.name
+            for c in self.capability_service.list_raw(
+                include_mutating=include_mutating, include_batch=include_batch
+            )
         }
         if name in valid_names:
             return name
@@ -111,11 +126,25 @@ class McpToolRegistry:
 
         # 4. Policy evaluation
         target_path = args.get("subpath") if normalized_name == "workspace.patch" else None
+        target_paths: Optional[List[str]] = None
+        if normalized_name == "workspace.patch_batch":
+            raw_patches = args.get("patches", [])
+            if isinstance(raw_patches, list):
+                target_paths = [
+                    str(p.get("subpath"))
+                    for p in raw_patches
+                    if isinstance(p, dict) and p.get("subpath") is not None
+                ]
+
         dry_run = (
-            bool(args.get("dry_run", False)) if normalized_name == "workspace.patch" else False
+            bool(args.get("dry_run", False))
+            if normalized_name in ("workspace.patch", "workspace.patch_batch")
+            else False
         )
         has_approval = (
-            bool(args.get("approval_token")) if normalized_name == "workspace.patch" else False
+            bool(args.get("approval_token"))
+            if normalized_name in ("workspace.patch", "workspace.patch_batch")
+            else False
         )
 
         start_time = time.monotonic()
@@ -123,6 +152,7 @@ class McpToolRegistry:
             context,
             workspace=ws,
             target_path=target_path,
+            target_paths=target_paths,
             dry_run=dry_run,
             has_approval=has_approval,
         )
@@ -159,6 +189,36 @@ class McpToolRegistry:
                     )
                     raise TacpApprovalRequiredError(
                         f"Execution of 'workspace.patch' requires explicit human approval. "
+                        f"Ticket created: {ticket.token} (id: {ticket.id})"
+                    )
+                if self.patch_service and normalized_name == "workspace.patch_batch":
+                    raw_patches = args.get("patches", [])
+                    clean_patches = [
+                        {
+                            "subpath": p.get("subpath", ""),
+                            "patch_content": p.get("patch_content", ""),
+                            "base_checksum": p.get("base_checksum", ""),
+                        }
+                        for p in raw_patches
+                        if isinstance(p, dict)
+                    ]
+                    from tacp.control.approval import compute_canonical_batch_hash
+
+                    batch_hash = compute_canonical_batch_hash(clean_patches)
+                    ticket = self.patch_service.approval_engine.create_ticket(
+                        principal_id=client_principal.id,
+                        action_type="workspace.patch_batch",
+                        workspace_id=workspace_id or "",
+                        target_path="*",
+                        patch_hash=batch_hash,
+                        metadata={
+                            "request_id": context.request_id,
+                            "patch_count": len(clean_patches),
+                            "subpaths": [p["subpath"] for p in clean_patches],
+                        },
+                    )
+                    raise TacpApprovalRequiredError(
+                        f"Execution of 'workspace.patch_batch' requires explicit human approval. "
                         f"Ticket created: {ticket.token} (id: {ticket.id})"
                     )
                 raise TacpApprovalRequiredError(f"Action requires approval: {decision.reason}")
@@ -216,7 +276,20 @@ class McpToolRegistry:
         elif name == "system.version":
             return self.system_service.get_version()
         elif name == "capabilities.list":
-            return {"capabilities": self.capability_service.list_capabilities()}
+            include_mutating = bool(
+                self.patch_service and self.patch_service.config.mutation_enabled
+            )
+            include_batch = bool(
+                include_mutating
+                and self.patch_service
+                and self.patch_service.config.batch_mutation_enabled
+            )
+            return {
+                "capabilities": self.capability_service.list_capabilities(
+                    include_mutating=include_mutating,
+                    include_batch=include_batch,
+                )
+            }
         elif name == "workspace.list":
             return {"workspaces": self.workspace_service.list_workspaces()}
         elif name == "workspace.inspect":
@@ -297,5 +370,28 @@ class McpToolRegistry:
                 request_id=None,
             )
             return patch_res.to_dict()
+        elif name == "workspace.patch_batch":
+            if not self.patch_service:
+                raise TacpSecurityError(
+                    ErrorCode.POLICY_DENIED,
+                    "Patch service is not configured or disabled",
+                )
+            ws_id = args.get("workspace_id")
+            patches = args.get("patches")
+            if not ws_id or not patches:
+                raise TacpValidationError(
+                    "Missing required parameters for workspace.patch_batch: workspace_id, patches"
+                )
+            if not isinstance(patches, list):
+                raise TacpValidationError("Parameter 'patches' must be a list")
+            batch_res = self.patch_service.execute_patch_batch(
+                workspace_id=ws_id,
+                patches=patches,
+                dry_run=bool(args.get("dry_run", False)),
+                approval_token=args.get("approval_token"),
+                principal_id=(principal.id if principal else "mcp-client"),
+                request_id=None,
+            )
+            return batch_res.to_dict()
         else:
             raise TacpNotFoundError(f"Unhandled tool: {name}")

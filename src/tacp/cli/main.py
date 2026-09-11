@@ -145,6 +145,12 @@ def cmd_status(_args: argparse.Namespace) -> int:
 def cmd_serve(args: argparse.Namespace) -> int:
     """Launch stdio MCP server loop."""
     config = TacpConfig.load()
+    if getattr(args, "allow_mutation", False):
+        object.__setattr__(config, "mutation_enabled", True)
+        object.__setattr__(config, "read_only", False)
+    if getattr(args, "allow_batch_mutation", False) and config.mutation_enabled:
+        object.__setattr__(config, "batch_mutation_enabled", True)
+
     server = create_mcp_server(config)
 
     # Optional initial workspace registration from CLI
@@ -160,6 +166,163 @@ def cmd_serve(args: argparse.Namespace) -> int:
                 sys.stderr.write(f"Notice: Workspace not registered: {exc.message}\n")
 
     server.run_stdio()
+    return 0
+
+
+def cmd_patch(args: argparse.Namespace) -> int:
+    """Manage single patch operations."""
+    config = TacpConfig.load()
+    db = Database(config.db_path)
+    db.connect()
+    from tacp.control.approval import ApprovalEngine
+    from tacp.control.policy import PolicyEngine
+    from tacp.core.audit_service import AuditService
+    from tacp.core.lock_service import LockService
+    from tacp.core.patch_service import PatchService
+    from tacp.core.workspace_service import WorkspaceService
+    from tacp.providers.filesystem import FilesystemProvider
+
+    ws_service = WorkspaceService(db)
+    policy_engine = PolicyEngine(
+        read_only_enforced=config.read_only,
+        mutation_enabled=config.mutation_enabled,
+        batch_mutation_enabled=config.batch_mutation_enabled,
+    )
+    fs_provider = FilesystemProvider(limits=config.limits)
+    audit_service = AuditService(db)
+    lock_service = LockService(db)
+    approval_engine = ApprovalEngine(db)
+    patch_service = PatchService(
+        db=db,
+        workspace_service=ws_service,
+        policy_engine=policy_engine,
+        fs_provider=fs_provider,
+        audit_service=audit_service,
+        lock_service=lock_service,
+        approval_engine=approval_engine,
+        config=config,
+    )
+
+    subcommand = getattr(args, "patch_action", None)
+    if subcommand == "list" or subcommand is None:
+        ws_id = getattr(args, "workspace", None)
+        patches = patch_service.list_patches(workspace_id=ws_id)
+        if not patches:
+            print("No patch records found.")
+            return 0
+        print(f"\n{'PATCH ID':<16} {'WORKSPACE':<15} {'STATUS':<12} {'TARGET PATH'}")
+        print("-" * 65)
+        for p in patches:
+            print(f"{p['id']:<16} {p['workspace_id']:<15} {p['status']:<12} {p['target_path']}")
+        print()
+        return 0
+
+    elif subcommand == "show":
+        patch_id = getattr(args, "patch_id", None)
+        if not patch_id:
+            print("Error: patch_id required.")
+            return 1
+        data = patch_service.get_patch(patch_id)
+        if not data:
+            print(f"Error: Patch '{patch_id}' not found.")
+            return 1
+        print(json.dumps(data, indent=2))
+        return 0
+
+    elif subcommand == "rollback":
+        patch_id = getattr(args, "patch_id", None)
+        if not patch_id:
+            print("Error: patch_id required.")
+            return 1
+        try:
+            res = patch_service.rollback_patch(patch_id, principal_id="cli-user")
+            print(f"Successfully rolled back patch '{patch_id}': {res.message}")
+            return 0
+        except Exception as exc:
+            print(f"Error rolling back patch '{patch_id}': {exc}")
+            return 1
+
+    return 0
+
+
+def cmd_batch(args: argparse.Namespace) -> int:
+    """Manage batch patch operations."""
+    config = TacpConfig.load()
+    db = Database(config.db_path)
+    db.connect()
+    from tacp.control.approval import ApprovalEngine
+    from tacp.control.policy import PolicyEngine
+    from tacp.core.audit_service import AuditService
+    from tacp.core.lock_service import LockService
+    from tacp.core.patch_service import PatchService
+    from tacp.core.workspace_service import WorkspaceService
+    from tacp.providers.filesystem import FilesystemProvider
+
+    ws_service = WorkspaceService(db)
+    policy_engine = PolicyEngine(
+        read_only_enforced=config.read_only,
+        mutation_enabled=config.mutation_enabled,
+        batch_mutation_enabled=config.batch_mutation_enabled,
+    )
+    fs_provider = FilesystemProvider(limits=config.limits)
+    audit_service = AuditService(db)
+    lock_service = LockService(db)
+    approval_engine = ApprovalEngine(db)
+    patch_service = PatchService(
+        db=db,
+        workspace_service=ws_service,
+        policy_engine=policy_engine,
+        fs_provider=fs_provider,
+        audit_service=audit_service,
+        lock_service=lock_service,
+        approval_engine=approval_engine,
+        config=config,
+    )
+
+    subcommand = getattr(args, "batch_action", None)
+    if subcommand == "list" or subcommand is None:
+        ws_id = getattr(args, "workspace", None)
+        batches = patch_service.list_batches(workspace_id=ws_id)
+        if not batches:
+            print("No batch patch records found.")
+            return 0
+        print(f"\n{'BATCH ID':<20} {'WORKSPACE':<15} {'FILES':<8} {'STATUS':<12} {'APPLIED AT'}")
+        print("-" * 75)
+        for b in batches:
+            print(
+                f"{b['id']:<20} {b['workspace_id']:<15} {b['patch_count']:<8} "
+                f"{b['status']:<12} {b['applied_at'][:19]}"
+            )
+        print()
+        return 0
+
+    elif subcommand == "show":
+        batch_id = getattr(args, "batch_id", None)
+        if not batch_id:
+            print("Error: batch_id required.")
+            return 1
+        data = patch_service.get_batch(batch_id)
+        if not data:
+            print(f"Error: Batch '{batch_id}' not found.")
+            return 1
+        print(json.dumps(data, indent=2))
+        return 0
+
+    elif subcommand == "rollback":
+        batch_id = getattr(args, "batch_id", None)
+        if not batch_id:
+            print("Error: batch_id required.")
+            return 1
+        try:
+            res = patch_service.rollback_batch(batch_id, principal_id="cli-user")
+            print(f"Successfully rolled back batch '{batch_id}': {res.message}")
+            for r in res.results:
+                print(f"  - {r.subpath}: restored {r.after_checksum[:12]}...")
+            return 0
+        except Exception as exc:
+            print(f"Error rolling back batch '{batch_id}': {exc}")
+            return 1
+
     return 0
 
 
@@ -237,7 +400,7 @@ def build_parser() -> argparse.ArgumentParser:
     """Build command line argument parser."""
     parser = argparse.ArgumentParser(
         prog="tacp",
-        description="Termux AI Control Plane (TACP) 0.1",
+        description="Termux AI Control Plane (TACP)",
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -245,7 +408,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("version", help="Show version information")
 
     # capabilities
-    subparsers.add_parser("capabilities", help="List registered read-only capabilities")
+    subparsers.add_parser("capabilities", help="List registered capabilities")
 
     # doctor
     subparsers.add_parser("doctor", help="Run environmental and health diagnostics")
@@ -257,6 +420,36 @@ def build_parser() -> argparse.ArgumentParser:
     serve_parser = subparsers.add_parser("serve", help="Start the stdio MCP server loop")
     serve_parser.add_argument("--workspace", type=str, help="Initial workspace directory")
     serve_parser.add_argument("--workspace-name", type=str, help="Initial workspace name")
+    serve_parser.add_argument(
+        "--allow-mutation",
+        action="store_true",
+        help="Enable single-file workspace mutation",
+    )
+    serve_parser.add_argument(
+        "--allow-batch-mutation",
+        action="store_true",
+        help="Enable multi-file batch workspace mutation",
+    )
+
+    # patch
+    patch_parser = subparsers.add_parser("patch", help="Manage single patches")
+    patch_sub = patch_parser.add_subparsers(dest="patch_action")
+    patch_list = patch_sub.add_parser("list", help="List patch records")
+    patch_list.add_argument("--workspace", help="Filter by workspace ID")
+    patch_show = patch_sub.add_parser("show", help="Show patch details")
+    patch_show.add_argument("patch_id", help="Patch record ID")
+    patch_rb = patch_sub.add_parser("rollback", help="Roll back a patch")
+    patch_rb.add_argument("patch_id", help="Patch record ID")
+
+    # batch
+    batch_parser = subparsers.add_parser("batch", help="Manage multi-file patch batches")
+    batch_sub = batch_parser.add_subparsers(dest="batch_action")
+    batch_list = batch_sub.add_parser("list", help="List batch records")
+    batch_list.add_argument("--workspace", help="Filter by workspace ID")
+    batch_show = batch_sub.add_parser("show", help="Show batch details")
+    batch_show.add_argument("batch_id", help="Batch record ID")
+    batch_rb = batch_sub.add_parser("rollback", help="Roll back a patch batch")
+    batch_rb.add_argument("batch_id", help="Batch record ID")
 
     # workspace
     ws_parser = subparsers.add_parser("workspace", help="Manage workspaces")
@@ -289,6 +482,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         "doctor": cmd_doctor,
         "status": cmd_status,
         "serve": cmd_serve,
+        "patch": cmd_patch,
+        "batch": cmd_batch,
         "workspace": cmd_workspace,
         "audit": cmd_audit,
     }

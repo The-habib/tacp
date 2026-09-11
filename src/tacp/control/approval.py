@@ -1,11 +1,10 @@
-from __future__ import annotations
-
+import hashlib
 import json
 import secrets
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from tacp.domain.errors import (
     ErrorCode,
@@ -14,6 +13,24 @@ from tacp.domain.errors import (
     TacpSecurityError,
 )
 from tacp.infrastructure.database import Database
+
+
+def compute_canonical_batch_hash(patches: List[Dict[str, Any]]) -> str:
+    """Compute deterministic canonical SHA-256 hash for a batch of patches."""
+    sorted_patches = sorted(
+        [
+            {
+                "subpath": p["subpath"].replace("\\", "/").strip().lstrip("./"),
+                "base_checksum": p["base_checksum"].lower().strip(),
+                "patch_content": p["patch_content"].replace("\r\n", "\n"),
+            }
+            for p in patches
+        ],
+        key=lambda x: x["subpath"],
+    )
+    payload = json.dumps(sorted_patches, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
 
 STATUS_PENDING = "PENDING"
 STATUS_APPROVED = "APPROVED"
@@ -289,7 +306,9 @@ class ApprovalEngine:
             )
 
         clean_target = target_path.strip().lstrip("./")
-        if ticket.target_path != clean_target:
+        if ticket.target_path != clean_target and not (
+            ticket.action_type == "workspace.patch_batch" and ticket.target_path == "*"
+        ):
             raise TacpSecurityError(
                 ErrorCode.NOT_AUTHORIZED,
                 f"Approval target path mismatch: expected '{ticket.target_path}', "

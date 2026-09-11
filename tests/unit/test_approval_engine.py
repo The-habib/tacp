@@ -310,3 +310,91 @@ def test_verify_and_consume_base_checksum_mismatch(
         )
     assert exc.value.code == ErrorCode.NOT_AUTHORIZED
     assert "Approval base checksum mismatch" in exc.value.message
+
+
+def test_compute_canonical_batch_hash_deterministic() -> None:
+    from tacp.control.approval import compute_canonical_batch_hash
+
+    p1 = {"subpath": "b.txt", "patch_content": "+line\n", "base_checksum": "abc"}
+    p2 = {"subpath": "a.txt", "patch_content": "-line\n", "base_checksum": "def"}
+
+    # Order permutations must produce exact same SHA-256
+    hash1 = compute_canonical_batch_hash([p1, p2])
+    hash2 = compute_canonical_batch_hash([p2, p1])
+    assert hash1 == hash2
+    assert len(hash1) == 64
+
+
+def test_compute_canonical_batch_hash_crlf_normalized() -> None:
+    from tacp.control.approval import compute_canonical_batch_hash
+
+    p1 = {"subpath": "a.txt", "patch_content": "@@ -1 +1 @@\r\n+line\r\n", "base_checksum": "ABC"}
+    p2 = {"subpath": "./a.txt", "patch_content": "@@ -1 +1 @@\n+line\n", "base_checksum": "abc"}
+
+    assert compute_canonical_batch_hash([p1]) == compute_canonical_batch_hash([p2])
+
+
+def test_compute_canonical_batch_hash_sensitive_to_changes() -> None:
+    from tacp.control.approval import compute_canonical_batch_hash
+
+    p1 = {"subpath": "a.txt", "patch_content": "+line1\n", "base_checksum": "abc"}
+    p2 = {"subpath": "a.txt", "patch_content": "+line2\n", "base_checksum": "abc"}
+
+    assert compute_canonical_batch_hash([p1]) != compute_canonical_batch_hash([p2])
+
+
+def test_batch_approval_workflow_success(approval_engine: ApprovalEngine) -> None:
+    from tacp.control.approval import compute_canonical_batch_hash
+
+    patches = [
+        {"subpath": "src/a.py", "patch_content": "+test\n", "base_checksum": "111"},
+        {"subpath": "src/b.py", "patch_content": "+test2\n", "base_checksum": "222"},
+    ]
+    batch_hash = compute_canonical_batch_hash(patches)
+
+    ticket = approval_engine.create_ticket(
+        principal_id="agent-1",
+        action_type="workspace.patch_batch",
+        workspace_id="ws-1",
+        target_path="*",
+        patch_hash=batch_hash,
+    )
+    approval_engine.approve(ticket.token)
+
+    consumed = approval_engine.verify_and_consume(
+        token=ticket.token,
+        principal_id="agent-1",
+        action_type="workspace.patch_batch",
+        workspace_id="ws-1",
+        target_path="*",
+        patch_hash=batch_hash,
+    )
+    assert consumed is True
+
+
+def test_batch_approval_hash_mismatch(approval_engine: ApprovalEngine) -> None:
+    from tacp.control.approval import compute_canonical_batch_hash
+
+    patches = [{"subpath": "a.py", "patch_content": "+x\n", "base_checksum": "111"}]
+    batch_hash = compute_canonical_batch_hash(patches)
+
+    ticket = approval_engine.create_ticket(
+        principal_id="agent-1",
+        action_type="workspace.patch_batch",
+        workspace_id="ws-1",
+        target_path="*",
+        patch_hash=batch_hash,
+    )
+    approval_engine.approve(ticket.token)
+
+    # Tampered patch hash
+    with pytest.raises(TacpSecurityError) as exc:
+        approval_engine.verify_and_consume(
+            token=ticket.token,
+            principal_id="agent-1",
+            action_type="workspace.patch_batch",
+            workspace_id="ws-1",
+            target_path="*",
+            patch_hash="tampered_hash_00000000000000000000000000000000000000000000000000000000",
+        )
+    assert exc.value.code == ErrorCode.NOT_AUTHORIZED

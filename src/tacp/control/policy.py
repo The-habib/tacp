@@ -47,6 +47,7 @@ class PolicyEngine:
 
     MUTATING_CAPABILITIES = {
         "workspace.patch",
+        "workspace.patch_batch",
     }
 
     PROTECTED_PATTERNS = {
@@ -64,9 +65,40 @@ class PolicyEngine:
         self,
         read_only_enforced: bool = True,
         mutation_enabled: bool = False,
+        batch_mutation_enabled: bool = False,
     ) -> None:
         self.read_only_enforced = read_only_enforced
         self.mutation_enabled = mutation_enabled
+        self.batch_mutation_enabled = batch_mutation_enabled
+
+    def _check_target_path(self, target_path: str) -> Optional[PolicyDecision]:
+        clean_target = target_path.replace("\\", "/")
+        parts = [p for p in clean_target.split("/") if p]
+        if ".." in parts:
+            return PolicyDecision(
+                allowed=False,
+                reason="Path traversal detected in target path",
+                decision_type="DENY",
+            )
+        for part in parts:
+            if (
+                part in self.PROTECTED_PATTERNS
+                or part.startswith(".git")
+                or part.startswith(".tacp")
+            ):
+                return PolicyDecision(
+                    allowed=False,
+                    reason=(f"Access to protected resource '{part}' is denied by Platform Policy"),
+                    decision_type="DENY",
+                )
+        filename = Path(clean_target).name
+        if filename.startswith(".env") or "id_rsa" in filename or "id_ed25519" in filename:
+            return PolicyDecision(
+                allowed=False,
+                reason=(f"Access to protected resource '{filename}' is denied by Platform Policy"),
+                decision_type="DENY",
+            )
+        return None
 
     def evaluate_request(
         self,
@@ -75,6 +107,7 @@ class PolicyEngine:
         target_path: Optional[str] = None,
         dry_run: bool = False,
         has_approval: bool = False,
+        target_paths: Optional[list[str]] = None,
     ) -> PolicyDecision:
         cap = context.capability
 
@@ -98,6 +131,16 @@ class PolicyEngine:
                     decision_type="DENY",
                 )
 
+            if cap == "workspace.patch_batch" and not self.batch_mutation_enabled:
+                return PolicyDecision(
+                    allowed=False,
+                    reason=(
+                        f"Capability '{cap}' is forbidden: "
+                        "batch mutation is disabled in TACP configuration"
+                    ),
+                    decision_type="DENY",
+                )
+
             if workspace is None:
                 return PolicyDecision(
                     allowed=False,
@@ -112,40 +155,17 @@ class PolicyEngine:
                     decision_type="DENY",
                 )
 
+            # Check single path or multiple paths
+            all_targets: list[str] = []
             if target_path is not None:
-                # Path traversal check
-                clean_target = target_path.replace("\\", "/")
-                parts = [p for p in clean_target.split("/") if p]
-                if ".." in parts:
-                    return PolicyDecision(
-                        allowed=False,
-                        reason="Path traversal detected in target path",
-                        decision_type="DENY",
-                    )
-                for part in parts:
-                    if (
-                        part in self.PROTECTED_PATTERNS
-                        or part.startswith(".git")
-                        or part.startswith(".tacp")
-                    ):
-                        return PolicyDecision(
-                            allowed=False,
-                            reason=(
-                                f"Access to protected resource '{part}' "
-                                "is denied by Platform Policy"
-                            ),
-                            decision_type="DENY",
-                        )
-                filename = Path(clean_target).name
-                if filename.startswith(".env") or "id_rsa" in filename or "id_ed25519" in filename:
-                    return PolicyDecision(
-                        allowed=False,
-                        reason=(
-                            f"Access to protected resource '{filename}' "
-                            "is denied by Platform Policy"
-                        ),
-                        decision_type="DENY",
-                    )
+                all_targets.append(target_path)
+            if target_paths is not None:
+                all_targets.extend(target_paths)
+
+            for target in all_targets:
+                denial = self._check_target_path(target)
+                if denial:
+                    return denial
 
             if dry_run:
                 return PolicyDecision(
@@ -158,14 +178,14 @@ class PolicyEngine:
             if has_approval:
                 return PolicyDecision(
                     allowed=True,
-                    reason="Authorized mutating patch execution with valid approval",
+                    reason=f"Authorized mutating {cap} execution with valid approval",
                     decision_type="ALLOW",
                     requires_audit=True,
                 )
 
             return PolicyDecision(
                 allowed=False,
-                reason="Execution of 'workspace.patch' requires explicit human approval",
+                reason=f"Execution of '{cap}' requires explicit human approval",
                 decision_type="REQUIRE_APPROVAL",
                 requires_audit=True,
             )
@@ -193,6 +213,7 @@ class PolicyEngine:
         target_path: Optional[str] = None,
         dry_run: bool = False,
         has_approval: bool = False,
+        target_paths: Optional[list[str]] = None,
     ) -> None:
         decision = self.evaluate_request(
             context,
@@ -200,6 +221,7 @@ class PolicyEngine:
             target_path=target_path,
             dry_run=dry_run,
             has_approval=has_approval,
+            target_paths=target_paths,
         )
         if not decision.allowed:
             if decision.decision_type == "REQUIRE_APPROVAL":
