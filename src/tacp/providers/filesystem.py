@@ -76,7 +76,13 @@ class FilesystemProvider:
                 f"Absolute path '{subpath}' escapes authorized workspace boundary",
             )
 
-        target = (resolved_root / cleaned).resolve()
+        try:
+            target = (resolved_root / cleaned).resolve()
+        except (RuntimeError, OSError) as err:
+            raise TacpSecurityError(
+                ErrorCode.OUTSIDE_WORKSPACE,
+                f"Path '{subpath}' cannot be resolved safely: {err}",
+            ) from err
 
         # Workspace containment check (canonical path jail)
         try:
@@ -93,6 +99,11 @@ class FilesystemProvider:
             try:
                 symlink_target = raw_path.resolve()
                 symlink_target.relative_to(resolved_root)
+            except (RuntimeError, OSError) as err:
+                raise TacpSecurityError(
+                    ErrorCode.OUTSIDE_WORKSPACE,
+                    f"Symlink '{subpath}' cannot be resolved safely: {err}",
+                ) from err
             except ValueError as err:
                 raise TacpSecurityError(
                     ErrorCode.OUTSIDE_WORKSPACE,
