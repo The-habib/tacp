@@ -66,6 +66,7 @@ def test_execute_stdout_bounding(tmp_path: Path) -> None:
     )
 
     result = executor.execute("exec-test-2", contract)
-    assert result.status == ExecutionStatus.SUCCEEDED.value
+    assert result.status == ExecutionStatus.OUTPUT_LIMIT_EXCEEDED.value
     assert len(result.stdout) == 20
     assert result.stdout_truncated is True
+    assert result.output_limit_exceeded is True

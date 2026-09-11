@@ -502,7 +502,9 @@ def test_sec_55_watchdog_timeout(exec_env: Dict[str, Any]) -> None:
         max_stderr_bytes=1024,
     )
     with patch.object(
-        executor, "_monitor_and_reap", return_value=(b"", b"", False, False, True, signal.SIGKILL)
+        executor,
+        "_monitor_and_reap",
+        return_value=(b"", b"", False, False, True, False, signal.SIGKILL),
     ):
         res = executor.execute("exec-timeout-test", contract)
         assert res.timed_out is True

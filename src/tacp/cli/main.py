@@ -424,26 +424,14 @@ def cmd_execution(args: argparse.Namespace) -> int:
             return 1
 
     elif subcommand == "emergency-stop":
-        conn = db.connect()
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT id FROM executions "
-            "WHERE status IN ('RUNNING', 'QUEUED', 'WAITING_FOR_APPROVAL');"
-        )
-        rows = cursor.fetchall()
-        cancelled = 0
-        for row in rows:
-            eid = row[0]
-            try:
-                execution_service.cancel_execution(
-                    eid, principal=Principal.local_agent("emergency-stop")
-                )
-                cancelled += 1
-                print(f"Emergency stopped execution: {eid}")
-            except Exception as e:
-                print(f"Failed to stop execution {eid}: {e}")
-        print(f"Emergency stop completed: {cancelled} active executions terminated.")
-        return 0
+        operator_principal = Principal.human_operator("cli_operator")
+        try:
+            cancelled = execution_service.emergency_stop(principal=operator_principal)
+            print(f"Emergency stop completed: {cancelled} active executions terminated.")
+            return 0
+        except Exception as exc:
+            print(f"Failed to execute emergency stop: {exc}")
+            return 1
 
     elif subcommand == "request":
         contract_file = getattr(args, "contract_file", None)

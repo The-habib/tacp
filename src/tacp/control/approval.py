@@ -421,7 +421,7 @@ class ApprovalEngine:
                 "Approval patch hash mismatch: diff content does not match approved hash",
             )
 
-        if ticket.principal_id not in (principal_id, "human", "all"):
+        if ticket.principal_id != principal_id:
             raise TacpSecurityError(
                 ErrorCode.NOT_AUTHORIZED,
                 f"Approval principal mismatch: expected '{ticket.principal_id}', "

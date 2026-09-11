@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from tacp.control.approval import ApprovalEngine
-from tacp.control.identity import Principal, RequestContext
+from tacp.control.identity import Authority, Principal, RequestContext
 from tacp.control.policy import PolicyEngine
 from tacp.core.audit_service import AuditService
 from tacp.core.execution_resolver import ExecutionResolver
@@ -29,6 +29,7 @@ from tacp.domain.execution import (
     ExecutionContract,
     ExecutionResult,
     ExecutionStatus,
+    NetworkIsolationState,
     compute_execution_contract_hash,
 )
 from tacp.infrastructure.config import TacpConfig
@@ -121,7 +122,9 @@ class ExecutionService:
         )
 
         # Stage 5: Executable Binary Resolution & Whitelist
-        resolved_bin = self.resolver.resolve_executable(executable)
+        identity = self.resolver.resolve_executable_identity(executable)
+        resolved_bin = identity.canonical_path
+        executable_digest = identity.sha256_digest
 
         # Stage 7: Environment Stripping & Base Assembly
         clean_env = self.resolver.assemble_environment(
@@ -149,6 +152,10 @@ class ExecutionService:
             timeout_seconds=effective_timeout,
             max_stdout_bytes=self.config.limits.max_stdout_bytes,
             max_stderr_bytes=self.config.limits.max_stderr_bytes,
+            contract_version=1,
+            network_state=NetworkIsolationState.NETWORK_UNENFORCED.value,
+            executable_digest=executable_digest,
+            principal_id=caller_principal.id,
         )
         contract_hash = compute_execution_contract_hash(contract)
 
@@ -459,7 +466,7 @@ class ExecutionService:
     def cancel_execution(
         self, execution_id: str, principal: Optional[Principal] = None
     ) -> Dict[str, Any]:
-        """Cancel an active execution process group."""
+        """Cancel an active execution process group with PID reuse defense."""
         exec_info = self.inspect_execution(execution_id)
         if not exec_info:
             raise TacpNotFoundError(f"Execution '{execution_id}' not found")
@@ -472,13 +479,22 @@ class ExecutionService:
             }
 
         pgid = exec_info.get("pgid")
-        if pgid:
+        active = self.executor.get_active(execution_id)
+        if active and active.pgid == pgid:
             try:
                 os.killpg(pgid, signal.SIGTERM)
-                time.sleep(0.1)
+                time.sleep(0.05)
                 os.killpg(pgid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
+        elif pgid:
+            # PID reuse defense: process is not in active memory registry.
+            # Do not signal an unverified PID to avoid killing recycled foreign processes.
+            logger.warning(
+                "Execution '%s' is not in active process registry; skipping killpg for PGID %s",
+                execution_id,
+                pgid,
+            )
 
         now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         conn = self.db.connect()
@@ -492,11 +508,80 @@ class ExecutionService:
                 (ExecutionStatus.CANCELLED.value, now_iso, execution_id),
             )
 
+        p_id = principal.id if principal else exec_info.get("principal_id", "operator")
+        self.audit_service.record_event(
+            AuditEvent(
+                capability="execution.cancel",
+                action="execution.cancel",
+                policy_decision="ALLOW",
+                result=ExecutionStatus.CANCELLED.value,
+                duration_ms=0,
+                principal=p_id,
+                request_id=str(uuid.uuid4()),
+                workspace_id=exec_info.get("workspace_id", "*"),
+                parameters_redacted={"execution_id": execution_id},
+            )
+        )
+
         return {
             "execution_id": execution_id,
             "status": ExecutionStatus.CANCELLED.value,
             "message": "Execution process group cancelled and terminated",
         }
+
+    def emergency_stop(self, principal: Optional[Principal] = None) -> int:
+        """Emergency stop: terminate all active execution process groups with audit logging."""
+        p = principal or Principal.human_operator("emergency-stop")
+        if not p.is_elevated() and not p.has_authority(Authority.ADMIN_EMERGENCY_STOP):
+            raise TacpSecurityError(
+                ErrorCode.NOT_AUTHORIZED,
+                f"Principal '{p.id}' is not authorized to execute emergency stop",
+            )
+
+        active_procs = self.executor.get_all_active()
+        stopped_count = 0
+        now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+        for active in active_procs:
+            try:
+                os.killpg(active.pgid, signal.SIGTERM)
+                time.sleep(0.05)
+                os.killpg(active.pgid, signal.SIGKILL)
+                stopped_count += 1
+            except ProcessLookupError:
+                pass
+
+        conn = self.db.connect()
+        with conn:
+            conn.execute(
+                """
+                UPDATE executions
+                SET status = ?, cancelled = 1, terminated_at = ?
+                WHERE status IN (?, ?, ?);
+                """,
+                (
+                    ExecutionStatus.CANCELLED.value,
+                    now_iso,
+                    ExecutionStatus.RUNNING.value,
+                    ExecutionStatus.STARTING.value,
+                    ExecutionStatus.QUEUED.value,
+                ),
+            )
+
+        self.audit_service.record_event(
+            AuditEvent(
+                capability="execution.emergency_stop",
+                action="execution.emergency_stop",
+                policy_decision="ALLOW",
+                result="SUCCESS",
+                duration_ms=0,
+                principal=p.id,
+                request_id=str(uuid.uuid4()),
+                workspace_id="*",
+                parameters_redacted={"stopped_count": stopped_count},
+            )
+        )
+        return stopped_count
 
     def reconcile_orphans(self) -> int:
         """Startup recovery: inspect executions stuck in RUNNING or STARTING and reconcile state."""

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-from tacp.control.identity import PrincipalType, RequestContext, TrustTier
+from tacp.control.identity import Authority, PrincipalType, RequestContext, TrustTier
 from tacp.domain.errors import (
     ErrorCode,
     TacpApprovalRequiredError,
@@ -17,6 +17,11 @@ class PolicyDecision:
     reason: str
     requires_audit: bool = True
     decision_type: str = "ALLOW"
+    matched_rule: str = "default"
+    risk_level: str = "CONTROLLED"
+    required_approval: bool = False
+    required_authority: Optional[str] = None
+    network_state: str = "NETWORK_UNENFORCED"
 
     def is_allowed(self) -> bool:
         return self.allowed
@@ -25,7 +30,19 @@ class PolicyDecision:
         return not self.allowed and self.decision_type == "DENY"
 
     def requires_approval(self) -> bool:
-        return self.decision_type == "REQUIRE_APPROVAL"
+        return self.decision_type == "REQUIRE_APPROVAL" or self.required_approval
+
+    def explanation(self) -> dict[str, object]:
+        return {
+            "allowed": self.allowed,
+            "decision": self.decision_type,
+            "reason": self.reason,
+            "matched_rule": self.matched_rule,
+            "risk_level": self.risk_level,
+            "required_approval": self.requires_approval(),
+            "required_authority": self.required_authority,
+            "network_state": self.network_state,
+        }
 
 
 class PolicyEngine:
@@ -271,16 +288,8 @@ class PolicyEngine:
                     PrincipalType.HUMAN,
                     PrincipalType.SYSTEM,
                 )
-                if is_privileged or (
-                    is_elevated_type
-                    or (
-                        not is_agent
-                        and (
-                            context.principal.role == "operator"
-                            or context.principal.id in ("operator", "human_operator")
-                        )
-                    )
-                ):
+                has_rollback_auth = context.principal.has_authority(Authority.OPERATOR_ROLLBACK)
+                if is_privileged or is_elevated_type or has_rollback_auth:
                     return PolicyDecision(
                         allowed=True,
                         reason=f"Authorized operator rollback under {cap}",

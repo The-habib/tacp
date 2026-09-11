@@ -21,6 +21,7 @@ class ExecutionStatus(str, Enum):
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
     TIMED_OUT = "TIMED_OUT"
+    OUTPUT_LIMIT_EXCEEDED = "OUTPUT_LIMIT_EXCEEDED"
     CANCELLED = "CANCELLED"
     ORPHANED = "ORPHANED"
     RECOVERING = "RECOVERING"
@@ -31,6 +32,13 @@ class CommandRiskLevel(str, Enum):
     CONTROLLED = "CONTROLLED"
     DANGEROUS = "DANGEROUS"
     CRITICAL = "CRITICAL"
+
+
+class NetworkIsolationState(str, Enum):
+    NETWORK_DENIED = "NETWORK_DENIED"
+    NETWORK_ALLOWED = "NETWORK_ALLOWED"
+    NETWORK_UNENFORCED = "NETWORK_UNENFORCED"
+    NETWORK_UNKNOWN = "NETWORK_UNKNOWN"
 
 
 @dataclass(frozen=True)
@@ -46,20 +54,28 @@ class ExecutionContract:
     timeout_seconds: int
     max_stdout_bytes: int
     max_stderr_bytes: int
+    contract_version: int = 1
+    network_state: str = NetworkIsolationState.NETWORK_UNENFORCED.value
+    executable_digest: Optional[str] = None
+    principal_id: Optional[str] = None
 
 
 def compute_execution_contract_hash(contract: ExecutionContract) -> str:
     """Compute deterministic canonical SHA-256 hash for an ExecutionContract."""
     payload = {
         "argv": list(contract.argv),
-        "cwd": contract.cwd,
+        "contract_version": contract.contract_version,
+        "cwd": str(contract.cwd),
         "environment": sorted([[k, v] for k, v in contract.environment]),
-        "executable": contract.executable,
+        "executable": str(contract.executable),
+        "executable_digest": contract.executable_digest or "",
         "max_stderr_bytes": contract.max_stderr_bytes,
         "max_stdout_bytes": contract.max_stdout_bytes,
         "network_enabled": contract.network_enabled,
+        "network_state": contract.network_state,
+        "principal_id": contract.principal_id or "",
         "timeout_seconds": contract.timeout_seconds,
-        "workspace_id": contract.workspace_id,
+        "workspace_id": str(contract.workspace_id),
     }
     canonical_bytes = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(canonical_bytes).hexdigest()
@@ -79,6 +95,7 @@ class ExecutionResult:
     stderr_truncated: bool = False
     timed_out: bool = False
     cancelled: bool = False
+    output_limit_exceeded: bool = False
     contract_hash: str = ""
     pid: Optional[int] = None
     pgid: Optional[int] = None
@@ -97,6 +114,7 @@ class ExecutionResult:
             "stderr_truncated": self.stderr_truncated,
             "timed_out": self.timed_out,
             "cancelled": self.cancelled,
+            "output_limit_exceeded": self.output_limit_exceeded,
             "contract_hash": self.contract_hash,
             "pid": self.pid,
             "pgid": self.pgid,
@@ -127,6 +145,7 @@ class ExecutionRecord:
     stderr_truncated: bool = False
     timed_out: bool = False
     cancelled: bool = False
+    output_limit_exceeded: bool = False
     pid: Optional[int] = None
     pgid: Optional[int] = None
     started_at: Optional[str] = None
