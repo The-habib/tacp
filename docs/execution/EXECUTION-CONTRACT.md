@@ -1,102 +1,99 @@
 # TACP Execution Contract Specification
+## Deterministic, Cryptographically Bound Execution Contract
 
-**Document:** `docs/execution/EXECUTION-CONTRACT.md`  
-**Phase:** Phase 2 — Governed Execution Platform (Gate A Architecture)  
-**Execution Lead:** Antigravity Principal Execution Engineer  
-**Date:** September 11, 2026  
-
----
-
-## 1. Concept & Invariant
-
-In TACP Phase 2, **no executor, provider, or subsystem accepts raw, unvalidated caller dictionaries**.
-
-Every mutating or executing operation must be bound into an immutable, fully validated **`ExecutionContract`** issued by the Control Plane before any provider method is invoked.
-
-### The Contract Invariant
-```
-[FORBIDDEN]  Executor.run(args: Dict[str, Any])
-[REQUIRED]   ControlPlane.issue_contract(request) -> ExecutionContract
-             Executor.run(contract: ExecutionContract)
-```
-
-An `ExecutionContract` encapsulates:
-- Provenance (who requested it and why)
-- Authorization (which policy, approval, and lease permitted it)
-- Bounds (exact target files, resource limits, timeout, and output limits)
-- Audit (cryptographic identifiers tying execution directly to evidence)
+- **Standard:** TACP-SPEC-004-CONTRACT
+- **Status:** APPROVED CONTRACT SPECIFICATION (GATE A)
+- **Phase:** Phase 4 — Controlled Command Execution
 
 ---
 
-## 2. Structure of an ExecutionContract
+## 1. Specification & Rationale
+
+An execution contract represents the immutable, unambiguous, and deterministic specification of an operating-system command execution request.
+
+In previous phases, approval tickets for filesystem patches bound to `patch_hash = sha256(canonical_diff)`. For command execution, approval must bind to the **entire execution context**. If an AI agent requests approval to run `printf "hello"` in `/workspace`, approving that request must never permit running `printf "%s" "$(malicious_var)"`, running in `/workspace/subdir`, running with an altered environment, or running with extended timeouts.
+
+Therefore, every execution request is compiled into a canonical `ExecutionContract` and hashed using SHA-256.
+
+---
+
+## 2. The `ExecutionContract` Data Structure
 
 ```python
+from dataclasses import dataclass
+from typing import Dict, List, Tuple
+
+
 @dataclass(frozen=True)
 class ExecutionContract:
-    # 1. Identity & Provenance
-    contract_id: str  # Unique UUIDv4 for this contract
-    request_id: str  # Traceable request identifier
-    trace_id: str  # Distributed client trace ID
-    principal: Principal  # Authenticated actor initiating execution
-    intent: str  # Stated user/agent objective
-    task_id: Optional[str]  # Associated parent Task ID if part of a Plan
+    """Immutable specification of a governed execution request."""
 
-    # 2. Capability & Resource Scoping
-    capability: Capability  # Formal capability being exercised
-    target_resource: str  # Canonical target resource URI (e.g. workspace/ws-1/src/app.py)
-    workspace: Workspace  # Canonical Workspace entity
-
-    # 3. Governance & Risk
-    policy_decision: PolicyDecision  # Validated policy decision (must be ALLOW)
-    risk_level: RiskLevel  # Assessed risk rating (R0 to R5)
-    approval_id: Optional[str]  # Consumed approval ticket ID (mandatory if risk > autonomy)
-    lease_id: Optional[str]  # Active capability lease ID
-
-    # 4. Constraints & Budgets
-    timeout_seconds: int  # Hard wall-clock execution limit
-    resource_budget: ResourceBudget  # CPU, memory, and disk write limits
-    network_policy: NetworkPolicy  # Egress allowlist and transfer limits
-    output_limits: OutputLimits  # Max stdout/stderr capture bytes
-
-    # 5. Execution Parameters (Typed & Validated)
-    parameters: Dict[str, Any]  # Strictly validated parameters adhering to capability schema
-
-    # 6. Audit & State Tracking
-    audit_id: str  # Pre-allocated audit event ID
-    created_at: datetime  # Contract issuance timestamp (UTC)
+    workspace_id: str
+    executable: str
+    argv: Tuple[str, ...]
+    cwd: str
+    environment: Tuple[Tuple[str, str], ...]
+    network_enabled: bool
+    timeout_seconds: int
+    max_stdout_bytes: int
+    max_stderr_bytes: int
 ```
+
+### Field Definitions:
+1. **`workspace_id` (str):** The unique identifier of the active TACP workspace.
+2. **`executable` (str):** The canonical path to the resolved binary (e.g. `/data/data/com.termux/files/usr/bin/printf`).
+3. **`argv` (Tuple[str, ...]):** The ordered tuple of argument strings passed to `execve()`. Note: `argv[0]` is typically the program name or full executable path.
+4. **`cwd` (str):** The absolute, canonicalized, verified working directory where the process is spawned.
+5. **`environment` (Tuple[Tuple[str, str], ...]):** The lexicographically sorted, deduplicated tuple of key-value environment pairs provided to the process.
+6. **`network_enabled` (bool):** Boolean flag indicating whether network access is authorized (default `False`).
+7. **`timeout_seconds` (int):** The hard watchdog timeout in seconds after which the process group is killed.
+8. **`max_stdout_bytes` (int):** Hard limit on stdout bytes read before truncation.
+9. **`max_stderr_bytes` (int):** Hard limit on stderr bytes read before truncation.
 
 ---
 
-## 3. Contract Lifecycle & Validation Flow
+## 3. Canonical Hashing Algorithm
 
+To guarantee platform-independent determinism, the contract hash is calculated via canonical JSON serialization:
+
+```python
+import hashlib
+import json
+
+
+def compute_execution_contract_hash(contract: ExecutionContract) -> str:
+    """Compute deterministic SHA-256 hash for an ExecutionContract."""
+    payload = {
+        "workspace_id": contract.workspace_id,
+        "executable": contract.executable,
+        "argv": list(contract.argv),
+        "cwd": contract.cwd,
+        "environment": sorted([[k, v] for k, v in contract.environment]),
+        "network_enabled": contract.network_enabled,
+        "timeout_seconds": contract.timeout_seconds,
+        "max_stdout_bytes": contract.max_stdout_bytes,
+        "max_stderr_bytes": contract.max_stderr_bytes,
+    }
+    canonical_bytes = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(canonical_bytes).hexdigest()
 ```
-[1. Inbound Execution Request]
-              │
-              v
-[2. Control Plane Verification]
-      ├── Principal active?
-      ├── Capability recognized?
-      ├── Resource within workspace jail?
-      ├── Schema valid?
-      ├── Policy permits?
-      ├── Risk <= Autonomy OR Approval valid?
-      └── Concurrency lock acquired?
-              │
-              v
-[3. Contract Issuance]       --> Creates frozen ExecutionContract
-              │
-              v
-[4. Executor Dispatch]       --> Dispatches contract to concrete Provider
-              │
-              v
-[5. Post-Execution Audit]    --> Binds contract_id to finalized AuditEvent
-```
+
+### Properties of the Canonical Hash:
+- **Collision Resistance:** SHA-256 provides 256 bits of cryptographic collision resistance.
+- **Order Independence for Environment:** Environment variables are sorted lexicographically by key, preventing spurious mismatches from dictionary ordering.
+- **Exact Vector Matching:** Argument order in `argv` is preserved exactly; altering argument position alters the hash.
+- **Zero Ambiguity:** Separators are strictly fixed to `(`,`, `:`) with no trailing whitespace or formatting differences.
 
 ---
 
-## 4. Safety & Immutability Guarantees
+## 4. Invalidation Invariants
 
-1. **Frozen Dataclass**: The `ExecutionContract` is an immutable Python `frozen=True` dataclass. Any attempt by an executor or middleware to mutate fields at runtime raises a `FrozenInstanceError`.
-2. **Pre-Execution Checksum**: Before modifying a file or spawning a process, the contract verifies that the target resource matches the `base_checksum` recorded when the contract was issued. If the resource changed in the interim, execution aborts immediately with `ErrorCode.CONFLICT`.
-3. **Audit Cross-Referencing**: The `contract_id` is recorded in all downstream child processes, patch headers, and audit log entries, providing 100% end-to-end traceability.
+Any divergence between the approved contract and the submitted execution request immediately breaks hash verification:
+- Changing a single character in any argument -> **DENY**.
+- Adding or removing an argument -> **DENY**.
+- Changing the working directory -> **DENY**.
+- Changing an environment variable -> **DENY**.
+- Changing the timeout -> **DENY**.
+- Requesting execution in a different workspace -> **DENY**.
+
+Approval is strictly single-use: upon verification, the ticket transitions to `STATUS_CONSUMED` and cannot be replayed.

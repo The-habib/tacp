@@ -1,5 +1,6 @@
 import hashlib
 import json
+import threading
 from typing import Any, Dict, List, Optional
 
 from tacp.domain.audit import AuditEvent
@@ -43,60 +44,68 @@ def compute_audit_entry_hash(
 
 
 class AuditService:
+    _lock = threading.Lock()
+
     def __init__(self, db: Database) -> None:
         self.db = db
 
     def record_event(self, event: AuditEvent) -> str:
         """Record an audit event and link it into the tamper-evident hash chain."""
-        conn = self.db.connect()
         clean_params = redact_dict(event.parameters_redacted)
         params_json = json.dumps(clean_params, sort_keys=True)
 
-        with conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT entry_hash FROM audit_logs ORDER BY rowid DESC LIMIT 1;")
-            row = cursor.fetchone()
-            prev_hash = row["entry_hash"] if row and row["entry_hash"] else GENESIS_HASH
+        with self._lock:
+            conn = self.db.connect()
+            conn.execute("BEGIN IMMEDIATE;")
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT entry_hash FROM audit_logs ORDER BY rowid DESC LIMIT 1;")
+                row = cursor.fetchone()
+                prev_hash = row["entry_hash"] if row and row["entry_hash"] else GENESIS_HASH
 
-            entry_hash = compute_audit_entry_hash(
-                prev_hash=prev_hash,
-                id=event.id,
-                timestamp=event.timestamp,
-                request_id=event.request_id,
-                principal=event.principal,
-                capability=event.capability,
-                workspace_id=event.workspace_id,
-                action=event.action,
-                policy_decision=event.policy_decision,
-                result=event.result,
-                duration_ms=event.duration_ms,
-                parameters_json=params_json,
-            )
+                entry_hash = compute_audit_entry_hash(
+                    prev_hash=prev_hash,
+                    id=event.id,
+                    timestamp=event.timestamp,
+                    request_id=event.request_id,
+                    principal=event.principal,
+                    capability=event.capability,
+                    workspace_id=event.workspace_id,
+                    action=event.action,
+                    policy_decision=event.policy_decision,
+                    result=event.result,
+                    duration_ms=event.duration_ms,
+                    parameters_json=params_json,
+                )
 
-            conn.execute(
-                """
-                INSERT INTO audit_logs (
-                    id, timestamp, request_id, principal, capability,
-                    workspace_id, action, policy_decision, result,
-                    duration_ms, parameters_json, prev_hash, entry_hash
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                """,
-                (
-                    event.id,
-                    event.timestamp,
-                    event.request_id,
-                    event.principal,
-                    event.capability,
-                    event.workspace_id,
-                    event.action,
-                    event.policy_decision,
-                    event.result,
-                    event.duration_ms,
-                    params_json,
-                    prev_hash,
-                    entry_hash,
-                ),
-            )
+                conn.execute(
+                    """
+                    INSERT INTO audit_logs (
+                        id, timestamp, request_id, principal, capability,
+                        workspace_id, action, policy_decision, result,
+                        duration_ms, parameters_json, prev_hash, entry_hash
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    """,
+                    (
+                        event.id,
+                        event.timestamp,
+                        event.request_id,
+                        event.principal,
+                        event.capability,
+                        event.workspace_id,
+                        event.action,
+                        event.policy_decision,
+                        event.result,
+                        event.duration_ms,
+                        params_json,
+                        prev_hash,
+                        entry_hash,
+                    ),
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
         return entry_hash
 
     def get_recent_events(self, limit: int = 50) -> List[Dict[str, Any]]:

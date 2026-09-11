@@ -14,6 +14,10 @@ class Workspace:
     created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     metadata: Dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def root(self) -> Path:
+        return self.root_path
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,

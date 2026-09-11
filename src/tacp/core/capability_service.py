@@ -200,26 +200,88 @@ MUTATING_CAPABILITIES: List[Capability] = [
     ),
 ]
 
+EXECUTION_CAPABILITIES: List[Capability] = [
+    Capability(
+        name="execution.request",
+        domain="execution",
+        description=(
+            "Execute a governed, policy-controlled operating system command with "
+            "strict arguments, workspace containment, and bounded output"
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "workspace_id": {
+                    "type": "string",
+                    "description": "Target workspace identifier",
+                },
+                "executable": {
+                    "type": "string",
+                    "description": "Deterministic executable binary name (e.g. 'printf')",
+                },
+                "argv": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Ordered array of string arguments passed to the executable",
+                },
+                "cwd": {
+                    "type": "string",
+                    "description": "Optional relative working directory within workspace",
+                },
+                "environment": {
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                    "description": "Optional safe environment variables",
+                },
+                "timeout_seconds": {
+                    "type": "integer",
+                    "description": "Timeout in seconds (default: 15, max: 60)",
+                },
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "Simulate policy checks without spawning a process",
+                },
+                "approval_token": {
+                    "type": "string",
+                    "description": "Approval token required for non-dry-run execution",
+                },
+            },
+            "required": ["workspace_id", "executable", "argv"],
+        },
+        output_schema={"type": "object"},
+    ),
+]
+
 
 class CapabilityService:
     @staticmethod
     def list_capabilities(
-        include_mutating: bool = False, include_batch: bool = False
+        include_mutating: bool = False,
+        include_batch: bool = False,
+        include_execution: bool = False,
     ) -> List[Dict[str, Any]]:
         caps = list(READONLY_CAPABILITIES)
         if include_mutating:
             caps.append(MUTATING_CAPABILITIES[0])  # workspace.patch
             if include_batch:
                 caps.append(MUTATING_CAPABILITIES[1])  # workspace.patch_batch
+        if include_execution:
+            caps.extend(EXECUTION_CAPABILITIES)
         return [c.to_dict() for c in caps]
 
     @staticmethod
-    def list_raw(include_mutating: bool = False, include_batch: bool = False) -> List[Capability]:
+    def list_raw(
+        include_mutating: bool = False,
+        include_batch: bool = False,
+        include_execution: bool = False,
+    ) -> List[Capability]:
         caps = list(READONLY_CAPABILITIES)
         if include_mutating:
             caps.append(MUTATING_CAPABILITIES[0])
             if include_batch:
                 caps.append(MUTATING_CAPABILITIES[1])
+        if include_execution:
+            caps.extend(EXECUTION_CAPABILITIES)
         return caps
 
     @staticmethod
@@ -230,6 +292,9 @@ class CapabilityService:
             if c.name == name:
                 return c
         for c in MUTATING_CAPABILITIES:
+            if c.name == name:
+                return c
+        for c in EXECUTION_CAPABILITIES:
             if c.name == name:
                 return c
         raise TacpNotFoundError(f"Capability not found: {name}")

@@ -10,6 +10,7 @@ from tacp.control.identity import Principal, RequestContext
 from tacp.control.policy import PolicyEngine
 from tacp.core.audit_service import AuditService
 from tacp.core.capability_service import CapabilityService
+from tacp.core.execution_service import ExecutionService
 from tacp.core.filesystem_service import FilesystemService
 from tacp.core.patch_service import PatchService
 from tacp.core.process_service import ProcessService
@@ -38,6 +39,7 @@ class McpToolRegistry:
         process_service: ProcessService,
         system_service: SystemService,
         patch_service: Optional[PatchService] = None,
+        execution_service: Optional[ExecutionService] = None,
     ) -> None:
         self.capability_service = capability_service
         self.policy_engine = policy_engine
@@ -47,6 +49,7 @@ class McpToolRegistry:
         self.process_service = process_service
         self.system_service = system_service
         self.patch_service = patch_service
+        self.execution_service = execution_service
 
     def list_tools(self) -> List[Dict[str, Any]]:
         """Return tool definitions formatted for MCP tools/list."""
@@ -57,8 +60,13 @@ class McpToolRegistry:
             and self.patch_service
             and self.patch_service.config.batch_mutation_enabled
         )
+        include_execution = bool(
+            self.execution_service and self.execution_service.config.execution_enabled
+        )
         for cap in self.capability_service.list_raw(
-            include_mutating=include_mutating, include_batch=include_batch
+            include_mutating=include_mutating,
+            include_batch=include_batch,
+            include_execution=include_execution,
         ):
             schema = cap.input_schema if cap.input_schema else {"type": "object", "properties": {}}
             tools.append(
@@ -78,10 +86,15 @@ class McpToolRegistry:
             and self.patch_service
             and self.patch_service.config.batch_mutation_enabled
         )
+        include_execution = bool(
+            self.execution_service and self.execution_service.config.execution_enabled
+        )
         valid_names = {
             c.name
             for c in self.capability_service.list_raw(
-                include_mutating=include_mutating, include_batch=include_batch
+                include_mutating=include_mutating,
+                include_batch=include_batch,
+                include_execution=include_execution,
             )
         }
         if name in valid_names:
@@ -116,10 +129,9 @@ class McpToolRegistry:
             request_id=request_id or str(uuid.uuid4()),
         )
 
-        # 3. For mutating capabilities, dispatch directly to PatchService (unified pipeline)
-        # PatchService authoritatively executes policy enforcement, ticket issuance, locking,
-        # execution, persistence, and audit logging with context.request_id.
-        if normalized_name in ("workspace.patch", "workspace.patch_batch"):
+        # 3. For mutating and execution capabilities, dispatch directly
+        # to services (unified pipeline)
+        if normalized_name in ("workspace.patch", "workspace.patch_batch", "execution.request"):
             return self._dispatch(
                 cap.name,
                 args,
@@ -333,6 +345,37 @@ class McpToolRegistry:
                 principal=principal,
             )
             return batch_res.to_dict()
+        elif name == "execution.request":
+            if not self.execution_service or not self.execution_service.config.execution_enabled:
+                raise TacpSecurityError(
+                    ErrorCode.POLICY_DENIED,
+                    "Execution service is not configured or disabled",
+                )
+            ws_id = args.get("workspace_id")
+            executable = args.get("executable")
+            argv = args.get("argv")
+            if not ws_id or not executable or argv is None:
+                raise TacpValidationError(
+                    "Missing required parameters for execution.request: "
+                    "workspace_id, executable, argv"
+                )
+            if not isinstance(argv, list):
+                raise TacpValidationError("Parameter 'argv' must be a list of strings")
+
+            exec_res = self.execution_service.execute_command(
+                workspace_id=ws_id,
+                executable=executable,
+                argv=argv,
+                cwd=args.get("cwd"),
+                environment=args.get("environment"),
+                timeout_seconds=args.get("timeout_seconds"),
+                dry_run=bool(args.get("dry_run", False)),
+                approval_token=args.get("approval_token"),
+                principal_id=(principal.id if principal else "mcp-client"),
+                request_id=request_id,
+                principal=principal,
+            )
+            return exec_res.to_dict()
 
         else:
             raise TacpNotFoundError(f"Unhandled tool: {name}")

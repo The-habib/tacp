@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0-rc.1] - 2026-09-11
+
+### Phase 4: Controlled Command Execution (Execution Boundary Architecture & First Vertical Slice)
+
+#### Controlled Process Execution
+- **`execution.request`**: Added governed operating system process execution under strict application-level containment with zero unrestricted shell access.
+- **First Vertical Slice**: Whitelisted strictly deterministic, non-interpreting utilities (`printf`, `echo`, `true`). Interpreters (`bash`, `sh`, `python`, `node`) and dangerous binaries are strictly forbidden.
+- **Immutable ExecutionContract**: Cryptographic SHA-256 canonical hashing across executable, argv, cwd, environment, timeout, and limits.
+- **16-Stage Governed Pipeline**: Full deterministic pipeline from request ingestion to audit finalization with dry-run support (`dry_run=True`).
+- **Process Group Containment**: `start_new_session=True` (setsid) isolates process groups (PGID == PID) and terminates descendants via `os.killpg(pgid, SIGKILL)` on watchdog timeout or cancellation.
+- **Hermetic Environment Assembly**: Base safe environment with curated PATH, temporary directory, and aggressive stripping of sensitive variables and API tokens. Caller environment variables cannot override system-managed variables (`PATH`, `HOME`, `PWD`, `TMPDIR`).
+- **Bounded Stream I/O**: Strict 64 KB output buffer limits for stdout and stderr, with automatic ANSI escape sequence scrubbing.
+- **SQLite Migration 6**: Created `executions` table tracking complete execution lifecycle, exit codes, termination signals, durations, and output truncation metadata.
+- **CLI Commands**: Added `tacp execution request`, `tacp execution list`, `tacp execution inspect`, `tacp execution cancel`, and `tacp execution emergency-stop`.
+- **MCP Tool Integration**: Exposed `execution.request` via MCP 2026-07-28 tool registry with structured error envelopes.
+- **Verification & Test Suite**: Added 102 execution security test cases (SEC-01 to SEC-102), fuzzing, sabotage, and physical Termux on-device validation. Total test count expanded to 618 passing tests with 83% statement coverage.
+
+---
+
 ## [0.3.1-rc.1] - 2026-09-11
 
 ### Phase 3: Execution Core Hardening & Pre-Shell / Pre-Android / Pre-Network Security Gate

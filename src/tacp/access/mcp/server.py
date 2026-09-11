@@ -25,6 +25,7 @@ from tacp.control.approval import ApprovalEngine
 from tacp.control.policy import PolicyEngine
 from tacp.core.audit_service import AuditService
 from tacp.core.capability_service import CapabilityService
+from tacp.core.execution_service import ExecutionService
 from tacp.core.filesystem_service import FilesystemService
 from tacp.core.lock_service import LockService
 from tacp.core.patch_service import PatchService
@@ -173,13 +174,23 @@ class McpServer:
                 )
             except TacpError as exc:
                 safe_msg = redact_secrets(exc.message)
+                if exc.details:
+                    err_dict = {
+                        "error": exc.__class__.__name__,
+                        "code": exc.code.value,
+                        "message": safe_msg,
+                        **exc.details,
+                    }
+                    err_text = json.dumps(err_dict, indent=2)
+                else:
+                    err_text = f"Error ({exc.code.value}): {safe_msg}"
                 return McpResponse(
                     id=req_id,
                     result={
                         "content": [
                             {
                                 "type": "text",
-                                "text": f"Error ({exc.code.value}): {safe_msg}",
+                                "text": err_text,
                             }
                         ],
                         "isError": True,
@@ -257,6 +268,8 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
         read_only_enforced=cfg.read_only,
         mutation_enabled=cfg.mutation_enabled,
         batch_mutation_enabled=cfg.batch_mutation_enabled,
+        execution_enabled=cfg.execution_enabled,
+        network_enabled=cfg.network_enabled,
     )
     workspace_service = WorkspaceService(db)
 
@@ -288,6 +301,15 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
         config=cfg,
     )
 
+    exec_service = ExecutionService(
+        db=db,
+        config=cfg,
+        policy_engine=policy_engine,
+        approval_engine=approval_engine,
+        audit_service=audit_service,
+        workspace_service=workspace_service,
+    )
+
     tool_registry = McpToolRegistry(
         capability_service=capability_service,
         policy_engine=policy_engine,
@@ -297,6 +319,7 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
         process_service=process_service,
         system_service=system_service,
         patch_service=patch_service,
+        execution_service=exec_service,
     )
 
     return McpServer(tool_registry=tool_registry, config=cfg)

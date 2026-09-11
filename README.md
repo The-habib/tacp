@@ -3,10 +3,10 @@
 > **A secure, auditable, and resilient AI-operated control plane running natively inside Termux on Android.**
 
 [![Verification Pipeline](https://img.shields.io/badge/verification-passing-brightgreen)](#verification--test-metrics)
-[![Tests Passing](https://img.shields.io/badge/tests-470%20passing-success)](#verification--test-metrics)
-[![Coverage](https://img.shields.io/badge/coverage-84%25-blue)](#verification--test-metrics)
+[![Tests Passing](https://img.shields.io/badge/tests-618%20passing-success)](#verification--test-metrics)
+[![Coverage](https://img.shields.io/badge/coverage-83%25-blue)](#verification--test-metrics)
 [![MCP Version](https://img.shields.io/badge/MCP-2026--07--28-blueviolet)](#mcp-protocol-conformance)
-[![Release](https://img.shields.io/badge/release-v0.3.1--rc.1-orange)](CHANGELOG.md)
+[![Release](https://img.shields.io/badge/release-v0.4.0--rc.1-orange)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-informational)](LICENSE)
 
 ---
@@ -70,13 +70,14 @@ TACP enforces a **single, authoritative 16-stage execution pipeline**:
 | `process.inspect` | Inspect process details by PID | `pid` |
 | `audit.recent` | Inspect recent audit records and verification status | Optional limit |
 
-### Policy-Governed Mutating Capabilities (Human Approval Required)
+### Policy-Governed Mutating & Execution Capabilities (Human Approval Required)
 | Capability | Description | Governance Rules |
 | :--- | :--- | :--- |
 | `workspace.patch` | Apply a unified text diff to a single workspace file | Base checksum match + Human Approval Ticket |
 | `workspace.patch_batch` | Apply multi-file atomic batch unified diffs | Canonical batch hash + Human Approval Ticket |
 | `workspace.rollback` | Revert a single-file patch using stored snapshot | Checksum match; Operator or Approved Agent |
 | `workspace.batch_rollback` | Revert an entire batch of patches using manifest | Checksum match; Operator or Approved Agent |
+| `execution.request` | Execute governed process (`printf`, `echo`, `true`) | Canonical contract hash + Human Approval Ticket |
 
 ---
 
@@ -131,8 +132,15 @@ uv run tacp workspace list
 # Register a workspace
 uv run tacp workspace register my-project /data/data/com.termux/files/home/projects/my-project
 
-# Launch the stdio MCP server loop for AI clients
-uv run tacp serve
+# Launch the stdio MCP server loop for AI clients (with optional execution flag)
+uv run tacp serve --allow-execution
+
+# Governed command execution CLI
+uv run tacp execution list
+uv run tacp execution request --workspace my-project --executable printf --args "Hello World\n" --allow-execution --auto-approve
+uv run tacp execution inspect <execution-id>
+uv run tacp execution cancel <execution-id>
+uv run tacp execution emergency-stop
 
 # Inspect recent audit logs
 uv run tacp audit recent
@@ -153,11 +161,11 @@ $ ./verify
 >>> [Stage 2/7] Format Check (Ruff)...            Stage [format]: PASS
 >>> [Stage 3/7] Lint Check (Ruff)...              Stage [lint]: PASS
 >>> [Stage 4/7] Type Check (Mypy)...              Stage [typecheck]: PASS
->>> [Stage 5/7] Unit Tests (pytest)...            Stage [unit_tests]: PASS (280 passed, 84% cov)
->>> [Stage 6/7] Security Test Suite...            Stage [security_tests]: PASS (190 passed)
+>>> [Stage 5/7] Unit Tests (pytest)...            Stage [unit_tests]: PASS (329 passed, 83% cov)
+>>> [Stage 6/7] Security Test Suite...            Stage [security_tests]: PASS (289 passed)
 >>> [Stage 7/7] Dependency Audit (pip-audit)...   Stage [pip_audit]: PASS (0 vulnerabilities)
 ==================================================
-Verification Completed in 38s
+Verification Completed in 65s
 Overall Result: PASS
 ==================================================
 ```
@@ -173,9 +181,11 @@ Measured on physical Android 13 Termux `aarch64` hardware:
 | **Lock Acquire & Release** | **0.11 ms** | < 10.0 ms |
 | **Patch Simulation (Dry-Run)** | **1.01 ms** | < 20.0 ms |
 | **Patch Live Execution (16 Stages)** | **10.87 ms** | < 50.0 ms |
+| **Command Execution (Dry-Run)** | **2.12 ms** | < 20.0 ms |
+| **Command Live Execution (16 Stages)** | **17.45 ms** | < 60.0 ms |
 | **Patch Rollback Latency** | **2.58 ms** | < 30.0 ms |
 | **Audit Hash Chain Full Verification** | **1.13 ms** | < 20.0 ms |
-| **Peak Memory Footprint (RSS)** | **26.4 MB** | < 100.0 MB |
+| **Peak Memory Footprint (RSS)** | **28.2 MB** | < 100.0 MB |
 
 ---
 
@@ -185,19 +195,28 @@ Measured on physical Android 13 Termux `aarch64` hardware:
 - [Product Requirements (PRD)](docs/01-PRD.md)
 - [System Architecture](docs/02-ARCHITECTURE.md)
 - [Threat Model & Security](docs/04-THREAT-MODEL.md)
-- [Phase 3 Hardening Report](docs/releases/TACP-PHASE-3-HARDENING-REPORT.md)
-- [Future Command Execution Security Design](docs/execution/COMMAND-EXECUTION-DESIGN.md)
-- [OpenAI Tunnel Readiness](docs/tunnel/OPENAI-TUNNEL-READINESS.md)
+- [Controlled Command Execution Architecture](docs/execution/EXECUTION-DESIGN.md)
+- [Execution Threat Model](docs/execution/EXECUTION-THREAT-MODEL.md)
+- [Execution Security Matrix](docs/execution/EXECUTION-SECURITY-MATRIX.md)
+- [Phase 4 Evidence Dossier](docs/evidence/PHASE-4/)
+  - [Release Gate Checklist](docs/evidence/PHASE-4/RELEASE-GATE.md)
+  - [Current State Audit](docs/evidence/PHASE-4/CURRENT-STATE-AUDIT.md)
+  - [Execution Design](docs/evidence/PHASE-4/EXECUTION-DESIGN.md)
+  - [Threat Model](docs/evidence/PHASE-4/THREAT-MODEL.md)
+  - [Identity Model](docs/evidence/PHASE-4/IDENTITY.md)
+  - [Policy Model](docs/evidence/PHASE-4/POLICY.md)
+  - [Approval Engine](docs/evidence/PHASE-4/APPROVAL.md)
+  - [Process Model](docs/evidence/PHASE-4/PROCESS.md)
+  - [Resource Governor](docs/evidence/PHASE-4/RESOURCE-GOVERNOR.md)
+  - [Network Containment](docs/evidence/PHASE-4/NETWORK.md)
+  - [Security Report](docs/evidence/PHASE-4/SECURITY.md)
+  - [Test Suite Report](docs/evidence/PHASE-4/TESTS.md)
+  - [MCP Integration](docs/evidence/PHASE-4/MCP.md)
+  - [Physical Device Verification](docs/evidence/PHASE-4/DEVICE.md)
+  - [Performance Benchmarks](docs/evidence/PHASE-4/PERFORMANCE.md)
+  - [Recovery & Orphans](docs/evidence/PHASE-4/RECOVERY.md)
+  - [Architecture Review](docs/evidence/PHASE-4/REVIEW.md)
 - [Phase 3 Evidence Dossier](docs/evidence/PHASE-3/)
-  - [Release Gate Checklist](docs/evidence/PHASE-3/RELEASE-GATE.md)
-  - [MCP Conformance Matrix](docs/evidence/PHASE-3/MCP-CONFORMANCE.md)
-  - [Identity Model Audit](docs/evidence/PHASE-3/IDENTITY-AUDIT.md)
-  - [Approval Engine Audit](docs/evidence/PHASE-3/APPROVAL-AUDIT.md)
-  - [Lock Service Audit](docs/evidence/PHASE-3/LOCK-AUDIT.md)
-  - [Rollback Audit](docs/evidence/PHASE-3/ROLLBACK-AUDIT.md)
-  - [Patch Parser Audit](docs/evidence/PHASE-3/PATCH-PARSER-AUDIT.md)
-  - [Database & Hash Chain Audit](docs/evidence/PHASE-3/DATABASE-AUDIT.md)
-  - [Performance Benchmarks](docs/evidence/PHASE-3/PERFORMANCE.md)
 
 ---
 

@@ -13,7 +13,7 @@ from tacp.access.mcp.server import create_mcp_server
 from tacp.core.capability_service import CapabilityService
 from tacp.core.system_service import SystemService
 from tacp.core.workspace_service import WorkspaceService
-from tacp.domain.errors import TacpError
+from tacp.domain.errors import TacpApprovalRequiredError, TacpError
 from tacp.infrastructure.config import TacpConfig
 from tacp.infrastructure.database import Database
 
@@ -150,6 +150,9 @@ def cmd_serve(args: argparse.Namespace) -> int:
         object.__setattr__(config, "read_only", False)
     if getattr(args, "allow_batch_mutation", False) and config.mutation_enabled:
         object.__setattr__(config, "batch_mutation_enabled", True)
+    if getattr(args, "allow_execution", False):
+        object.__setattr__(config, "execution_enabled", True)
+        object.__setattr__(config, "read_only", False)
 
     server = create_mcp_server(config)
 
@@ -326,6 +329,210 @@ def cmd_batch(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_execution(args: argparse.Namespace) -> int:
+    """Manage governed command executions."""
+    config = TacpConfig.load()
+    if getattr(args, "allow_execution", False):
+        object.__setattr__(config, "execution_enabled", True)
+        object.__setattr__(config, "read_only", False)
+
+    db = Database(config.db_path)
+    db.connect()
+    from tacp.control.approval import ApprovalEngine
+    from tacp.control.identity import Principal
+    from tacp.control.policy import PolicyEngine
+    from tacp.core.audit_service import AuditService
+    from tacp.core.execution_resolver import ExecutionResolver
+    from tacp.core.execution_service import ExecutionService
+    from tacp.core.workspace_service import WorkspaceService
+    from tacp.providers.process_executor import ProcessExecutor
+
+    ws_service = WorkspaceService(db)
+    policy_engine = PolicyEngine(
+        read_only_enforced=config.read_only,
+        mutation_enabled=config.mutation_enabled,
+        batch_mutation_enabled=config.batch_mutation_enabled,
+        execution_enabled=config.execution_enabled,
+    )
+    audit_service = AuditService(db)
+    approval_engine = ApprovalEngine(db)
+    resolver = ExecutionResolver(limits=config.limits)
+    executor = ProcessExecutor()
+    execution_service = ExecutionService(
+        db=db,
+        config=config,
+        policy_engine=policy_engine,
+        approval_engine=approval_engine,
+        audit_service=audit_service,
+        workspace_service=ws_service,
+        resolver=resolver,
+        executor=executor,
+    )
+
+    subcommand = getattr(args, "exec_action", None)
+    if subcommand == "list" or subcommand is None:
+        ws_id = getattr(args, "workspace", None)
+        limit = getattr(args, "limit", 20) or 20
+        records = execution_service.list_executions(workspace_id=ws_id, limit=limit)
+        if not records:
+            print("No execution records found.")
+            return 0
+        hdr = (
+            f"\n{'EXECUTION ID':<20} {'WORKSPACE':<15} {'STATUS':<12} "
+            f"{'EXEC':<10} {'CODE':<6} {'DURATION'}"
+        )
+        print(hdr)
+        print("-" * 75)
+        for r in records:
+            dur = f"{r.get('duration_ms', 0):.1f}ms" if r.get("duration_ms") is not None else "-"
+            code = str(r.get("exit_code")) if r.get("exit_code") is not None else "-"
+            eid = r.get("execution_id") or r.get("id", "")
+            row_str = (
+                f"{eid:<20} {r['workspace_id']:<15} {r['status']:<12} "
+                f"{r['executable']:<10} {code:<6} {dur}"
+            )
+            print(row_str)
+        print()
+        return 0
+
+    elif subcommand == "inspect":
+        exec_id = getattr(args, "execution_id", None)
+        if not exec_id:
+            print("Error: execution_id required.")
+            return 1
+        rec = execution_service.inspect_execution(exec_id)
+        if not rec:
+            print(f"Error: Execution record '{exec_id}' not found.")
+            return 1
+        print(json.dumps(rec, indent=2))
+        return 0
+
+    elif subcommand == "cancel":
+        exec_id = getattr(args, "execution_id", None)
+        if not exec_id:
+            print("Error: execution_id required.")
+            return 1
+        try:
+            res = execution_service.cancel_execution(
+                exec_id, principal=Principal.local_agent("cli-operator")
+            )
+            st = res.get("status", "CANCELLED")
+            print(f"Successfully cancelled execution '{exec_id}': {st}")
+            return 0
+        except Exception as exc:
+            print(f"Error cancelling execution '{exec_id}': {exc}")
+            return 1
+
+    elif subcommand == "emergency-stop":
+        conn = db.connect()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id FROM executions "
+            "WHERE status IN ('RUNNING', 'QUEUED', 'WAITING_FOR_APPROVAL');"
+        )
+        rows = cursor.fetchall()
+        cancelled = 0
+        for row in rows:
+            eid = row[0]
+            try:
+                execution_service.cancel_execution(
+                    eid, principal=Principal.local_agent("emergency-stop")
+                )
+                cancelled += 1
+                print(f"Emergency stopped execution: {eid}")
+            except Exception as e:
+                print(f"Failed to stop execution {eid}: {e}")
+        print(f"Emergency stop completed: {cancelled} active executions terminated.")
+        return 0
+
+    elif subcommand == "request":
+        contract_file = getattr(args, "contract_file", None)
+        if contract_file:
+            path = Path(contract_file)
+            if not path.is_file():
+                print(f"Error: contract file not found: {contract_file}")
+                return 1
+            with open(path, "r", encoding="utf-8") as f:
+                cdata = json.load(f)
+            ws_id = cdata.get("workspace_id")
+            exe = cdata.get("executable")
+            cmd_args = cdata.get("argv", [])
+            cwd = cdata.get("cwd", ".")
+            timeout = cdata.get("timeout_seconds")
+            dry_run = cdata.get("dry_run", False)
+        else:
+            ws_id = getattr(args, "workspace", None)
+            if not ws_id:
+                print("Error: --workspace required for command request.")
+                return 1
+            exe = getattr(args, "executable", None)
+            if not exe:
+                print("Error: --executable required for command request.")
+                return 1
+            cmd_args = getattr(args, "args", []) or []
+            dry_run = getattr(args, "dry_run", False)
+            timeout = getattr(args, "timeout", None)
+            cwd = getattr(args, "cwd", ".")
+
+        approval_token = getattr(args, "approval_token", None)
+        principal_id = getattr(args, "principal", "cli-user")
+        try:
+            try:
+                result = execution_service.execute_command(
+                    workspace_id=ws_id,
+                    executable=exe,
+                    argv=cmd_args,
+                    cwd=cwd,
+                    timeout_seconds=int(timeout) if timeout else None,
+                    dry_run=dry_run,
+                    approval_token=approval_token,
+                    principal_id=principal_id,
+                )
+            except TacpApprovalRequiredError as appr_err:
+                if getattr(args, "auto_approve", False):
+                    tok = appr_err.details.get("token")
+                    if tok:
+                        approval_engine.approve(tok, approved_by="cli-operator")
+                        result = execution_service.execute_command(
+                            workspace_id=ws_id,
+                            executable=exe,
+                            argv=cmd_args,
+                            cwd=cwd,
+                            timeout_seconds=int(timeout) if timeout else None,
+                            dry_run=dry_run,
+                            approval_token=tok,
+                            principal_id=principal_id,
+                        )
+                    else:
+                        raise
+                else:
+                    raise
+
+            if getattr(args, "json", False):
+                print(json.dumps(result.to_dict(), indent=2))
+            else:
+                print(f"Execution ID   : {result.execution_id}")
+                st = result.status.value if hasattr(result.status, "value") else str(result.status)
+                print(f"Status         : {st}")
+                print(f"Exit Code      : {result.exit_code}")
+                dur = f"{result.duration_ms:.1f}ms" if result.duration_ms is not None else "-"
+                print(f"Duration       : {dur}")
+                if result.stdout:
+                    print("\n--- STDOUT ---")
+                    print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
+                if result.stderr:
+                    print("\n--- STDERR ---")
+                    print(result.stderr, end="" if result.stderr.endswith("\n") else "\n")
+            if result.status == "DRY_RUN":
+                return 0
+            return 0 if result.exit_code == 0 else (result.exit_code or 1)
+        except Exception as exc:
+            print(f"Execution Error: {exc}")
+            return 1
+
+    return 0
+
+
 def cmd_workspace(args: argparse.Namespace) -> int:
     """Manage workspaces."""
     config = TacpConfig.load()
@@ -430,6 +637,53 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Enable multi-file batch workspace mutation",
     )
+    serve_parser.add_argument(
+        "--allow-execution",
+        action="store_true",
+        help="Enable controlled command execution",
+    )
+
+    # execution
+    exec_parser = subparsers.add_parser("execution", help="Manage governed command execution")
+    exec_sub = exec_parser.add_subparsers(dest="exec_action")
+
+    # execution list
+    exec_list = exec_sub.add_parser("list", help="List execution records")
+    exec_list.add_argument("--workspace", help="Filter by workspace ID")
+    exec_list.add_argument("--limit", type=int, default=20, help="Number of records to show")
+
+    # execution inspect
+    exec_inspect = exec_sub.add_parser("inspect", help="Inspect execution record")
+    exec_inspect.add_argument("execution_id", help="Execution record ID")
+
+    # execution cancel
+    exec_cancel = exec_sub.add_parser("cancel", help="Cancel execution")
+    exec_cancel.add_argument("execution_id", help="Execution record ID")
+
+    # execution emergency-stop
+    exec_sub.add_parser("emergency-stop", help="Emergency stop all active executions")
+
+    # execution request
+    exec_req = exec_sub.add_parser("request", help="Request governed command execution")
+    exec_req.add_argument("--workspace", help="Workspace ID")
+    exec_req.add_argument("--executable", help="Executable name (e.g. printf, echo, true)")
+    exec_req.add_argument("--args", nargs="*", default=[], help="Command arguments")
+    exec_req.add_argument("--cwd", default=".", help="Working directory relative to workspace")
+    exec_req.add_argument("--dry-run", action="store_true", help="Run in dry-run mode")
+    exec_req.add_argument(
+        "--timeout", type=float, default=30.0, help="Execution timeout in seconds"
+    )
+    exec_req.add_argument("--stdin", help="Input string for stdin")
+    exec_req.add_argument("--approval-token", help="Approval token if required")
+    exec_req.add_argument("--contract-file", help="Path to JSON file containing execution contract")
+    exec_req.add_argument(
+        "--allow-execution", action="store_true", help="Enable execution capability"
+    )
+    exec_req.add_argument(
+        "--auto-approve", action="store_true", help="Automatically approve execution ticket"
+    )
+    exec_req.add_argument("--json", action="store_true", help="Output in JSON format")
+    exec_req.add_argument("--principal", default="cli-user", help="Principal identity")
 
     # patch
     patch_parser = subparsers.add_parser("patch", help="Manage single patches")
@@ -486,6 +740,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "batch": cmd_batch,
         "workspace": cmd_workspace,
         "audit": cmd_audit,
+        "execution": cmd_execution,
     }
 
     handler = commands.get(args.command)

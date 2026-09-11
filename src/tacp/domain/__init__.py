@@ -12,6 +12,16 @@ from tacp.domain.errors import (
     TacpSecurityError,
     TacpValidationError,
 )
+from tacp.domain.execution import (
+    CommandRiskLevel,
+    ExecutionRecord,
+    ExecutionResult,
+    ExecutionStatus,
+    compute_execution_contract_hash,
+)
+from tacp.domain.execution import (
+    ExecutionContract as CommandExecutionContract,
+)
 from tacp.domain.patch import PatchResult, PatchStatus, WorkspacePatch
 from tacp.domain.workspace import Workspace
 
@@ -32,4 +42,10 @@ __all__ = [
     "PatchResult",
     "PatchStatus",
     "ExecutionContract",
+    "CommandExecutionContract",
+    "ExecutionResult",
+    "ExecutionStatus",
+    "CommandRiskLevel",
+    "ExecutionRecord",
+    "compute_execution_contract_hash",
 ]

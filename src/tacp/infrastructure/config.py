@@ -19,6 +19,12 @@ class OutputLimits:
     max_batch_files: int = 10
     max_batch_patch_total_bytes: int = 1048576  # 1 MB
     max_batch_resulting_total_bytes: int = 5242880  # 5 MB
+    max_execution_duration_seconds: int = 15
+    max_stdout_bytes: int = 65536  # 64 KB
+    max_stderr_bytes: int = 65536  # 64 KB
+    max_argv_count: int = 64
+    max_arg_length: int = 4096
+    max_env_count: int = 16
 
 
 @dataclass(frozen=True)
@@ -34,6 +40,9 @@ class TacpConfig:
     read_only: bool = True
     mutation_enabled: bool = False
     batch_mutation_enabled: bool = False
+    execution_enabled: bool = False
+    network_enabled: bool = False
+    remote_execution_enabled: bool = False
     limits: OutputLimits = field(default_factory=OutputLimits)
     allowed_workspace_roots: List[Path] = field(default_factory=list)
 
@@ -70,6 +79,21 @@ class TacpConfig:
             "true",
             "yes",
         )
+        execution_enabled = os.environ.get("TACP_EXECUTION_ENABLED", "0").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        network_enabled = os.environ.get("TACP_NETWORK_ENABLED", "0").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        remote_execution_enabled = os.environ.get("TACP_REMOTE_EXECUTION_ENABLED", "0").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
         read_only = not mutation_enabled
         if "TACP_READ_ONLY" in os.environ:
             read_only = os.environ.get("TACP_READ_ONLY", "1").lower() in ("1", "true", "yes")
@@ -81,5 +105,8 @@ class TacpConfig:
             read_only=read_only,
             mutation_enabled=mutation_enabled,
             batch_mutation_enabled=batch_mutation_enabled,
+            execution_enabled=execution_enabled,
+            network_enabled=network_enabled,
+            remote_execution_enabled=remote_execution_enabled,
             limits=OutputLimits(),
         )

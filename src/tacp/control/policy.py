@@ -52,6 +52,13 @@ class PolicyEngine:
         "workspace.batch_rollback",
     }
 
+    EXECUTION_CAPABILITIES = {
+        "execution.request",
+        "execution.inspect",
+        "execution.list",
+        "execution.cancel",
+    }
+
     PROTECTED_PATTERNS = {
         ".git",
         ".tacp",
@@ -68,10 +75,14 @@ class PolicyEngine:
         read_only_enforced: bool = True,
         mutation_enabled: bool = False,
         batch_mutation_enabled: bool = False,
+        execution_enabled: bool = False,
+        network_enabled: bool = False,
     ) -> None:
         self.read_only_enforced = read_only_enforced
         self.mutation_enabled = mutation_enabled
         self.batch_mutation_enabled = batch_mutation_enabled
+        self.execution_enabled = execution_enabled
+        self.network_enabled = network_enabled
 
     def _check_target_path(self, target_path: str) -> Optional[PolicyDecision]:
         clean_target = target_path.replace("\\", "/")
@@ -114,14 +125,95 @@ class PolicyEngine:
         cap = context.capability
 
         # Invariant 1: Check known capabilities (Default Deny)
-        if cap not in self.ALLOWED_CAPABILITIES and cap not in self.MUTATING_CAPABILITIES:
+        if (
+            cap not in self.ALLOWED_CAPABILITIES
+            and cap not in self.MUTATING_CAPABILITIES
+            and cap not in self.EXECUTION_CAPABILITIES
+        ):
             return PolicyDecision(
                 allowed=False,
-                reason=f"Capability '{cap}' is not recognized or forbidden in TACP 0.1",
+                reason=f"Capability '{cap}' is not recognized or forbidden in TACP",
                 decision_type="DENY",
             )
 
-        # Invariant 2: Mutating capability handling
+        # Invariant 2: Execution capability handling
+        if cap in self.EXECUTION_CAPABILITIES:
+            if not self.execution_enabled:
+                return PolicyDecision(
+                    allowed=False,
+                    reason=(
+                        f"Capability '{cap}' is forbidden: "
+                        "command execution is disabled in TACP configuration"
+                    ),
+                    decision_type="DENY",
+                )
+
+            if workspace is None and cap in ("execution.request", "execution.cancel"):
+                return PolicyDecision(
+                    allowed=False,
+                    reason=f"Capability '{cap}' requires an active workspace",
+                    decision_type="DENY",
+                )
+
+            if workspace is not None and workspace.status != "ACTIVE":
+                return PolicyDecision(
+                    allowed=False,
+                    reason=f"Workspace '{workspace.id}' is not ACTIVE (status: {workspace.status})",
+                    decision_type="DENY",
+                )
+
+            if cap in ("execution.list", "execution.inspect"):
+                return PolicyDecision(
+                    allowed=True,
+                    reason=f"Authorized read-only execution query under {cap}",
+                    decision_type="ALLOW",
+                    requires_audit=True,
+                )
+
+            if cap == "execution.cancel":
+                is_operator = (
+                    context.principal.trust_tier == TrustTier.PRIVILEGED
+                    and context.principal.principal_type != PrincipalType.AGENT
+                )
+                if is_operator or has_approval:
+                    return PolicyDecision(
+                        allowed=True,
+                        reason="Authorized execution cancellation",
+                        decision_type="ALLOW",
+                        requires_audit=True,
+                    )
+                return PolicyDecision(
+                    allowed=False,
+                    reason="Execution cancellation requires operator privilege or approval",
+                    decision_type="REQUIRE_APPROVAL",
+                    requires_audit=True,
+                )
+
+            if cap == "execution.request":
+                if dry_run:
+                    return PolicyDecision(
+                        allowed=True,
+                        reason="Authorized dry-run evaluation under Execution Policy",
+                        decision_type="ALLOW",
+                        requires_audit=True,
+                    )
+
+                if has_approval:
+                    return PolicyDecision(
+                        allowed=True,
+                        reason="Authorized execution request with valid approval",
+                        decision_type="ALLOW",
+                        requires_audit=True,
+                    )
+
+                return PolicyDecision(
+                    allowed=False,
+                    reason="Execution of command requires explicit human approval",
+                    decision_type="REQUIRE_APPROVAL",
+                    requires_audit=True,
+                )
+
+        # Invariant 3: Mutating capability handling
         if cap in self.MUTATING_CAPABILITIES:
             if not self.mutation_enabled:
                 return PolicyDecision(
@@ -171,15 +263,23 @@ class PolicyEngine:
 
             # Special authorization governance for rollback operations
             if cap in ("workspace.rollback", "workspace.batch_rollback"):
+                is_agent = context.principal.principal_type == PrincipalType.AGENT
+                is_privileged = (
+                    context.principal.trust_tier == TrustTier.PRIVILEGED and not is_agent
+                )
                 is_elevated_type = context.principal.principal_type in (
                     PrincipalType.HUMAN,
                     PrincipalType.SYSTEM,
                 )
-                if (
-                    context.principal.trust_tier == TrustTier.PRIVILEGED
-                    or is_elevated_type
-                    or context.principal.role == "operator"
-                    or context.principal.id in ("operator", "human_operator")
+                if is_privileged or (
+                    is_elevated_type
+                    or (
+                        not is_agent
+                        and (
+                            context.principal.role == "operator"
+                            or context.principal.id in ("operator", "human_operator")
+                        )
+                    )
                 ):
                     return PolicyDecision(
                         allowed=True,

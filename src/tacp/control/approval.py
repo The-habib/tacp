@@ -247,14 +247,20 @@ class ApprovalEngine:
 
         conn = self.db.connect()
         with conn:
-            conn.execute(
+            cur = conn.cursor()
+            cur.execute(
                 """
                 UPDATE approvals
                 SET status = ?, metadata_json = ?
-                WHERE token_hash = ? OR token = ?;
+                WHERE (token_hash = ? OR token = ?) AND status = ?;
                 """,
-                (STATUS_APPROVED, json.dumps(meta), token_hash, token),
+                (STATUS_APPROVED, json.dumps(meta), token_hash, token, STATUS_PENDING),
             )
+            if cur.rowcount != 1:
+                raise TacpSecurityError(
+                    ErrorCode.POLICY_DENIED,
+                    f"Cannot approve ticket '{token}': ticket is no longer in PENDING state",
+                )
 
         updated = self.get_ticket(token)
         assert updated is not None
@@ -275,14 +281,27 @@ class ApprovalEngine:
         token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         conn = self.db.connect()
         with conn:
-            conn.execute(
+            cur = conn.cursor()
+            cur.execute(
                 """
                 UPDATE approvals
                 SET status = ?, metadata_json = ?
-                WHERE token_hash = ? OR token = ?;
+                WHERE (token_hash = ? OR token = ?) AND status IN (?, ?);
                 """,
-                (STATUS_DENIED, json.dumps(meta), token_hash, token),
+                (
+                    STATUS_DENIED,
+                    json.dumps(meta),
+                    token_hash,
+                    token,
+                    STATUS_PENDING,
+                    STATUS_APPROVED,
+                ),
             )
+            if cur.rowcount != 1:
+                raise TacpSecurityError(
+                    ErrorCode.POLICY_DENIED,
+                    f"Cannot deny ticket '{token}': ticket is already {ticket.status}",
+                )
 
         updated = self.get_ticket(token)
         assert updated is not None
@@ -303,14 +322,27 @@ class ApprovalEngine:
         token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         conn = self.db.connect()
         with conn:
-            conn.execute(
+            cur = conn.cursor()
+            cur.execute(
                 """
                 UPDATE approvals
                 SET status = ?, metadata_json = ?
-                WHERE token_hash = ? OR token = ?;
+                WHERE (token_hash = ? OR token = ?) AND status IN (?, ?);
                 """,
-                (STATUS_REVOKED, json.dumps(meta), token_hash, token),
+                (
+                    STATUS_REVOKED,
+                    json.dumps(meta),
+                    token_hash,
+                    token,
+                    STATUS_PENDING,
+                    STATUS_APPROVED,
+                ),
             )
+            if cur.rowcount != 1:
+                raise TacpSecurityError(
+                    ErrorCode.POLICY_DENIED,
+                    f"Cannot revoke ticket '{token}': ticket is already {ticket.status}",
+                )
 
         updated = self.get_ticket(token)
         assert updated is not None

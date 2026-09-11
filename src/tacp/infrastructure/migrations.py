@@ -140,6 +140,40 @@ MIGRATIONS: List[Tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_audit_entry_hash ON audit_logs (entry_hash);
         """,
     ),
+    (
+        6,
+        """
+        CREATE TABLE IF NOT EXISTS executions (
+            id TEXT PRIMARY KEY,
+            execution_id TEXT NOT NULL UNIQUE,
+            action_type TEXT NOT NULL,
+            workspace_id TEXT NOT NULL,
+            executable TEXT NOT NULL,
+            argv_json TEXT NOT NULL,
+            cwd TEXT NOT NULL,
+            contract_hash TEXT NOT NULL,
+            principal_id TEXT NOT NULL,
+            status TEXT NOT NULL,
+            exit_code INTEGER,
+            term_signal INTEGER,
+            duration_ms INTEGER,
+            stdout_truncated INTEGER NOT NULL DEFAULT 0,
+            stderr_truncated INTEGER NOT NULL DEFAULT 0,
+            timed_out INTEGER NOT NULL DEFAULT 0,
+            cancelled INTEGER NOT NULL DEFAULT 0,
+            pid INTEGER,
+            pgid INTEGER,
+            created_at TEXT NOT NULL,
+            started_at TEXT,
+            terminated_at TEXT,
+            metadata_json TEXT NOT NULL DEFAULT '{}'
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_executions_workspace ON executions (workspace_id);
+        CREATE INDEX IF NOT EXISTS idx_executions_status ON executions (status);
+        CREATE INDEX IF NOT EXISTS idx_executions_contract_hash ON executions (contract_hash);
+        """,
+    ),
 ]
 
 
