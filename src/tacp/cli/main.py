@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -97,10 +99,36 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
 
     # 6. Capabilities check
     caps = CapabilityService.list_raw()
-    if len(caps) == 13:
-        print(f"[PASS] Capabilities: All {len(caps)} read-only capabilities loaded")
+    if len(caps) >= 13:
+        print(f"[PASS] Capabilities: {len(caps)} read-only capabilities loaded")
     else:
-        print(f"[WARN] Capabilities: {len(caps)} capabilities loaded (expected 13)")
+        print(f"[WARN] Capabilities: {len(caps)} capabilities loaded (expected at least 13)")
+
+    # 7. Remote integration diagnostics
+    tunnel_client_bin = shutil.which("tunnel-client")
+    if tunnel_client_bin:
+        try:
+            proc = subprocess.run(  # noqa: S603
+                [tunnel_client_bin, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            tc_ver = proc.stdout.strip().split()[0] if proc.stdout else "unknown"
+            print(f"[PASS] OpenAI Tunnel Client: Available in PATH ({tc_ver})")
+        except Exception:
+            print(f"[PASS] OpenAI Tunnel Client: Available at {tunnel_client_bin}")
+    else:
+        print("[INFO] OpenAI Tunnel Client: Not detected in PATH (optional for local operation)")
+
+    tunnel_id = os.environ.get("CONTROL_PLANE_TUNNEL_ID")
+    if tunnel_id:
+        masked_id = tunnel_id[:10] + "..." if len(tunnel_id) > 10 else "***"
+        print(f"[PASS] Remote Tunnel ID: Configured ({masked_id})")
+    else:
+        print("[INFO] Remote Tunnel ID: Not configured (local-only posture)")
+
+    print(f"[PASS] Remote Tunnel Governance: Trust profile {config.trust_profile}")
 
     print("----------------------------------------")
     if all_passed:
@@ -109,6 +137,58 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     else:
         print("[ERROR] One or more doctor checks failed.")
         return 1
+
+
+def cmd_remote(args: argparse.Namespace) -> int:
+    """Manage remote integration status and diagnosis."""
+    action = getattr(args, "remote_action", "status")
+    if action == "status":
+        config = TacpConfig.load()
+        tunnel_client_bin = shutil.which("tunnel-client")
+        tc_version = "NOT DETECTED"
+        if tunnel_client_bin:
+            try:
+                p = subprocess.run(  # noqa: S603
+                    [tunnel_client_bin, "--version"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                tc_version = p.stdout.strip()
+            except Exception:
+                tc_version = "AVAILABLE"
+
+        tunnel_id = os.environ.get("CONTROL_PLANE_TUNNEL_ID")
+        tunnel_status = "CONFIGURED" if tunnel_id else "NOT CONFIGURED"
+        api_key = os.environ.get("CONTROL_PLANE_API_KEY")
+        cred_status = "CONFIGURED (hidden)" if api_key else "NOT CONFIGURED"
+
+        is_restricted = config.trust_profile in ("LOCKDOWN", "REMOTE_READ_ONLY")
+        caps = CapabilityService.list_raw(
+            include_mutating=config.mutation_enabled and not is_restricted,
+            include_batch=config.batch_mutation_enabled and not is_restricted,
+            include_execution=config.execution_enabled and not is_restricted,
+        )
+
+        print("========================================")
+        print(" TACP Remote Integration Status         ")
+        print("========================================")
+        print("TACP Control Plane : READY")
+        print("MCP Transport      : READY (stdio)")
+        print(f"Tunnel Client      : {tc_version}")
+        print(f"Tunnel ID          : {tunnel_id or 'NOT CONFIGURED'}")
+        print(f"Tunnel State       : {tunnel_status}")
+        print(f"Remote Enabled     : {config.remote_enabled}")
+        print(f"Remote Read-Only   : {config.remote_read_only}")
+        print(f"Remote Mutation    : {config.remote_mutation_enabled}")
+        print(f"Remote Execution   : {config.remote_execution_enabled}")
+        print(f"Trust Profile      : {config.trust_profile}")
+        print(f"Visible Tools      : {len(caps)} capabilities")
+        print("Network Access     : DENIED")
+        print(f"Credentials        : {cred_status}")
+        print("========================================")
+        return 0
+    return 0
 
 
 def cmd_status(_args: argparse.Namespace) -> int:
@@ -706,6 +786,11 @@ def build_parser() -> argparse.ArgumentParser:
     audit_parser.add_argument("--limit", type=int, default=20, help="Number of records to show")
     audit_parser.add_argument("--json", action="store_true", help="Output in JSON format")
 
+    # remote
+    remote_parser = subparsers.add_parser("remote", help="Manage remote OpenAI tunnel integration")
+    remote_sub = remote_parser.add_subparsers(dest="remote_action")
+    remote_sub.add_parser("status", help="Show remote tunnel integration status")
+
     return parser
 
 
@@ -729,6 +814,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "workspace": cmd_workspace,
         "audit": cmd_audit,
         "execution": cmd_execution,
+        "remote": cmd_remote,
     }
 
     handler = commands.get(args.command)

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.1-rc.1] - 2026-09-11
+
+### Phase 6.5: OpenAI Secure MCP Tunnel Remote ChatGPT Integration (Read-Only Observation Gate)
+
+#### Official Tunnel Client Integration
+- **Upstream Verification**: Installed and verified official OpenAI `tunnel-client` binary (`v0.0.14`, `linux-arm64`) with bitwise SHA-256 validation against official release manifests.
+- **Physical Hardware Execution**: Native Termux execution verified on Android 13 `aarch64` without root, proot, or glibc emulation.
+- **Local Stdio Transport**: Standard input/output JSON-RPC 2.0 communication with zero log/banner leakage onto stdout.
+
+#### Remote Governance & Identity
+- **`PrincipalType.REMOTE_AI`**: Distinct remote AI identity bound to tunnel credential source, with hardcoded un-elevated status (`is_elevated() == False`).
+- **`TrustProfile.REMOTE_READ_ONLY`**: Restricts remote connections strictly to $R_0$ observation capabilities.
+- **Strict Prohibition**: Mutation (`workspace.patch`, `patch_batch`), command execution (`execution.request`), and capability leasing are strictly rejected for remote callers.
+- **Dynamic Tool Exposure**: Prunes all mutating and executing capabilities from `tools/list`, exposing only 13 safe read-only tools.
+- **Fail-Closed Kill Switch**: If `TACP_REMOTE_ENABLED` is false, all incoming remote calls fail closed immediately.
+
+#### CLI & Diagnostic Enhancements
+- **`tacp remote status`**: Inspects tunnel client detection, configuration state, active trust profile, visible capabilities, and masked credentials.
+- **`tacp doctor`**: Diagnostic verification of `tunnel-client` in PATH, tunnel configuration, and remote governance trust profile.
+
+#### Security & Verification
+- **Adversarial Regression Suite**: 12 comprehensive security tests covering secret blocking (`.env`, `id_rsa`), path traversal (`../`, absolute, symlinks), prompt injection immunity, output bounding, and emergency kill switches.
+- **Full Verification**: 752 total unit, integration, security, and contract tests passing across 7 automated stages in `./verify`.
+
+---
+
 ## [0.5.0-rc.1] - 2026-09-11
 
 ### Phase 6: Local-First Performance, Risk-Adaptive Governance & Trust Profiles

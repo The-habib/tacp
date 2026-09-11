@@ -97,6 +97,10 @@ class PolicyEngine:
         network_enabled: bool = False,
         trust_profile: str = "BALANCED",
         lease_engine: Optional[Any] = None,
+        remote_enabled: bool = False,
+        remote_read_only: bool = False,
+        remote_mutation_enabled: bool = False,
+        remote_execution_enabled: bool = False,
     ) -> None:
         self.read_only_enforced = read_only_enforced
         self.mutation_enabled = mutation_enabled
@@ -105,6 +109,10 @@ class PolicyEngine:
         self.network_enabled = network_enabled
         self.trust_profile = trust_profile.upper() if trust_profile else "BALANCED"
         self.lease_engine = lease_engine
+        self.remote_enabled = remote_enabled
+        self.remote_read_only = remote_read_only or (self.trust_profile == "REMOTE_READ_ONLY")
+        self.remote_mutation_enabled = remote_mutation_enabled
+        self.remote_execution_enabled = remote_execution_enabled
 
     def _check_target_path(self, target_path: str) -> Optional[PolicyDecision]:
         clean_target = target_path.replace("\\", "/")
@@ -171,16 +179,71 @@ class PolicyEngine:
                     risk_level="R0",
                 )
 
+        # Invariant 1c: Trust Profile REMOTE_READ_ONLY strictly forbids mutation and execution
+        if self.trust_profile == "REMOTE_READ_ONLY":
+            if (
+                cap in self.MUTATING_CAPABILITIES
+                or cap in self.EXECUTION_CAPABILITIES
+                or cap == "audit.verify_integrity"
+            ):
+                return PolicyDecision(
+                    allowed=False,
+                    reason=(
+                        "Operations beyond R0 observation are strictly prohibited "
+                        "in REMOTE_READ_ONLY trust profile"
+                    ),
+                    decision_type="DENY",
+                    risk_level="R0",
+                )
+
+        # Invariant 1d: Remote AI Principal Governance
+        if context.principal.principal_type == PrincipalType.REMOTE_AI:
+            if not self.remote_enabled:
+                return PolicyDecision(
+                    allowed=False,
+                    reason="Remote access is disabled in TACP configuration",
+                    decision_type="DENY",
+                    risk_level="R0",
+                )
+            if self.remote_read_only or self.trust_profile == "REMOTE_READ_ONLY":
+                if (
+                    cap in self.MUTATING_CAPABILITIES
+                    or cap in self.EXECUTION_CAPABILITIES
+                    or cap == "audit.verify_integrity"
+                ):
+                    return PolicyDecision(
+                        allowed=False,
+                        reason=(
+                            "Mutations and executions are strictly prohibited "
+                            "for remote agents in read-only mode"
+                        ),
+                        decision_type="DENY",
+                        risk_level="R0",
+                    )
+            if cap in self.MUTATING_CAPABILITIES and not self.remote_mutation_enabled:
+                return PolicyDecision(
+                    allowed=False,
+                    reason="Remote workspace mutation is disabled in TACP policy",
+                    decision_type="DENY",
+                    risk_level="R0",
+                )
+            if cap in self.EXECUTION_CAPABILITIES and not self.remote_execution_enabled:
+                return PolicyDecision(
+                    allowed=False,
+                    reason="Remote process execution is disabled in TACP policy",
+                    decision_type="DENY",
+                    risk_level="R0",
+                )
+
         # Lease Evaluation Helper
         has_lease = False
         lease_rejection_reason: Optional[str] = None
         if lease_id:
             if not self.lease_engine:
                 lease_rejection_reason = "No lease engine configured"
-            elif self.trust_profile == "STRICT":
+            elif self.trust_profile in ("STRICT", "REMOTE_READ_ONLY"):
                 lease_rejection_reason = (
-                    "Trust profile STRICT requires per-operation human approval; "
-                    "capability leases are not accepted"
+                    f"Trust profile {self.trust_profile} does not permit capability leases"
                 )
             else:
                 lease = self.lease_engine.get_lease(lease_id)

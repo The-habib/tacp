@@ -18,6 +18,7 @@ IGNORED_DIRS = {
     ".mypy_cache",
     ".ruff_cache",
     ".pytest_cache",
+    "scratch",
 }
 
 

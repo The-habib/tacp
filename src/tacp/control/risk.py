@@ -24,6 +24,7 @@ class TrustProfile(str, Enum):
     BALANCED = "BALANCED"
     DEVELOPER = "DEVELOPER"
     LOCKDOWN = "LOCKDOWN"
+    REMOTE_READ_ONLY = "REMOTE_READ_ONLY"
 
 
 class PolicyOutcome(str, Enum):

@@ -57,7 +57,7 @@ class McpToolRegistry:
         """Return tool definitions formatted for MCP tools/list."""
         tools = []
         profile = getattr(self.policy_engine, "trust_profile", "BALANCED")
-        if profile == "LOCKDOWN":
+        if profile in ("LOCKDOWN", "REMOTE_READ_ONLY"):
             include_mutating = False
             include_batch = False
             include_execution = False

@@ -42,6 +42,9 @@ class TacpConfig:
     batch_mutation_enabled: bool = False
     execution_enabled: bool = False
     network_enabled: bool = False
+    remote_enabled: bool = False
+    remote_read_only: bool = True
+    remote_mutation_enabled: bool = False
     remote_execution_enabled: bool = False
     trust_profile: str = field(
         default_factory=lambda: os.environ.get("TACP_TRUST_PROFILE", "BALANCED").upper()
@@ -66,6 +69,10 @@ class TacpConfig:
         if not self.mutation_enabled:
             object.__setattr__(self, "read_only", True)
             object.__setattr__(self, "batch_mutation_enabled", False)
+        if self.trust_profile == "REMOTE_READ_ONLY" or self.remote_read_only:
+            object.__setattr__(self, "remote_read_only", True)
+            object.__setattr__(self, "remote_mutation_enabled", False)
+            object.__setattr__(self, "remote_execution_enabled", False)
 
     @classmethod
     def load(cls) -> "TacpConfig":
@@ -94,6 +101,21 @@ class TacpConfig:
             "true",
             "yes",
         )
+        remote_enabled = os.environ.get("TACP_REMOTE_ENABLED", "0").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        remote_read_only = os.environ.get("TACP_REMOTE_READ_ONLY", "1").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        remote_mutation_enabled = os.environ.get("TACP_REMOTE_MUTATION_ENABLED", "0").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
         remote_execution_enabled = os.environ.get("TACP_REMOTE_EXECUTION_ENABLED", "0").lower() in (
             "1",
             "true",
@@ -112,6 +134,9 @@ class TacpConfig:
             batch_mutation_enabled=batch_mutation_enabled,
             execution_enabled=execution_enabled,
             network_enabled=network_enabled,
+            remote_enabled=remote_enabled,
+            remote_read_only=remote_read_only,
+            remote_mutation_enabled=remote_mutation_enabled,
             remote_execution_enabled=remote_execution_enabled,
             limits=OutputLimits(),
         )

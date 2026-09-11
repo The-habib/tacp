@@ -9,6 +9,7 @@ class PrincipalType(str, Enum):
     HUMAN = "HUMAN"
     SYSTEM = "SYSTEM"
     SERVICE = "SERVICE"
+    REMOTE_AI = "REMOTE_AI"
 
 
 class TrustTier(str, Enum):
@@ -22,6 +23,7 @@ class CredentialSource(str, Enum):
     TOKEN = "TOKEN"
     SYSTEM = "SYSTEM"
     NONE = "NONE"
+    TUNNEL = "TUNNEL"
 
 
 class Role(str, Enum):
@@ -98,6 +100,18 @@ class Principal:
             authorities=frozenset(
                 [Authority.READ_WORKSPACE.value, Authority.EXECUTE_COMMAND.value]
             ),
+        )
+
+    @classmethod
+    def remote_ai(cls, agent_id: str = "remote_chatgpt") -> "Principal":
+        return cls(
+            id=agent_id,
+            role=Role.AGENT.value,
+            authenticated=True,
+            principal_type=PrincipalType.REMOTE_AI,
+            trust_tier=TrustTier.RESTRICTED,
+            credential_source=CredentialSource.TUNNEL,
+            authorities=frozenset([Authority.READ_WORKSPACE.value]),
         )
 
     @classmethod

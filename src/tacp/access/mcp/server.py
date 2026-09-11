@@ -274,6 +274,10 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
         network_enabled=cfg.network_enabled,
         trust_profile=cfg.trust_profile,
         lease_engine=lease_engine,
+        remote_enabled=cfg.remote_enabled,
+        remote_read_only=cfg.remote_read_only,
+        remote_mutation_enabled=cfg.remote_mutation_enabled,
+        remote_execution_enabled=cfg.remote_execution_enabled,
     )
     workspace_service = WorkspaceService(db)
 
