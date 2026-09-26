@@ -28,6 +28,7 @@ FAILED_CHECKS=0
 check_cmd() {
   local name="$1"
   local cmd="$2"
+  local fallback="${3:-}"
   TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
   
   if command -v "$cmd" >/dev/null 2>&1 || [[ -x "$SCRIPT_DIR/.venv/bin/$cmd" ]]; then
@@ -38,6 +39,12 @@ check_cmd() {
       ver="$("$SCRIPT_DIR/.venv/bin/$cmd" --version 2>&1 | head -n 1 || echo "available")"
     fi
     echo "[PASS] $name ($cmd): $ver"
+    PASSED_CHECKS=$((PASSED_CHECKS + 1))
+    return 0
+  elif [[ -n "$fallback" ]] && command -v "$fallback" >/dev/null 2>&1; then
+    local ver
+    ver="$("$fallback" --version 2>&1 | head -n 1 || echo "available")"
+    echo "[PASS] $name ($fallback fallback): $ver"
     PASSED_CHECKS=$((PASSED_CHECKS + 1))
     return 0
   else
@@ -58,9 +65,9 @@ check_cmd "uv (Fast Python manager)" "uv"
 check_cmd "Git (VCS)" "git"
 check_cmd "GitHub CLI" "gh"
 check_cmd "JSON Processor" "jq"
-check_cmd "Ripgrep" "rg"
+check_cmd "Ripgrep" "rg" "grep"
 check_cmd "ShellCheck" "shellcheck"
-check_cmd "C Compiler" "clang"
+check_cmd "C Compiler" "clang" "gcc"
 check_cmd "Make" "make"
 check_cmd "Ruff (Linter & Formatter)" "ruff"
 
