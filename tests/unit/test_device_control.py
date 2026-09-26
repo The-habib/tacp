@@ -121,7 +121,8 @@ def test_mcp_tools_list_flag(tmp_path: Path):
     server_enabled = create_mcp_server(config=cfg, enable_device_capabilities=True)
     req2 = McpRequest(id=2, method="tools/list", params={})
     resp2 = server_enabled.handle_request(req2)
-    assert resp2 is not None
+    assert resp1 is not None and isinstance(resp1.result, dict)
+    assert resp2 is not None and isinstance(resp2.result, dict)
     dev_tools = default_registry.get_mcp_tools()
     expected_unique = len(
         {t["name"] for t in resp1.result["tools"]}.union({t["name"] for t in dev_tools})
@@ -151,7 +152,7 @@ def test_mcp_execute_device_tool(tmp_path: Path):
         },
     )
     resp = server.handle_request(req)
-    assert resp is not None
+    assert resp is not None and isinstance(resp.result, dict)
     assert resp.result.get("isError") is not True
     content = resp.result["content"]
     assert len(content) >= 1
@@ -171,7 +172,7 @@ def test_mcp_server_resources_and_prompts(tmp_path: Path):
 
     # Check resources list
     res_list = server.handle_request(McpRequest(id=1, method="resources/list", params={}))
-    assert res_list is not None
+    assert res_list is not None and isinstance(res_list.result, dict)
     resources = res_list.result["resources"]
     uris = [r["uri"] for r in resources]
     assert "tacp://device/info" in uris
@@ -181,14 +182,14 @@ def test_mcp_server_resources_and_prompts(tmp_path: Path):
     res_read = server.handle_request(
         McpRequest(id=2, method="resources/read", params={"uri": "tacp://device/info"})
     )
-    assert res_read is not None
+    assert res_read is not None and isinstance(res_read.result, dict)
     contents = res_read.result["contents"]
     assert len(contents) == 1
     assert contents[0]["uri"] == "tacp://device/info"
 
     # Check prompts list
     p_list = server.handle_request(McpRequest(id=3, method="prompts/list", params={}))
-    assert p_list is not None
+    assert p_list is not None and isinstance(p_list.result, dict)
     prompts = p_list.result["prompts"]
     p_names = [p["name"] for p in prompts]
     assert "device-diagnostics" in p_names
@@ -200,7 +201,7 @@ def test_mcp_server_resources_and_prompts(tmp_path: Path):
             id=4, method="prompts/get", params={"name": "device-diagnostics", "arguments": {}}
         )
     )
-    assert p_get is not None
+    assert p_get is not None and isinstance(p_get.result, dict)
     messages = p_get.result["messages"]
     assert len(messages) >= 1
     assert "diagnostics" in messages[0]["content"]["text"].lower()

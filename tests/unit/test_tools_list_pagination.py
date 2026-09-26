@@ -41,6 +41,7 @@ def test_tools_list_pagination_and_filter(tmp_path: Path) -> None:
     # 4. Filter by category (e.g. 'patch' or 'system')
     req_filt = McpRequest(id=4, method="tools/list", params={"category": "system"})
     resp_filt = server.handle_request(req_filt)
+    assert resp_filt is not None and isinstance(resp_filt.result, dict)
     filt_tools = resp_filt.result["tools"]
     assert len(filt_tools) > 0
     assert all(
