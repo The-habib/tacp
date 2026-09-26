@@ -9,7 +9,7 @@ from tacp.core.tracer import (
 )
 
 
-def test_request_tracer_lifecycle():
+def test_request_tracer_lifecycle() -> None:
     tracer = RequestTracer(trace_id="tr_123", request_id="req_456", enabled=True)
     with tracer.span("phase_1", detail="init") as s:
         assert s.name == "phase_1"
@@ -32,7 +32,7 @@ def test_request_tracer_lifecycle():
     assert "phase_2" in breakdown
 
 
-def test_noop_tracer():
+def test_noop_tracer() -> None:
     tracer = NoopTracer()
     assert not tracer.enabled
     with tracer.span("phase_x") as s:
@@ -41,7 +41,7 @@ def test_noop_tracer():
     assert tracer.get_breakdown() == {}
 
 
-def test_context_var_tracer():
+def test_context_var_tracer() -> None:
     tracer = RequestTracer("t1", "r1", enabled=True)
     _ = set_current_tracer(tracer)
     try:

@@ -19,7 +19,7 @@ def get_local_ip() -> str:
         ip = "127.0.0.1"
     finally:
         s.close()
-    return ip
+    return str(ip)
 
 
 class DirectTunnelProvider(BaseTunnelProvider):

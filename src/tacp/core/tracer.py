@@ -45,12 +45,11 @@ class TraceSpan:
         self.start_ns = time.perf_counter_ns()
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.end_ns = time.perf_counter_ns()
         self.duration_ns = self.end_ns - self.start_ns
         if self._tracer is not None:
             self._tracer._record_span(self)
-        return False
 
     def finish(self, **meta: Any) -> None:
         if self.end_ns == 0:
@@ -74,8 +73,8 @@ class NoopSpan:
     def __enter__(self) -> NoopSpan:
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
-        return False
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        pass
 
     def finish(self, **meta: Any) -> None:
         pass
@@ -222,5 +221,7 @@ def get_current_tracer() -> RequestTracer:
     return t if t is not None else _NOOP_TRACER
 
 
-def set_current_tracer(tracer: Optional[RequestTracer]) -> contextvars.Token:
+def set_current_tracer(
+    tracer: Optional[RequestTracer],
+) -> contextvars.Token[Optional[RequestTracer]]:
     return _active_tracer.set(tracer)

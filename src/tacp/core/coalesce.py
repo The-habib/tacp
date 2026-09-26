@@ -7,7 +7,7 @@ only a single underlying execution occurs, while all other callers block and sha
 from __future__ import annotations
 
 import threading
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any, Callable, Dict, Optional, TypeVar, cast
 
 T = TypeVar("T")
 
@@ -51,11 +51,11 @@ class SingleFlight:
             call.event.wait()
             if call.err is not None:
                 raise call.err
-            return call.val
+            return cast(T, call.val)
 
         try:
             call.val = fn(*args, **kwargs)
-            return call.val
+            return cast(T, call.val)
         except Exception as exc:
             call.err = exc
             raise

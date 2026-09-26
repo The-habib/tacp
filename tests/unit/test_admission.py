@@ -9,7 +9,7 @@ from tacp.core.admission import AdmissionController, LaneConfig, LaneType
 from tacp.domain.errors import TacpError
 
 
-def test_lane_classification():
+def test_lane_classification() -> None:
     ac = AdmissionController()
     assert ac.classify("system.health") == LaneType.FAST_READ
     assert ac.classify("device.telemetry.snapshot") == LaneType.FAST_READ
@@ -20,7 +20,7 @@ def test_lane_classification():
     assert ac.classify("device.media.audio_record") == LaneType.MEDIA
 
 
-def test_fast_read_isolation_under_mutation_saturation():
+def test_fast_read_isolation_under_mutation_saturation() -> None:
     ac = AdmissionController(
         {
             LaneType.MUTATION: LaneConfig(slots=2, timeout=0.1),
@@ -35,7 +35,7 @@ def test_fast_read_isolation_under_mutation_saturation():
     # Saturate mutation lane with 2 slots holding for 0.2s
     mutation_started = []
 
-    def slow_mutation():
+    def slow_mutation() -> None:
         with ac.acquire(LaneType.MUTATION):
             mutation_started.append(True)
             time.sleep(0.2)
@@ -59,7 +59,7 @@ def test_fast_read_isolation_under_mutation_saturation():
     ex.shutdown(wait=True)
 
 
-def test_admission_timeout():
+def test_admission_timeout() -> None:
     ac = AdmissionController(
         {
             LaneType.MUTATION: LaneConfig(slots=1, timeout=0.05),
@@ -71,7 +71,7 @@ def test_admission_timeout():
         }
     )
 
-    def hold():
+    def hold() -> None:
         with ac.acquire(LaneType.MUTATION):
             time.sleep(0.15)
 

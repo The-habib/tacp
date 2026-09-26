@@ -3,16 +3,17 @@
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict
 
 from tacp.core.coalesce import SingleFlight
 
 
-def test_singleflight_coalescing():
+def test_singleflight_coalescing() -> None:
     group = SingleFlight()
     execution_count = 0
     lock = threading.Lock()
 
-    def expensive_operation():
+    def expensive_operation() -> Dict[str, Any]:
         nonlocal execution_count
         with lock:
             execution_count += 1
@@ -22,7 +23,7 @@ def test_singleflight_coalescing():
     N = 50
     barrier = threading.Barrier(N)
 
-    def worker():
+    def worker() -> Dict[str, Any]:
         barrier.wait()
         return group.do("snapshot", expensive_operation)
 
@@ -42,17 +43,17 @@ def test_singleflight_coalescing():
     assert stats["coalesced_invocations"] == N - 1
 
 
-def test_singleflight_error_propagation():
+def test_singleflight_error_propagation() -> None:
     group = SingleFlight()
 
-    def failing_op():
+    def failing_op() -> Any:
         time.sleep(0.02)
         raise ValueError("computation failed")
 
     N = 10
     barrier = threading.Barrier(N)
 
-    def failing_worker():
+    def failing_worker() -> Any:
         barrier.wait()
         return group.do("fail_key", failing_op)
 

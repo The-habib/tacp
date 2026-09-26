@@ -84,7 +84,10 @@ warn_return_any = true
 no_implicit_reexport = true
 
 [[tool.mypy.overrides]]
-module = "tests.*"
+module = [
+    "tests.*",
+    "tests",
+]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 check_untyped_defs = false

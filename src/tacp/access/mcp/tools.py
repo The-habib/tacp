@@ -316,25 +316,25 @@ class McpToolRegistry:
             )
         elif name == "fs.stat":
             ws_id = args.get("workspace_id")
-            subpath = args.get("subpath") if args.get("subpath") is not None else args.get("path")
-            if not ws_id or subpath is None:
+            raw_path = args.get("subpath") if args.get("subpath") is not None else args.get("path")
+            if not ws_id or raw_path is None:
                 raise TacpValidationError(
                     "Missing required parameters: workspace_id and subpath (or path)"
                 )
             return self.filesystem_service.stat_path(
                 workspace_id=ws_id,
-                subpath=subpath,
+                subpath=str(raw_path),
             )
         elif name == "fs.read":
             ws_id = args.get("workspace_id")
-            subpath = args.get("subpath") if args.get("subpath") is not None else args.get("path")
-            if not ws_id or subpath is None:
+            raw_path = args.get("subpath") if args.get("subpath") is not None else args.get("path")
+            if not ws_id or raw_path is None:
                 raise TacpValidationError(
                     "Missing required parameters: workspace_id and subpath (or path)"
                 )
             return self.filesystem_service.read_file(
                 workspace_id=ws_id,
-                subpath=subpath,
+                subpath=str(raw_path),
             )
         elif name == "fs.search":
             ws_id = args.get("workspace_id")
@@ -370,19 +370,19 @@ class McpToolRegistry:
                     "Patch service is not configured or disabled",
                 )
             ws_id = args.get("workspace_id")
-            subpath = args.get("subpath")
+            patch_subpath = args.get("subpath")
             patch_content = args.get("patch_content")
             base_checksum = args.get("base_checksum")
-            if not ws_id or not subpath or not patch_content or not base_checksum:
+            if not ws_id or not patch_subpath or not patch_content or not base_checksum:
                 raise TacpValidationError(
                     "Missing required parameters for workspace.patch: "
                     "workspace_id, subpath, patch_content, base_checksum"
                 )
             patch_res = self.patch_service.execute_patch(
                 workspace_id=ws_id,
-                subpath=subpath,
-                patch_content=patch_content,
-                base_checksum=base_checksum,
+                subpath=str(patch_subpath),
+                patch_content=str(patch_content),
+                base_checksum=str(base_checksum),
                 dry_run=bool(args.get("dry_run", False)),
                 approval_token=args.get("approval_token"),
                 principal_id=(principal.id if principal else "mcp-client"),

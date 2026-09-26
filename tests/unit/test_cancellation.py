@@ -9,7 +9,7 @@ from tacp.control.identity import RequestContext
 from tacp.domain.errors import ErrorCode, TacpError
 
 
-def test_deadline_expired():
+def test_deadline_expired() -> None:
     # Deadline in the past
     ctx = RequestContext(
         capability="system.inspect",
@@ -23,7 +23,7 @@ def test_deadline_expired():
     assert exc_info.value.code == ErrorCode.DEADLINE_EXCEEDED
 
 
-def test_deadline_valid():
+def test_deadline_valid() -> None:
     # Deadline in the future
     ctx = RequestContext(
         capability="system.inspect",
@@ -35,7 +35,7 @@ def test_deadline_valid():
     ctx.check_cancelled()  # Should not raise
 
 
-def test_cancellation_event():
+def test_cancellation_event() -> None:
     cancel_evt = threading.Event()
     ctx = RequestContext(
         capability="system.inspect",
