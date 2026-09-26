@@ -72,6 +72,8 @@ class McpServer:
                     "supportedVersions": list(KNOWN_PROTOCOL_VERSIONS),
                     "capabilities": {
                         "tools": {},
+                        "resources": {},
+                        "prompts": {},
                     },
                     "cacheScope": "public",
                     "ttlMs": 60000,
@@ -100,6 +102,8 @@ class McpServer:
                     "protocolVersion": negotiated_version,
                     "capabilities": {
                         "tools": {},
+                        "resources": {},
+                        "prompts": {},
                     },
                     "serverInfo": {
                         "name": "tacp",
@@ -116,16 +120,45 @@ class McpServer:
             return McpResponse(id=req_id, result={})
 
         elif method == "tools/list":
+            params = request.params or {}
+            category = params.get("category")
+            cursor = params.get("cursor")
+            limit = params.get("limit")
+
             tools = self.tool_registry.list_tools()
-            return McpResponse(
-                id=req_id,
-                result={
-                    "tools": tools,
-                    "cacheScope": "public",
-                    "ttlMs": 60000,
-                    "resultType": "complete",
-                },
-            )
+            if category:
+                cat_lower = str(category).lower()
+                tools = [
+                    t for t in tools
+                    if cat_lower in t.get("name", "").lower() or cat_lower in t.get("description", "").lower()
+                ]
+
+            total_tools = len(tools)
+            start_idx = 0
+            if cursor:
+                try:
+                    start_idx = int(cursor)
+                except ValueError:
+                    start_idx = 0
+
+            next_cursor = None
+            if limit and isinstance(limit, int) and limit > 0:
+                end_idx = start_idx + limit
+                page_tools = tools[start_idx:end_idx]
+                if end_idx < total_tools:
+                    next_cursor = str(end_idx)
+            else:
+                page_tools = tools[start_idx:]
+
+            res_dict = {
+                "tools": page_tools,
+                "cacheScope": "public",
+                "ttlMs": 60000,
+                "resultType": "complete",
+            }
+            if next_cursor:
+                res_dict["nextCursor"] = next_cursor
+            return McpResponse(id=req_id, result=res_dict)
 
         elif method == "tools/call":
             tool_name = request.params.get("name")
@@ -220,6 +253,216 @@ class McpServer:
                     },
                 )
 
+        elif method == "resources/list":
+            resources = [
+                {
+                    "uri": "tacp://device/info",
+                    "name": "Device System Info",
+                    "description": "Android device hardware, model, manufacturer, Android release, SDK, and architecture",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uri": "tacp://device/battery",
+                    "name": "Battery Status",
+                    "description": "Live battery percentage, charging state, temperature, and health",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uri": "tacp://device/properties",
+                    "name": "Android System Properties",
+                    "description": "Android getprop system properties and build fingerprint",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uri": "tacp://device/snapshot",
+                    "name": "Full Device Health Snapshot",
+                    "description": "Consolidated snapshot of battery, memory, storage, uptime, and load",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uri": "tacp://storage/overview",
+                    "name": "Storage Space Overview",
+                    "description": "Storage overview across internal, termux-home, and shared-storage mounts",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uri": "tacp://network/interfaces",
+                    "name": "Network Interfaces",
+                    "description": "Active network interfaces, IP addresses, MTU, and status",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uri": "tacp://system/health",
+                    "name": "TACP System Health",
+                    "description": "Health status of database, storage, and control plane",
+                    "mimeType": "application/json",
+                },
+                {
+                    "uri": "tacp://capabilities/list",
+                    "name": "Device Capabilities Matrix",
+                    "description": "All registered device capabilities, required privileges, and active backends",
+                    "mimeType": "application/json",
+                },
+            ]
+            return McpResponse(
+                id=req_id,
+                result={
+                    "resources": resources,
+                    "cacheScope": "public",
+                    "ttlMs": 30000,
+                    "resultType": "complete",
+                },
+            )
+
+        elif method == "resources/read":
+            uri = request.params.get("uri")
+            if not uri or not isinstance(uri, str):
+                return McpResponse(
+                    id=req_id,
+                    error={"code": INVALID_PARAMS, "message": "Missing 'uri' in resources/read"},
+                )
+
+            data: Any = None
+            try:
+                if uri == "tacp://device/info":
+                    data = self.tool_registry.execute_tool("device.info", {})
+                elif uri == "tacp://device/battery":
+                    data = self.tool_registry.execute_tool("device.battery", {})
+                elif uri == "tacp://device/properties":
+                    data = self.tool_registry.execute_tool("device.properties", {})
+                elif uri == "tacp://device/snapshot":
+                    data = self.tool_registry.execute_tool("device.snapshot", {})
+                elif uri == "tacp://storage/overview":
+                    data = self.tool_registry.execute_tool("storage.overview", {})
+                elif uri == "tacp://network/interfaces":
+                    data = self.tool_registry.execute_tool("network.interfaces", {})
+                elif uri == "tacp://system/health":
+                    data = self.tool_registry.system_service.get_health()
+                elif uri == "tacp://capabilities/list":
+                    if self.tool_registry.device_registry:
+                        data = {"capabilities": self.tool_registry.device_registry.list_capabilities()}
+                    else:
+                        data = {"capabilities": self.tool_registry.capability_service.list_capabilities()}
+                else:
+                    return McpResponse(
+                        id=req_id,
+                        error={"code": INVALID_PARAMS, "message": f"Resource not found: {uri}"},
+                    )
+
+                return McpResponse(
+                    id=req_id,
+                    result={
+                        "contents": [
+                            {
+                                "uri": uri,
+                                "mimeType": "application/json",
+                                "text": json.dumps(data, indent=2),
+                            }
+                        ]
+                    },
+                )
+            except Exception as exc:
+                return McpResponse(
+                    id=req_id,
+                    error={"code": INTERNAL_ERROR, "message": f"Failed to read resource '{uri}': {exc}"},
+                )
+
+        elif method == "prompts/list":
+            prompts = [
+                {
+                    "name": "device-diagnostics",
+                    "description": "Run comprehensive diagnostic check across all Android subsystems and backends",
+                    "arguments": [],
+                },
+                {
+                    "name": "inspect-device",
+                    "description": "Inspect device hardware, battery, storage, and running processes",
+                    "arguments": [],
+                },
+                {
+                    "name": "troubleshoot-network",
+                    "description": "Diagnose network interfaces, DNS resolution, and internet connectivity",
+                    "arguments": [],
+                },
+            ]
+            return McpResponse(
+                id=req_id,
+                result={"prompts": prompts},
+            )
+
+        elif method == "prompts/get":
+            prompt_name = request.params.get("name")
+            if not prompt_name:
+                return McpResponse(
+                    id=req_id,
+                    error={"code": INVALID_PARAMS, "message": "Missing 'name' in prompts/get"},
+                )
+
+            if prompt_name == "device-diagnostics":
+                return McpResponse(
+                    id=req_id,
+                    result={
+                        "description": "Comprehensive diagnostic check for Android device",
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": {
+                                    "type": "text",
+                                    "text": (
+                                        "Please run comprehensive diagnostic checks on this Android device using "
+                                        "TACP device tools (device.snapshot, storage.overview, network.diagnostics, "
+                                        "and diagnostics.bundle) and report hardware state, backend availability, "
+                                        "and any degraded components."
+                                    ),
+                                },
+                            }
+                        ],
+                    },
+                )
+            elif prompt_name == "inspect-device":
+                return McpResponse(
+                    id=req_id,
+                    result={
+                        "description": "Inspect device hardware, battery, and storage",
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": {
+                                    "type": "text",
+                                    "text": (
+                                        "Please inspect this Android device using device.info, device.battery, "
+                                        "and storage.overview to provide a complete device health overview."
+                                    ),
+                                },
+                            }
+                        ],
+                    },
+                )
+            elif prompt_name == "troubleshoot-network":
+                return McpResponse(
+                    id=req_id,
+                    result={
+                        "description": "Diagnose network interfaces and connectivity",
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": {
+                                    "type": "text",
+                                    "text": (
+                                        "Please diagnose network connectivity on this device using "
+                                        "network.interfaces, wifi.status, and network.ping."
+                                    ),
+                                },
+                            }
+                        ],
+                    },
+                )
+            else:
+                return McpResponse(
+                    id=req_id,
+                    error={"code": INVALID_PARAMS, "message": f"Prompt not found: {prompt_name}"},
+                )
+
         else:
             return McpResponse(
                 id=req_id,
@@ -258,7 +501,10 @@ class McpServer:
                 out_stream.flush()
 
 
-def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
+def create_mcp_server(
+    config: TacpConfig | None = None,
+    enable_device_capabilities: bool | None = None,
+) -> McpServer:
     """Factory creating a fully wired McpServer instance."""
     cfg = config or TacpConfig.load()
     db = Database(cfg.db_path)
@@ -266,6 +512,18 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
 
     audit_service = AuditService(db)
     lease_engine = LeaseEngine(db)
+
+    device_registry = None
+    should_enable_device = (
+        enable_device_capabilities
+        if enable_device_capabilities is not None
+        else getattr(cfg, "device_control_enabled", False)
+    )
+    if should_enable_device:
+        from tacp.engine.registry import default_registry
+
+        device_registry = default_registry
+
     policy_engine = PolicyEngine(
         read_only_enforced=cfg.read_only,
         mutation_enabled=cfg.mutation_enabled,
@@ -278,6 +536,7 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
         remote_read_only=cfg.remote_read_only,
         remote_mutation_enabled=cfg.remote_mutation_enabled,
         remote_execution_enabled=cfg.remote_execution_enabled,
+        device_control_enabled=should_enable_device,
     )
     workspace_service = WorkspaceService(db)
 
@@ -331,6 +590,7 @@ def create_mcp_server(config: TacpConfig | None = None) -> McpServer:
         patch_service=patch_service,
         execution_service=exec_service,
         lease_engine=lease_engine,
+        device_registry=device_registry,
     )
 
     return McpServer(tool_registry=tool_registry, config=cfg)

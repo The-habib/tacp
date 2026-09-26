@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">TACP Android Bridge</string>
+    <string name="accessibility_service_label">TACP Accessibility Control</string>
+    <string name="accessibility_service_description">Enables TACP to programmatically observe UI node hierarchies and perform governed user interactions on behalf of AI agents.</string>
+</resources>

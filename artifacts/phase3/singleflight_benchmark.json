@@ -1,0 +1,18 @@
+{
+  "concurrency": 100,
+  "without_singleflight": {
+    "total_underlying_executions": 100,
+    "total_wall_clock_ms": 9120.45,
+    "stampede_multiplication": 100
+  },
+  "with_singleflight": {
+    "total_underlying_executions": 6,
+    "total_wall_clock_ms": 239.51,
+    "stampede_multiplication": 6,
+    "calls_coalesced": 94
+  },
+  "improvement": {
+    "execution_reduction_factor": "16.7x fewer executions",
+    "latency_reduction_pct": "97.4%"
+  }
+}

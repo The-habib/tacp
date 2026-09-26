@@ -123,7 +123,13 @@ class FilesystemProvider:
 
         return target
 
-    def classify_file(self, path: Path) -> DataClassification:
+    def classify_file(
+        self,
+        path: Path,
+        file_size: Optional[int] = None,
+        content: Optional[str] = None,
+        check_content: bool = True,
+    ) -> DataClassification:
         name_lower = path.name.lower()
         if (
             name_lower.startswith(".env")
@@ -132,18 +138,24 @@ class FilesystemProvider:
         ):
             return DataClassification.SECRET
 
-        # Fast scan for obvious secret patterns in small files
-        try:
-            if path.is_file() and path.stat().st_size < 32768:
-                content = path.read_text(errors="ignore")
-                for pattern in SECRET_PATTERNS:
-                    if pattern.search(content):
-                        return DataClassification.SECRET
-        except (OSError, UnicodeDecodeError):
-            pass
-
         if ".git" in path.parts:
             return DataClassification.INTERNAL
+
+        if check_content:
+            try:
+                if content is not None:
+                    for pattern in SECRET_PATTERNS:
+                        if pattern.search(content):
+                            return DataClassification.SECRET
+                else:
+                    sz = file_size if file_size is not None else (path.stat().st_size if path.is_file() else 0)
+                    if 0 < sz < 32768:
+                        file_text = path.read_text(errors="ignore")
+                        for pattern in SECRET_PATTERNS:
+                            if pattern.search(file_text):
+                                return DataClassification.SECRET
+            except (OSError, UnicodeDecodeError):
+                pass
 
         return DataClassification.PUBLIC
 
@@ -175,7 +187,7 @@ class FilesystemProvider:
                         "is_symlink": p.is_symlink(),
                         "size_bytes": stat.st_size,
                         "mtime": stat.st_mtime,
-                        "classification": self.classify_file(p).value,
+                        "classification": self.classify_file(p, file_size=stat.st_size, check_content=False).value,
                     }
                 )
             except OSError:
@@ -191,73 +203,106 @@ class FilesystemProvider:
 
     def stat_path(self, workspace_root: Path, subpath: str) -> Dict[str, Any]:
         target = self.resolve_safe_path(workspace_root, subpath)
-        if not target.exists() and not target.is_symlink():
-            raise TacpNotFoundError(f"Path not found: {subpath}")
-
+        import stat as stat_mod
         try:
-            stat = target.stat()
+            st = target.stat()
+            exists = True
+        except FileNotFoundError:
+            if target.is_symlink():
+                exists = False
+                st = None
+            else:
+                raise TacpNotFoundError(f"Path not found: {subpath}")
         except OSError as exc:
             raise TacpSecurityError(
                 ErrorCode.PROVIDER_ERROR, f"Failed to stat path: {exc}"
             ) from exc
 
-        classification = self.classify_file(target)
+        if st is not None:
+            is_dir = stat_mod.S_ISDIR(st.st_mode)
+            is_file = stat_mod.S_ISREG(st.st_mode)
+            is_symlink = target.is_symlink()
+            size_bytes = st.st_size
+            permissions = oct(st.st_mode)
+            mtime = st.st_mtime
+            classification = self.classify_file(target, file_size=size_bytes, check_content=False)
+        else:
+            is_dir = False
+            is_file = False
+            is_symlink = True
+            size_bytes = 0
+            permissions = "0o000"
+            mtime = 0.0
+            classification = DataClassification.PUBLIC
+
         return {
             "path": subpath,
-            "exists": True,
-            "is_dir": target.is_dir(),
-            "is_file": target.is_file(),
-            "is_symlink": target.is_symlink(),
-            "size_bytes": stat.st_size,
-            "permissions": oct(stat.st_mode),
-            "mtime": stat.st_mtime,
+            "exists": exists,
+            "is_dir": is_dir,
+            "is_file": is_file,
+            "is_symlink": is_symlink,
+            "size_bytes": size_bytes,
+            "permissions": permissions,
+            "mtime": mtime,
             "classification": classification.value,
         }
 
     def read_file(self, workspace_root: Path, subpath: str) -> Dict[str, Any]:
         target = self.resolve_safe_path(workspace_root, subpath)
-        if not target.exists():
+        import stat as stat_mod
+        try:
+            st = target.stat()
+        except FileNotFoundError:
             raise TacpNotFoundError(f"File not found: {subpath}")
-        if not target.is_file():
+        except OSError as exc:
+            raise TacpSecurityError(ErrorCode.PROVIDER_ERROR, f"Failed to access file: {exc}") from exc
+
+        if not stat_mod.S_ISREG(st.st_mode):
             raise TacpSecurityError(ErrorCode.INVALID_INPUT, f"Path is not a file: {subpath}")
 
-        classification = self.classify_file(target)
-        if classification in [DataClassification.SECRET, DataClassification.CRITICAL]:
+        # Check static filename/extension classification
+        static_cls = self.classify_file(target, check_content=False)
+        if static_cls in (DataClassification.SECRET, DataClassification.CRITICAL):
             raise TacpSecurityError(
                 ErrorCode.SECRET_PROTECTED,
-                f"Access denied: file '{subpath}' is classified as {classification.value}",
+                f"Access denied: file '{subpath}' is classified as {static_cls.value}",
             )
 
-        # Binary file defense
-        try:
-            with target.open("rb") as bf:
-                chunk = bf.read(1024)
-                if b"\x00" in chunk:
-                    raise TacpSecurityError(
-                        ErrorCode.RESOURCE_LIMIT,
-                        f"Binary file cannot be read in text mode: {subpath}",
-                    )
-        except TacpSecurityError:
-            raise
-        except Exception as exc:
-            raise TacpSecurityError(
-                ErrorCode.PROVIDER_ERROR, f"Failed to check file: {exc}"
-            ) from exc
-
-        total_bytes = target.stat().st_size
+        total_bytes = st.st_size
+        max_bytes = self.limits.max_file_read_bytes
         truncated = False
 
+        # Single-pass read
         try:
-            with target.open("r", encoding="utf-8", errors="replace") as f:
-                content = f.read(self.limits.max_file_read_bytes)
-                if f.read(1):  # More content exists
+            with target.open("rb") as f:
+                raw_chunk = f.read(max_bytes + 1)
+                if len(raw_chunk) > max_bytes:
                     truncated = True
+                    raw_data = raw_chunk[:max_bytes]
+                else:
+                    raw_data = raw_chunk
         except Exception as exc:
-            raise TacpSecurityError(
-                ErrorCode.PROVIDER_ERROR, f"Failed to read file: {exc}"
-            ) from exc
+            raise TacpSecurityError(ErrorCode.PROVIDER_ERROR, f"Failed to read file: {exc}") from exc
 
-        bytes_read = len(content.encode("utf-8"))
+        # Binary check on initial bytes
+        if b"\x00" in raw_data[:1024]:
+            raise TacpSecurityError(
+                ErrorCode.RESOURCE_LIMIT,
+                f"Binary file cannot be read in text mode: {subpath}",
+            )
+
+        content = raw_data.decode("utf-8", errors="replace")
+        bytes_read = len(raw_data)
+
+        # Check secret patterns in content if file is small (under 32KB)
+        if total_bytes < 32768:
+            cls = self.classify_file(target, file_size=total_bytes, content=content, check_content=True)
+            if cls in (DataClassification.SECRET, DataClassification.CRITICAL):
+                raise TacpSecurityError(
+                    ErrorCode.SECRET_PROTECTED,
+                    f"Access denied: file '{subpath}' is classified as {cls.value}",
+                )
+
         return {
             "path": subpath,
             "content": redact_string(content),
@@ -288,11 +333,11 @@ class FilesystemProvider:
 
         for path in target.rglob("*"):
             if path.is_file() and not path.is_symlink():
-                # Skip classified secret files in search results
-                if self.classify_file(path) in [
+                # Skip classified secret files in search results (fast static classification)
+                if self.classify_file(path, check_content=False) in (
                     DataClassification.SECRET,
                     DataClassification.CRITICAL,
-                ]:
+                ):
                     continue
 
                 try:

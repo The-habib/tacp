@@ -1,0 +1,84 @@
+{
+  "suite": "benchmark_mcp",
+  "environment": {
+    "timestamp": "2026-09-26T11:00:33Z",
+    "os": "Android",
+    "platform": "Android-16-aarch64-64bit",
+    "python_version": "3.14.6",
+    "arch": "aarch64",
+    "pid": 5449,
+    "rss_mb": 469.09
+  },
+  "metrics": [
+    {
+      "name": "mcp_server_factory_creation",
+      "iterations": 20,
+      "min_ms": 0.9363,
+      "p50_ms": 1.7997,
+      "p95_ms": 2.1755,
+      "p99_ms": 2.1755,
+      "max_ms": 2.2614,
+      "mean_ms": 1.8239,
+      "stdev_ms": 0.3033
+    },
+    {
+      "name": "mcp_initialize_handshake",
+      "iterations": 100,
+      "min_ms": 0.0021,
+      "p50_ms": 0.0021,
+      "p95_ms": 0.0027,
+      "p99_ms": 0.0035,
+      "max_ms": 0.0041,
+      "mean_ms": 0.0022,
+      "stdev_ms": 0.0003
+    },
+    {
+      "name": "mcp_tools_list_dispatch",
+      "iterations": 50,
+      "min_ms": 0.0015,
+      "p50_ms": 0.0015,
+      "p95_ms": 0.0016,
+      "p99_ms": 0.0022,
+      "max_ms": 0.0031,
+      "mean_ms": 0.0016,
+      "stdev_ms": 0.0002
+    },
+    {
+      "name": "mcp_resources_list_dispatch",
+      "iterations": 50,
+      "min_ms": 0.0031,
+      "p50_ms": 0.0032,
+      "p95_ms": 0.0033,
+      "p99_ms": 0.0034,
+      "max_ms": 0.0048,
+      "mean_ms": 0.0032,
+      "stdev_ms": 0.0002
+    },
+    {
+      "name": "mcp_prompts_list_dispatch",
+      "iterations": 50,
+      "min_ms": 0.0021,
+      "p50_ms": 0.0022,
+      "p95_ms": 0.0023,
+      "p99_ms": 0.0033,
+      "max_ms": 0.0035,
+      "mean_ms": 0.0022,
+      "stdev_ms": 0.0003
+    },
+    {
+      "name": "mcp_tools_list_serialization",
+      "iterations": 100,
+      "min_ms": 0.2488,
+      "p50_ms": 0.2551,
+      "p95_ms": 0.3021,
+      "p99_ms": 0.3269,
+      "max_ms": 0.9959,
+      "mean_ms": 0.2687,
+      "stdev_ms": 0.0752
+    }
+  ],
+  "extra": {
+    "tools_count": 79,
+    "rss_mb": 469.08984375
+  }
+}

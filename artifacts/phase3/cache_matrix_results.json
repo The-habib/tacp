@@ -1,0 +1,72 @@
+{
+  "selinux": {
+    "cold_p50_us": 163.39,
+    "cold_mean_us": 5522.3,
+    "warm_p50_us": 4.58,
+    "warm_mean_us": 4.79,
+    "stale_fallback_us": 11.82
+  },
+  "battery": {
+    "cold_p50_us": 235.88,
+    "cold_mean_us": 269.47,
+    "warm_p50_us": 4.53,
+    "warm_mean_us": 4.6,
+    "stale_fallback_us": 10.31
+  },
+  "network": {
+    "cold_p50_us": 18267.6,
+    "cold_mean_us": 20793.68,
+    "warm_p50_us": 3.12,
+    "warm_mean_us": 3.2,
+    "stale_fallback_us": 4.9
+  },
+  "packages": {
+    "cold_p50_us": 37455.26,
+    "cold_mean_us": 49338.59,
+    "warm_p50_us": 3.8,
+    "warm_mean_us": 3.92,
+    "stale_fallback_us": 5.16
+  },
+  "companion": {
+    "cold_p50_us": 16.56,
+    "cold_mean_us": 16701.21,
+    "warm_p50_us": 3.23,
+    "warm_mean_us": 3.29,
+    "stale_fallback_us": 5.94
+  },
+  "memory": {
+    "cold_p50_us": 346.51,
+    "cold_mean_us": 526.21,
+    "warm_p50_us": 3.18,
+    "warm_mean_us": 5.21,
+    "stale_fallback_us": 5.31
+  },
+  "storage": {
+    "cold_p50_us": 15.21,
+    "cold_mean_us": 3618.03,
+    "warm_p50_us": 3.18,
+    "warm_mean_us": 3.86,
+    "stale_fallback_us": 4.48
+  },
+  "processes": {
+    "cold_p50_us": 3711.93,
+    "cold_mean_us": 3333.81,
+    "warm_p50_us": 3.28,
+    "warm_mean_us": 3.42,
+    "stale_fallback_us": 6.51
+  },
+  "audio": {
+    "cold_p50_us": 1005560.21,
+    "cold_mean_us": 1006194.47,
+    "warm_p50_us": 27.4,
+    "warm_mean_us": 29.81,
+    "stale_fallback_us": 37.71
+  },
+  "screen": {
+    "cold_p50_us": 16.04,
+    "cold_mean_us": 29542.25,
+    "warm_p50_us": 3.07,
+    "warm_mean_us": 3.15,
+    "stale_fallback_us": 5.16
+  }
+}

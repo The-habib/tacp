@@ -1,0 +1,105 @@
+{
+  "suite": "benchmark_concurrency",
+  "environment": {
+    "timestamp": "2026-09-26T08:50:30Z",
+    "os": "Android",
+    "platform": "Android-16-aarch64-64bit",
+    "python_version": "3.14.6",
+    "arch": "aarch64",
+    "pid": 32439,
+    "rss_mb": 469.09
+  },
+  "metrics": [
+    {
+      "name": "concurrency_1_clients_latency",
+      "iterations": 10,
+      "min_ms": 0.0174,
+      "p50_ms": 3.8845,
+      "p95_ms": 31.4539,
+      "p99_ms": 31.4539,
+      "max_ms": 87.2514,
+      "mean_ms": 18.4404,
+      "stdev_ms": 27.2555
+    },
+    {
+      "name": "concurrency_1_clients_throughput_rps",
+      "iterations": 10,
+      "min_ms": 52.72047258763164,
+      "p50_ms": 52.72047258763164,
+      "p95_ms": 52.72047258763164,
+      "p99_ms": 52.72047258763164,
+      "max_ms": 52.72047258763164,
+      "mean_ms": 52.72047258763164,
+      "stdev_ms": 0.0
+    },
+    {
+      "name": "concurrency_5_clients_latency",
+      "iterations": 50,
+      "min_ms": 0.0052,
+      "p50_ms": 8.1949,
+      "p95_ms": 36.5471,
+      "p99_ms": 42.1691,
+      "max_ms": 44.5096,
+      "mean_ms": 12.5906,
+      "stdev_ms": 12.9765
+    },
+    {
+      "name": "concurrency_5_clients_throughput_rps",
+      "iterations": 50,
+      "min_ms": 339.3957907248521,
+      "p50_ms": 339.3957907248521,
+      "p95_ms": 339.3957907248521,
+      "p99_ms": 339.3957907248521,
+      "max_ms": 339.3957907248521,
+      "mean_ms": 339.3957907248521,
+      "stdev_ms": 0.0
+    },
+    {
+      "name": "concurrency_10_clients_latency",
+      "iterations": 100,
+      "min_ms": 0.0052,
+      "p50_ms": 17.8569,
+      "p95_ms": 54.951,
+      "p99_ms": 121.8927,
+      "max_ms": 130.0911,
+      "mean_ms": 20.9785,
+      "stdev_ms": 22.7309
+    },
+    {
+      "name": "concurrency_10_clients_throughput_rps",
+      "iterations": 100,
+      "min_ms": 303.2246038401719,
+      "p50_ms": 303.2246038401719,
+      "p95_ms": 303.2246038401719,
+      "p99_ms": 303.2246038401719,
+      "max_ms": 303.2246038401719,
+      "mean_ms": 303.2246038401719,
+      "stdev_ms": 0.0
+    },
+    {
+      "name": "concurrency_25_clients_latency",
+      "iterations": 100,
+      "min_ms": 0.0046,
+      "p50_ms": 44.6559,
+      "p95_ms": 109.4791,
+      "p99_ms": 125.1263,
+      "max_ms": 131.6032,
+      "mean_ms": 45.4125,
+      "stdev_ms": 37.2849
+    },
+    {
+      "name": "concurrency_25_clients_throughput_rps",
+      "iterations": 100,
+      "min_ms": 362.46986967891576,
+      "p50_ms": 362.46986967891576,
+      "p95_ms": 362.46986967891576,
+      "p99_ms": 362.46986967891576,
+      "max_ms": 362.46986967891576,
+      "mean_ms": 362.46986967891576,
+      "stdev_ms": 0.0
+    }
+  ],
+  "extra": {
+    "rss_mb": 469.08984375
+  }
+}

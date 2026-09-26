@@ -201,6 +201,42 @@ MIGRATIONS: List[Tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_leases_expires ON leases (expires_at);
         """,
     ),
+    (
+        8,
+        """
+        CREATE TABLE IF NOT EXISTS auth_tokens (
+            id TEXT PRIMARY KEY,
+            token_prefix TEXT NOT NULL,
+            token_hash TEXT NOT NULL UNIQUE,
+            name TEXT NOT NULL,
+            scopes_json TEXT NOT NULL DEFAULT '["tacp.read"]',
+            principal_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            expires_at TEXT,
+            last_used_at TEXT,
+            revoked INTEGER NOT NULL DEFAULT 0,
+            metadata_json TEXT NOT NULL DEFAULT '{}'
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_auth_tokens_hash ON auth_tokens (token_hash);
+        CREATE INDEX IF NOT EXISTS idx_auth_tokens_revoked ON auth_tokens (revoked);
+
+        CREATE TABLE IF NOT EXISTS device_pairing (
+            id TEXT PRIMARY KEY,
+            device_id TEXT NOT NULL UNIQUE,
+            device_name TEXT NOT NULL,
+            pairing_code TEXT NOT NULL UNIQUE,
+            status TEXT NOT NULL DEFAULT 'PENDING',
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            paired_at TEXT,
+            paired_principal TEXT,
+            metadata_json TEXT NOT NULL DEFAULT '{}'
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_device_pairing_code ON device_pairing (pairing_code);
+        """,
+    ),
 ]
 
 

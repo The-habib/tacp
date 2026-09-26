@@ -1,0 +1,2023 @@
+{
+  "generated_at": "2026-09-24T20:26:16.091295+00:00",
+  "device": {
+    "model": "V2348",
+    "brand": "vivo",
+    "platform": "crow",
+    "android_version": "16",
+    "sdk": 36,
+    "security_patch": "2026-08-01",
+    "arch": "aarch64",
+    "termux_uid": 10316
+  },
+  "test_verification": {
+    "total_tests": 785,
+    "passed": 785,
+    "failed": 0,
+    "duration_seconds": 57.46
+  },
+  "backends": {
+    "termux": {
+      "backend": "termux",
+      "available": true,
+      "status": "available",
+      "details": "Termux userspace active (prefix: /data/data/com.termux/files/usr, uid: 10316)",
+      "last_probed": 1790281575.9974172
+    },
+    "android_shell": {
+      "backend": "android_shell",
+      "available": true,
+      "status": "available",
+      "details": "Android /system/bin utilities active (15 verified tools)",
+      "last_probed": 1790281575.997553
+    },
+    "termux_api": {
+      "backend": "termux_api",
+      "available": false,
+      "status": "companion_required",
+      "details": "Termux:API CLI is installed, but com.termux.api APK is not installed on Android host",
+      "last_probed": 1790281575.9980338
+    },
+    "shizuku": {
+      "backend": "shizuku",
+      "available": false,
+      "status": "unavailable",
+      "details": "Shizuku server is not running and rish CLI is not installed",
+      "last_probed": 1790281576.068558
+    },
+    "root": {
+      "backend": "root",
+      "available": false,
+      "status": "root_required",
+      "details": "Device is not rooted or su rejected authorization",
+      "last_probed": 1790281576.081993
+    },
+    "adb": {
+      "backend": "adb",
+      "available": false,
+      "status": "unavailable",
+      "details": "adb binary not installed in Termux (install via 'pkg install android-tools')",
+      "last_probed": 1790281576.0892587
+    },
+    "android_bridge": {
+      "backend": "android_bridge",
+      "available": false,
+      "status": "companion_required",
+      "details": "TACP Android Bridge companion app not running on localhost:8766",
+      "last_probed": 1790281576.0893757
+    }
+  },
+  "capabilities_summary": {
+    "total": 68,
+    "available_now": 53,
+    "companion_required": 11,
+    "shizuku_required": 0,
+    "root_required": 4
+  },
+  "companion": {
+    "name": "TACP Android Bridge Companion",
+    "path": "companion/android-bridge",
+    "services": [
+      "AccessibilityControlService",
+      "ScreenCaptureService",
+      "BridgeHttpServer (port 8989)"
+    ]
+  },
+  "capabilities": [
+    {
+      "id": "app.launch",
+      "name": "Launch Application",
+      "description": "Launch an Android application by package name",
+      "category": "app",
+      "active_backend": "android_shell",
+      "supported_backends": [
+        "android_shell",
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "package": {
+          "type": "string",
+          "description": "Package name to launch",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via android_shell"
+    },
+    {
+      "id": "app.open_url",
+      "name": "Open URL in Browser",
+      "description": "Open URL or deep link in default browser / application",
+      "category": "app",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "URL to open",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "automation.create",
+      "name": "Create Workflow Automation",
+      "description": "Define a reusable multi-step JSON capability workflow",
+      "category": "automation",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "name": {
+          "type": "string",
+          "description": "Automation workflow name",
+          "required": true
+        },
+        "steps": {
+          "type": "array",
+          "description": "List of capability execution steps",
+          "required": true
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional workflow description"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "automation.list",
+      "name": "List Automations",
+      "description": "List all registered workflow automations",
+      "category": "automation",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "automation.start",
+      "name": "Start Automation",
+      "description": "Execute a registered automation workflow",
+      "category": "automation",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "automation_id": {
+          "type": "string",
+          "description": "Automation ID",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "camera.capture",
+      "name": "Capture Photo",
+      "description": "Capture photo from camera and save to file",
+      "category": "camera",
+      "active_backend": null,
+      "supported_backends": [
+        "termux_api",
+        "android_bridge"
+      ],
+      "availability": "companion_required",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "com.termux.api APK or Android Bridge"
+      ],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "TACP Android Bridge companion app not running on localhost:8766"
+    },
+    {
+      "id": "camera.list",
+      "name": "List Cameras",
+      "description": "Discover available hardware cameras (front/back)",
+      "category": "camera",
+      "active_backend": null,
+      "supported_backends": [
+        "termux_api",
+        "android_bridge"
+      ],
+      "availability": "companion_required",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "com.termux.api APK or Android Bridge"
+      ],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "TACP Android Bridge companion app not running on localhost:8766"
+    },
+    {
+      "id": "clipboard.get",
+      "name": "Read Clipboard",
+      "description": "Read text from Android system clipboard",
+      "category": "clipboard",
+      "active_backend": null,
+      "supported_backends": [
+        "termux_api",
+        "android_bridge"
+      ],
+      "availability": "companion_required",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "com.termux.api APK or Android Bridge"
+      ],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "TACP Android Bridge companion app not running on localhost:8766"
+    },
+    {
+      "id": "clipboard.set",
+      "name": "Write Clipboard",
+      "description": "Set text onto Android system clipboard",
+      "category": "clipboard",
+      "active_backend": null,
+      "supported_backends": [
+        "termux_api",
+        "android_bridge"
+      ],
+      "availability": "companion_required",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "com.termux.api APK or Android Bridge"
+      ],
+      "setup_instructions": "",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "Text to copy",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "TACP Android Bridge companion app not running on localhost:8766"
+    },
+    {
+      "id": "device.battery",
+      "name": "Battery & Power Status",
+      "description": "Query battery level, health, charging state, and temperature",
+      "category": "battery",
+      "active_backend": "android_shell",
+      "supported_backends": [
+        "termux_api",
+        "android_shell"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "Termux:API APK or Shell"
+      ],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via android_shell"
+    },
+    {
+      "id": "device.info",
+      "name": "Device & OS Telemetry",
+      "description": "Get device model, manufacturer, Android OS version, SDK level, CPU cores, RAM, and SELinux",
+      "category": "device",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux",
+        "android_shell"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "device.properties",
+      "name": "Query Android Properties",
+      "description": "Query Android system properties (getprop) by key or list all",
+      "category": "device",
+      "active_backend": "android_shell",
+      "supported_backends": [
+        "android_shell",
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "Specific getprop key (e.g. ro.build.version.release)"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via android_shell"
+    },
+    {
+      "id": "device.snapshot",
+      "name": "Complete Device State Snapshot",
+      "description": "Collect complete multi-domain state snapshot (hardware, OS, memory, storage roots, backends)",
+      "category": "device",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "device.uptime",
+      "name": "Device Uptime",
+      "description": "Return device uptime in seconds and human-readable format",
+      "category": "device",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "diagnostics.bundle",
+      "name": "Generate Diagnostic Bundle",
+      "description": "Compile an archive (.zip) containing system telemetry, capability matrix, and logs",
+      "category": "diagnostics",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "filesystem.append",
+      "name": "Append to File",
+      "description": "Append text content to existing or new file",
+      "category": "filesystem",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": true,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Target file path",
+          "required": true
+        },
+        "content": {
+          "type": "string",
+          "description": "Content to append",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "filesystem.copy",
+      "name": "Copy File or Directory",
+      "description": "Copy file or directory tree to destination",
+      "category": "filesystem",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": true,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "source": {
+          "type": "string",
+          "description": "Source path",
+          "required": true
+        },
+        "destination": {
+          "type": "string",
+          "description": "Destination path",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "filesystem.delete",
+      "name": "Delete File or Directory",
+      "description": "Delete file or directory (with recursive option)",
+      "category": "filesystem",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": true,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Target path to delete",
+          "required": true
+        },
+        "recursive": {
+          "type": "boolean",
+          "description": "Recursively remove directories"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "filesystem.find",
+      "name": "Find Files by Glob",
+      "description": "Find files matching glob pattern recursively",
+      "category": "filesystem",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Search root path",
+          "default": "."
+        },
+        "pattern": {
+          "type": "string",
+          "description": "Glob pattern (e.g. *.py, *.apk)",
+          "default": "*"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Maximum matches to return"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "filesystem.hash",
+      "name": "Compute File Hash",
+      "description": "Compute SHA-256, MD5, or SHA-1 cryptographic hash of a file",
+      "category": "filesystem",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Path to file",
+          "required": true
+        },
+        "algorithm": {
+          "type": "string",
+          "description": "Hash algorithm (sha256, md5, sha1)",
+          "default": "sha256"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "filesystem.list",
+      "name": "List Directory Entries",
+      "description": "List entries inside directory with size, modified time, and mode",
+      "category": "filesystem",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Directory path",
+          "default": "."
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Maximum entries to return"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "filesystem.mkdir",
+      "name": "Create Directory",
+      "description": "Create directory including parent directories",
+      "category": "filesystem",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": true,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Directory path to create",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "filesystem.move",
+      "name": "Move / Rename Path",
+      "description": "Move or rename file or directory",
+      "category": "filesystem",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": true,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "source": {
+          "type": "string",
+          "description": "Source path",
+          "required": true
+        },
+        "destination": {
+          "type": "string",
+          "description": "Destination path",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "filesystem.read",
+      "name": "Read File Content",
+      "description": "Read text or binary data from file with offset and limit protection",
+      "category": "filesystem",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Path to file",
+          "required": true
+        },
+        "offset": {
+          "type": "integer",
+          "description": "Byte offset to start reading from"
+        },
+        "max_bytes": {
+          "type": "integer",
+          "description": "Maximum bytes to read (default: 512KB)"
+        },
+        "base64": {
+          "type": "boolean",
+          "description": "Return content encoded in base64"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "filesystem.stat",
+      "name": "File / Directory Stat",
+      "description": "Get detailed metadata, permissions, and file statistics",
+      "category": "filesystem",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Target path",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "filesystem.unzip",
+      "name": "Extract Zip Archive",
+      "description": "Extract zip archive to target directory",
+      "category": "filesystem",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": true,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "archive_path": {
+          "type": "string",
+          "description": "Zip archive path to extract",
+          "required": true
+        },
+        "destination": {
+          "type": "string",
+          "description": "Target destination directory",
+          "default": "."
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "filesystem.write",
+      "name": "Write File Content",
+      "description": "Write text or base64 data to target file path",
+      "category": "filesystem",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": true,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Target file path",
+          "required": true
+        },
+        "content": {
+          "type": "string",
+          "description": "File content (text or base64)",
+          "required": true
+        },
+        "base64": {
+          "type": "boolean",
+          "description": "Treat content as base64-encoded binary"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "filesystem.zip",
+      "name": "Create Zip Archive",
+      "description": "Compress file or directory into a zip archive",
+      "category": "filesystem",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": true,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "source": {
+          "type": "string",
+          "description": "Source file or directory",
+          "required": true
+        },
+        "archive_path": {
+          "type": "string",
+          "description": "Output zip archive path",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "input.capabilities",
+      "name": "Input Injection Capabilities",
+      "description": "Report which input simulation methods are currently usable",
+      "category": "input",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "input.key",
+      "name": "Inject Key Event",
+      "description": "Inject Android hardware keyevent (e.g. KEYCODE_BACK, KEYCODE_HOME)",
+      "category": "input",
+      "active_backend": null,
+      "supported_backends": [
+        "shizuku",
+        "accessibility",
+        "root"
+      ],
+      "availability": "root_required",
+      "privilege_level": "shell",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "Shizuku or Accessibility Service"
+      ],
+      "setup_instructions": "",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "Android key name or code",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Device is not rooted or su rejected authorization"
+    },
+    {
+      "id": "input.tap",
+      "name": "Inject Touch Tap",
+      "description": "Simulate touch tap at (x, y) coordinates (requires Shizuku or Accessibility)",
+      "category": "input",
+      "active_backend": null,
+      "supported_backends": [
+        "shizuku",
+        "accessibility",
+        "root"
+      ],
+      "availability": "root_required",
+      "privilege_level": "shell",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "Shizuku or Accessibility Service"
+      ],
+      "setup_instructions": "Enable Shizuku or turn on TACP Accessibility Service in Android Settings.",
+      "parameters": {
+        "x": {
+          "type": "integer",
+          "description": "X coordinate",
+          "required": true
+        },
+        "y": {
+          "type": "integer",
+          "description": "Y coordinate",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Device is not rooted or su rejected authorization"
+    },
+    {
+      "id": "location.get",
+      "name": "Get GPS Location",
+      "description": "Get current GPS latitude, longitude, and accuracy",
+      "category": "location",
+      "active_backend": null,
+      "supported_backends": [
+        "termux_api",
+        "android_bridge"
+      ],
+      "availability": "companion_required",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "com.termux.api APK or Android Bridge"
+      ],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "TACP Android Bridge companion app not running on localhost:8766"
+    },
+    {
+      "id": "logs.system",
+      "name": "Read System Logcat",
+      "description": "Retrieve recent logcat entries from Android system log buffer",
+      "category": "logs",
+      "active_backend": "android_shell",
+      "supported_backends": [
+        "android_shell",
+        "shizuku",
+        "root"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "lines": {
+          "type": "integer",
+          "description": "Number of log lines to retrieve",
+          "default": 50
+        },
+        "filter": {
+          "type": "string",
+          "description": "Optional logcat tag/filter spec"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via android_shell"
+    },
+    {
+      "id": "microphone.record",
+      "name": "Record Audio",
+      "description": "Record audio snippet from microphone",
+      "category": "microphone",
+      "active_backend": null,
+      "supported_backends": [
+        "termux_api",
+        "android_bridge"
+      ],
+      "availability": "companion_required",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "com.termux.api APK or Android Bridge"
+      ],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "TACP Android Bridge companion app not running on localhost:8766"
+    },
+    {
+      "id": "network.diagnostics",
+      "name": "Network Diagnostics",
+      "description": "Run comprehensive network diagnostic check (interfaces, DNS, ping)",
+      "category": "network",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "network.download",
+      "name": "Download File",
+      "description": "Download file from remote URL to local destination path",
+      "category": "network",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": true,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "Remote file URL",
+          "required": true
+        },
+        "destination": {
+          "type": "string",
+          "description": "Local destination path",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "network.http_request",
+      "name": "HTTP Client Request",
+      "description": "Execute structured HTTP request (GET, POST, PUT, DELETE) with headers and body",
+      "category": "network",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "url": {
+          "type": "string",
+          "description": "Target HTTP URL",
+          "required": true
+        },
+        "method": {
+          "type": "string",
+          "description": "HTTP method (GET, POST, etc.)",
+          "default": "GET"
+        },
+        "headers": {
+          "type": "object",
+          "description": "HTTP request headers"
+        },
+        "body": {
+          "type": "string",
+          "description": "Request body content"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in seconds",
+          "default": 15.0
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "network.interfaces",
+      "name": "List Network Interfaces",
+      "description": "Inspect active network interfaces and IP addresses",
+      "category": "network",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "network.ping",
+      "name": "Ping Host",
+      "description": "Ping a remote IP or domain to test round-trip latency and packet loss",
+      "category": "network",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "host": {
+          "type": "string",
+          "description": "Host to ping",
+          "default": "1.1.1.1"
+        },
+        "count": {
+          "type": "integer",
+          "description": "Number of packets",
+          "default": 3
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "network.resolve",
+      "name": "Resolve DNS Hostname",
+      "description": "Perform DNS hostname resolution and return IP addresses",
+      "category": "network",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "host": {
+          "type": "string",
+          "description": "Domain name to resolve",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "notifications.post",
+      "name": "Post Status Bar Notification",
+      "description": "Post an Android status bar notification",
+      "category": "notifications",
+      "active_backend": null,
+      "supported_backends": [
+        "termux_api",
+        "android_bridge"
+      ],
+      "availability": "companion_required",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "com.termux.api APK or Android Bridge"
+      ],
+      "setup_instructions": "",
+      "parameters": {
+        "title": {
+          "type": "string",
+          "description": "Notification title",
+          "default": "TACP"
+        },
+        "content": {
+          "type": "string",
+          "description": "Notification body content",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "TACP Android Bridge companion app not running on localhost:8766"
+    },
+    {
+      "id": "package.info",
+      "name": "Inspect Package Metadata",
+      "description": "Inspect package APK size, DEX count, and manifest presence",
+      "category": "package",
+      "active_backend": "android_shell",
+      "supported_backends": [
+        "android_shell",
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "package": {
+          "type": "string",
+          "description": "Package name",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via android_shell"
+    },
+    {
+      "id": "package.install",
+      "name": "Install APK Package",
+      "description": "Install APK package (requires Shizuku or root)",
+      "category": "package",
+      "active_backend": null,
+      "supported_backends": [
+        "shizuku",
+        "root",
+        "adb"
+      ],
+      "availability": "root_required",
+      "privilege_level": "shell",
+      "mutating": true,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "Shizuku or Root"
+      ],
+      "setup_instructions": "Start Shizuku via Wireless Debugging to enable rootless package installation.",
+      "parameters": {
+        "apk_path": {
+          "type": "string",
+          "description": "Path to APK file",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Device is not rooted or su rejected authorization"
+    },
+    {
+      "id": "package.list",
+      "name": "List Installed Packages",
+      "description": "List installed Android packages (third-party, system, or all)",
+      "category": "package",
+      "active_backend": "android_shell",
+      "supported_backends": [
+        "android_shell",
+        "shizuku",
+        "root"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "type": {
+          "type": "string",
+          "description": "Package filter: third_party, system, all",
+          "default": "third_party"
+        },
+        "filter": {
+          "type": "string",
+          "description": "Optional substring filter"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Max packages to return"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via android_shell"
+    },
+    {
+      "id": "package.path",
+      "name": "Get Package APK Path",
+      "description": "Get APK file location for an installed package",
+      "category": "package",
+      "active_backend": "android_shell",
+      "supported_backends": [
+        "android_shell",
+        "shizuku",
+        "root"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "package": {
+          "type": "string",
+          "description": "Package name",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via android_shell"
+    },
+    {
+      "id": "package.uninstall",
+      "name": "Uninstall Package",
+      "description": "Uninstall package from device (requires Shizuku or root)",
+      "category": "package",
+      "active_backend": null,
+      "supported_backends": [
+        "shizuku",
+        "root",
+        "adb"
+      ],
+      "availability": "root_required",
+      "privilege_level": "shell",
+      "mutating": true,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "Shizuku or Root"
+      ],
+      "setup_instructions": "",
+      "parameters": {
+        "package": {
+          "type": "string",
+          "description": "Package name to uninstall",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Device is not rooted or su rejected authorization"
+    },
+    {
+      "id": "process.inspect",
+      "name": "Inspect Process Details",
+      "description": "Inspect command line, memory, status, and PPID of a specific process PID",
+      "category": "process",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux",
+        "android_shell"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "pid": {
+          "type": "integer",
+          "description": "Process ID to inspect",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "process.kill",
+      "name": "Force Kill Process",
+      "description": "Terminate a running process PID with SIGKILL",
+      "category": "process",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "pid": {
+          "type": "integer",
+          "description": "Target PID",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "process.list",
+      "name": "List Running Processes",
+      "description": "List running Linux and Android processes with PID and command names",
+      "category": "process",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux",
+        "android_shell"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "limit": {
+          "type": "integer",
+          "description": "Maximum processes to return"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "process.signal",
+      "name": "Send Signal to Process",
+      "description": "Send an OS signal (e.g. 15 for SIGTERM, 9 for SIGKILL) to target PID",
+      "category": "process",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "pid": {
+          "type": "integer",
+          "description": "Target PID",
+          "required": true
+        },
+        "signal": {
+          "type": "integer",
+          "description": "Signal number (default: 15 SIGTERM)"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "screen.capture",
+      "name": "Capture Screen",
+      "description": "Capture screenshot of current display (requires MediaProjection or Root)",
+      "category": "screen",
+      "active_backend": null,
+      "supported_backends": [
+        "media_projection",
+        "root",
+        "android_bridge"
+      ],
+      "availability": "companion_required",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "TACP Android Bridge (MediaProjection) or Root"
+      ],
+      "setup_instructions": "Install TACP Android Bridge and grant Screen Capture permission.",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "TACP Android Bridge companion app not running on localhost:8766"
+    },
+    {
+      "id": "screen.info",
+      "name": "Screen Information",
+      "description": "Query screen resolution, pixel density, and orientation",
+      "category": "screen",
+      "active_backend": "android_shell",
+      "supported_backends": [
+        "android_shell",
+        "android_bridge"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via android_shell"
+    },
+    {
+      "id": "sensors.list",
+      "name": "List Hardware Sensors",
+      "description": "List available hardware sensors (accelerometer, gyroscope, light, proximity)",
+      "category": "sensors",
+      "active_backend": null,
+      "supported_backends": [
+        "termux_api",
+        "android_bridge"
+      ],
+      "availability": "companion_required",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "com.termux.api APK or Android Bridge"
+      ],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "TACP Android Bridge companion app not running on localhost:8766"
+    },
+    {
+      "id": "settings.get",
+      "name": "Read Android Setting",
+      "description": "Read system, secure, or global Android setting value",
+      "category": "settings",
+      "active_backend": "android_shell",
+      "supported_backends": [
+        "shizuku",
+        "root",
+        "android_shell"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "Shizuku or Root"
+      ],
+      "setup_instructions": "",
+      "parameters": {
+        "key": {
+          "type": "string",
+          "description": "Setting key name",
+          "required": true
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace: system, secure, global",
+          "default": "system"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via android_shell"
+    },
+    {
+      "id": "shell.env",
+      "name": "Get Environment Variables",
+      "description": "Inspect environment variables with sensitive secrets scrubbed",
+      "category": "shell",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "shell.exec",
+      "name": "Execute Shell Command",
+      "description": "Execute arbitrary Linux/Android command with arguments, working directory, and timeout",
+      "category": "shell",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux",
+        "android_shell"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "command": {
+          "type": "string",
+          "description": "Command or executable to run",
+          "required": true
+        },
+        "args": {
+          "type": "array",
+          "description": "Optional command line arguments"
+        },
+        "cwd": {
+          "type": "string",
+          "description": "Working directory"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Timeout in seconds (default: 30.0)"
+        },
+        "stdin": {
+          "type": "string",
+          "description": "Optional stdin input text"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "shell.pwd",
+      "name": "Get Current Working Directory",
+      "description": "Return the current process working directory",
+      "category": "shell",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "shell.which",
+      "name": "Locate Binary Executable",
+      "description": "Locate binary executable across PATH, /system/bin, /vendor/bin",
+      "category": "shell",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux",
+        "android_shell"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "binary": {
+          "type": "string",
+          "description": "Executable name to locate",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "storage.cleanup_candidates",
+      "name": "Find Cleanup Candidates",
+      "description": "Scan for cache directories, temporary files, and dangling artifacts",
+      "category": "storage",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Path to scan",
+          "default": "/data/data/com.termux/files/home"
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "storage.duplicates",
+      "name": "Detect Duplicate Files",
+      "description": "Detect duplicate files by matching size and cryptographic hashes",
+      "category": "storage",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Path to scan",
+          "default": "/data/data/com.termux/files/home"
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Max duplicate groups to report",
+          "default": 20
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "storage.large_files",
+      "name": "Find Large Files",
+      "description": "Discover files exceeding a specified size threshold (default: 50MB)",
+      "category": "storage",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "path": {
+          "type": "string",
+          "description": "Path to scan",
+          "default": "/data/data/com.termux/files/home"
+        },
+        "threshold_mb": {
+          "type": "number",
+          "description": "Size threshold in MB",
+          "default": 50.0
+        },
+        "limit": {
+          "type": "integer",
+          "description": "Max files to return",
+          "default": 50
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "storage.mounts",
+      "name": "List Mounted Filesystems",
+      "description": "Inspect all mounted filesystems from /proc/mounts",
+      "category": "storage",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "storage.overview",
+      "name": "Storage Roots Overview",
+      "description": "Inspect available storage roots, total/used/free space, and mount types",
+      "category": "storage",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "tasks.cancel",
+      "name": "Cancel Task",
+      "description": "Cancel a running task",
+      "category": "tasks",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "task_id": {
+          "type": "string",
+          "description": "Task ID to cancel",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "tasks.get",
+      "name": "Get Task Details",
+      "description": "Get status, progress, and output of a specific task ID",
+      "category": "tasks",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {
+        "task_id": {
+          "type": "string",
+          "description": "Task ID",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "tasks.list",
+      "name": "List Background Tasks",
+      "description": "List running and completed background tasks",
+      "category": "tasks",
+      "active_backend": "termux",
+      "supported_backends": [
+        "termux"
+      ],
+      "availability": "available",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "Resolved via termux"
+    },
+    {
+      "id": "tts.speak",
+      "name": "Text-to-Speech Speak",
+      "description": "Synthesize speech audio from text input",
+      "category": "audio",
+      "active_backend": null,
+      "supported_backends": [
+        "termux_api",
+        "android_bridge"
+      ],
+      "availability": "companion_required",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "com.termux.api APK or Android Bridge"
+      ],
+      "setup_instructions": "",
+      "parameters": {
+        "text": {
+          "type": "string",
+          "description": "Text to speak",
+          "required": true
+        }
+      },
+      "return_schema": {},
+      "resolution_details": "TACP Android Bridge companion app not running on localhost:8766"
+    },
+    {
+      "id": "wifi.status",
+      "name": "Wi-Fi Connection Info",
+      "description": "Query Wi-Fi connection info and status",
+      "category": "wifi",
+      "active_backend": null,
+      "supported_backends": [
+        "termux_api",
+        "android_bridge"
+      ],
+      "availability": "companion_required",
+      "privilege_level": "user",
+      "mutating": false,
+      "streaming": false,
+      "events": false,
+      "min_sdk": null,
+      "dependencies": [
+        "Termux:API APK or Android Bridge"
+      ],
+      "setup_instructions": "",
+      "parameters": {},
+      "return_schema": {},
+      "resolution_details": "TACP Android Bridge companion app not running on localhost:8766"
+    }
+  ]
+}

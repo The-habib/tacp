@@ -1,0 +1,49 @@
+{
+  "total_cycles": 1000,
+  "duration_seconds": 1.07,
+  "throughput_req_per_sec": 930.81,
+  "start_rss_mb": 32.34,
+  "final_rss_mb": 33.66,
+  "net_leak_mb": 1.32,
+  "leak_per_request_kb": 1.352,
+  "fd_leak": 0,
+  "thread_leak": 0,
+  "milestones": [
+    {
+      "cycle": 200,
+      "rss_mb": 33.42,
+      "delta_rss_mb": 1.08,
+      "fds": 15,
+      "threads": 1
+    },
+    {
+      "cycle": 400,
+      "rss_mb": 33.55,
+      "delta_rss_mb": 1.21,
+      "fds": 15,
+      "threads": 1
+    },
+    {
+      "cycle": 600,
+      "rss_mb": 33.68,
+      "delta_rss_mb": 1.35,
+      "fds": 15,
+      "threads": 1
+    },
+    {
+      "cycle": 800,
+      "rss_mb": 33.68,
+      "delta_rss_mb": 1.35,
+      "fds": 15,
+      "threads": 1
+    },
+    {
+      "cycle": 1000,
+      "rss_mb": 33.66,
+      "delta_rss_mb": 1.32,
+      "fds": 15,
+      "threads": 1
+    }
+  ],
+  "leak_threshold_passed": true
+}

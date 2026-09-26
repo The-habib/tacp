@@ -46,6 +46,7 @@ class TacpConfig:
     remote_read_only: bool = True
     remote_mutation_enabled: bool = False
     remote_execution_enabled: bool = False
+    device_control_enabled: bool = False
     trust_profile: str = field(
         default_factory=lambda: os.environ.get("TACP_TRUST_PROFILE", "BALANCED").upper()
     )
@@ -121,6 +122,11 @@ class TacpConfig:
             "true",
             "yes",
         )
+        device_control_enabled = os.environ.get("TACP_DEVICE_CONTROL", "0").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
         read_only = not mutation_enabled
         if "TACP_READ_ONLY" in os.environ:
             read_only = os.environ.get("TACP_READ_ONLY", "1").lower() in ("1", "true", "yes")
@@ -138,5 +144,6 @@ class TacpConfig:
             remote_read_only=remote_read_only,
             remote_mutation_enabled=remote_mutation_enabled,
             remote_execution_enabled=remote_execution_enabled,
+            device_control_enabled=device_control_enabled,
             limits=OutputLimits(),
         )

@@ -7,6 +7,9 @@ from tacp.infrastructure.migrations import apply_migrations
 
 
 class Database:
+    _migrated_paths: set = set()
+    _migration_lock = threading.Lock()
+
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
         self._local = threading.local()
@@ -27,7 +30,15 @@ class Database:
             conn.execute("PRAGMA foreign_keys = ON;")
             conn.execute("PRAGMA synchronous = NORMAL;")
             conn.execute("PRAGMA busy_timeout = 30000;")
-            apply_migrations(conn)
+
+            # Only run migrations once per database path
+            path_key = str(self.db_path.resolve())
+            if path_key not in Database._migrated_paths:
+                with Database._migration_lock:
+                    if path_key not in Database._migrated_paths:
+                        apply_migrations(conn)
+                        Database._migrated_paths.add(path_key)
+
             self._local.conn = conn
         return conn
 

@@ -1,0 +1,83 @@
+{
+  "suite": "benchmark_filesystem",
+  "environment": {
+    "timestamp": "2026-09-26T08:48:48Z",
+    "os": "Android",
+    "platform": "Android-16-aarch64-64bit",
+    "python_version": "3.14.6",
+    "arch": "aarch64",
+    "pid": 31702,
+    "rss_mb": 469.09
+  },
+  "metrics": [
+    {
+      "name": "fs_stat_mcp_e2e",
+      "iterations": 50,
+      "min_ms": 0.3908,
+      "p50_ms": 0.4801,
+      "p95_ms": 0.6879,
+      "p99_ms": 1.3915,
+      "max_ms": 32.7212,
+      "mean_ms": 1.1517,
+      "stdev_ms": 4.5583
+    },
+    {
+      "name": "fs_raw_os_stat",
+      "iterations": 100,
+      "min_ms": 0.0042,
+      "p50_ms": 0.0047,
+      "p95_ms": 0.0051,
+      "p99_ms": 0.0055,
+      "max_ms": 0.0056,
+      "mean_ms": 0.0047,
+      "stdev_ms": 0.0003
+    },
+    {
+      "name": "fs_read_1k_mcp_e2e",
+      "iterations": 50,
+      "min_ms": 0.5631,
+      "p50_ms": 0.6532,
+      "p95_ms": 0.9062,
+      "p99_ms": 1.3824,
+      "max_ms": 1.4005,
+      "mean_ms": 0.703,
+      "stdev_ms": 0.1676
+    },
+    {
+      "name": "fs_read_100k_mcp_e2e",
+      "iterations": 30,
+      "min_ms": 5.746,
+      "p50_ms": 5.8656,
+      "p95_ms": 6.205,
+      "p99_ms": 6.2359,
+      "max_ms": 6.2801,
+      "mean_ms": 5.9241,
+      "stdev_ms": 0.1551
+    },
+    {
+      "name": "fs_list_50_files_mcp_e2e",
+      "iterations": 30,
+      "min_ms": 1.6999,
+      "p50_ms": 1.8015,
+      "p95_ms": 1.9592,
+      "p99_ms": 2.3116,
+      "max_ms": 25.5625,
+      "mean_ms": 2.6215,
+      "stdev_ms": 4.3344
+    },
+    {
+      "name": "fs_search_mcp_e2e",
+      "iterations": 20,
+      "min_ms": 9.0524,
+      "p50_ms": 9.2413,
+      "p95_ms": 11.4597,
+      "p99_ms": 11.4597,
+      "max_ms": 11.7022,
+      "mean_ms": 9.6068,
+      "stdev_ms": 0.7417
+    }
+  ],
+  "extra": {
+    "rss_mb": 469.08984375
+  }
+}

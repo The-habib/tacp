@@ -1,7 +1,8 @@
+import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, FrozenSet, Union
+from typing import Any, Dict, FrozenSet, Optional, Union
 
 
 class PrincipalType(str, Enum):
@@ -154,3 +155,26 @@ class RequestContext:
     request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     trace_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     metadata: Dict[str, Any] = field(default_factory=dict)
+    deadline_monotonic: Optional[float] = None
+    timeout_ms: Optional[int] = None
+    cancellation_event: Optional[Any] = None
+
+    def is_cancelled(self) -> bool:
+        if self.cancellation_event is not None and getattr(self.cancellation_event, "is_set", lambda: False)():
+            return True
+        if self.deadline_monotonic is not None and time.monotonic() >= self.deadline_monotonic:
+            return True
+        return False
+
+    def remaining_timeout(self) -> Optional[float]:
+        if self.deadline_monotonic is None:
+            return None
+        rem = self.deadline_monotonic - time.monotonic()
+        return max(0.0, rem)
+
+    def check_cancelled(self) -> None:
+        if self.is_cancelled():
+            from tacp.domain.errors import ErrorCode, TacpError
+            if self.deadline_monotonic is not None and time.monotonic() >= self.deadline_monotonic:
+                raise TacpError(ErrorCode.DEADLINE_EXCEEDED, f"Request {self.request_id} exceeded deadline")
+            raise TacpError(ErrorCode.CANCELLED, f"Request {self.request_id} was cancelled by client")

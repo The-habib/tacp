@@ -1,0 +1,46 @@
+[
+  {
+    "resolution": "320x640",
+    "tier": "Thumbnail / Preview",
+    "raw_rgba_mb": 0.78,
+    "compressed_payload_kb": 200.0,
+    "b64_encoded_kb": 266.67,
+    "mcp_json_bytes": 273189,
+    "b64_latency_ms": 1.278,
+    "json_framing_ms": 2.037,
+    "total_pipeline_ms": 3.315
+  },
+  {
+    "resolution": "720x1280",
+    "tier": "720p HD",
+    "raw_rgba_mb": 3.52,
+    "compressed_payload_kb": 900.0,
+    "b64_encoded_kb": 1200.0,
+    "mcp_json_bytes": 1228921,
+    "b64_latency_ms": 7.055,
+    "json_framing_ms": 9.242,
+    "total_pipeline_ms": 16.297
+  },
+  {
+    "resolution": "1080x2400",
+    "tier": "1080p FHD+ (Native Device)",
+    "raw_rgba_mb": 9.89,
+    "compressed_payload_kb": 2531.25,
+    "b64_encoded_kb": 3375.0,
+    "mcp_json_bytes": 3456121,
+    "b64_latency_ms": 21.243,
+    "json_framing_ms": 26.433,
+    "total_pipeline_ms": 47.676
+  },
+  {
+    "resolution": "1440x3200",
+    "tier": "1440p QHD+",
+    "raw_rgba_mb": 17.58,
+    "compressed_payload_kb": 4500.0,
+    "b64_encoded_kb": 6000.0,
+    "mcp_json_bytes": 6144121,
+    "b64_latency_ms": 39.4,
+    "json_framing_ms": 68.532,
+    "total_pipeline_ms": 107.933
+  }
+]

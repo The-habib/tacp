@@ -285,12 +285,25 @@ ADMIN_CAPABILITIES: List[Capability] = [
 ]
 
 
+_CAPABILITIES_BY_NAME: Dict[str, Capability] = {
+    c.name: c
+    for c in (
+        READONLY_CAPABILITIES
+        + MUTATING_CAPABILITIES
+        + EXECUTION_CAPABILITIES
+        + ADMIN_CAPABILITIES
+    )
+}
+
+
 class CapabilityService:
+    """Provides querying and filtering of system capabilities."""
+
     @staticmethod
     def list_capabilities(
-        include_mutating: bool = False,
-        include_batch: bool = False,
-        include_execution: bool = False,
+        include_mutating: bool = True,
+        include_batch: bool = True,
+        include_execution: bool = True,
         include_admin: bool = False,
     ) -> List[Dict[str, Any]]:
         caps = list(READONLY_CAPABILITIES)
@@ -326,16 +339,7 @@ class CapabilityService:
     def get_capability(name: str) -> Capability:
         from tacp.domain.errors import TacpNotFoundError
 
-        for c in READONLY_CAPABILITIES:
-            if c.name == name:
-                return c
-        for c in MUTATING_CAPABILITIES:
-            if c.name == name:
-                return c
-        for c in EXECUTION_CAPABILITIES:
-            if c.name == name:
-                return c
-        for c in ADMIN_CAPABILITIES:
-            if c.name == name:
-                return c
+        cap = _CAPABILITIES_BY_NAME.get(name)
+        if cap is not None:
+            return cap
         raise TacpNotFoundError(f"Capability not found: {name}")

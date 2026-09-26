@@ -1,0 +1,52 @@
+{
+  "initialize": {
+    "http_status": 200,
+    "session_id_returned": true,
+    "protocol_version": "2024-11-05",
+    "server_name": "tacp",
+    "server_version": "0.4.0-rc.1"
+  },
+  "tools_list": {
+    "http_status": 200,
+    "tool_count": 82,
+    "has_tools": true,
+    "sample_tools": [
+      "system.inspect",
+      "system.health",
+      "system.version",
+      "capabilities.list",
+      "workspace.list"
+    ]
+  },
+  "tools_call_device_state": {
+    "http_status": 200,
+    "is_error": true,
+    "has_content": true
+  },
+  "resources_list": {
+    "http_status": 200,
+    "resources_count": 8
+  },
+  "prompts_list": {
+    "http_status": 200,
+    "prompts_count": 3
+  },
+  "malformed_jsonrpc": {
+    "http_status": 200,
+    "has_error": true,
+    "error_code": -32600
+  },
+  "unknown_method": {
+    "http_status": 200,
+    "has_error": true,
+    "error_code": -32601
+  },
+  "invalid_token": {
+    "http_status": 401,
+    "rejected": true
+  },
+  "missing_token": {
+    "http_status": 401,
+    "rejected": true
+  }
+}

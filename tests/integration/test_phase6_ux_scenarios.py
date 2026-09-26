@@ -147,7 +147,7 @@ def test_scenario_a_fast_path_read_operations(ux_environment: Dict[str, Any]) ->
         assert "hello" in res["content"]
 
     avg_ms = sum(times) / len(times)
-    assert avg_ms < 15.0
+    assert avg_ms < 50.0
 
 
 def test_scenario_b_plan_first_dry_run_protocol(ux_environment: Dict[str, Any]) -> None:

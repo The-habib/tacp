@@ -148,3 +148,16 @@ class WorkspaceService:
                 "has_git": has_git,
             },
         }
+
+    def remove_workspace(self, workspace_id: str) -> bool:
+        """Unregister a workspace by ID or name."""
+        conn = self.db.connect()
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM workspaces WHERE id = ? OR name = ?;",
+            (workspace_id, workspace_id),
+        )
+        conn.commit()
+        self.invalidate_cache()
+        return cursor.rowcount > 0
+

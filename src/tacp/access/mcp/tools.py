@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from tacp.control.identity import Principal, RequestContext
 from tacp.control.policy import PolicyEngine
 from tacp.core.audit_service import AuditService
-from tacp.core.capability_service import CapabilityService
+from tacp.core.capability_service import CapabilityService, _CAPABILITIES_BY_NAME
 from tacp.core.execution_service import ExecutionService
 from tacp.core.filesystem_service import FilesystemService
 from tacp.core.patch_service import PatchService
@@ -41,6 +41,7 @@ class McpToolRegistry:
         patch_service: Optional[PatchService] = None,
         execution_service: Optional[ExecutionService] = None,
         lease_engine: Optional[Any] = None,
+        device_registry: Optional[Any] = None,
     ) -> None:
         self.capability_service = capability_service
         self.policy_engine = policy_engine
@@ -52,9 +53,17 @@ class McpToolRegistry:
         self.patch_service = patch_service
         self.execution_service = execution_service
         self.lease_engine = lease_engine
+        self.device_registry = device_registry
+        self._default_principal = Principal.local_agent(agent_id="mcp-client")
+        self._cached_tools_list: Optional[List[Dict[str, Any]]] = None
+        self._valid_names_cache: Optional[Set[str]] = None
+        self._normalized_cache: Dict[str, str] = {}
 
     def list_tools(self) -> List[Dict[str, Any]]:
         """Return tool definitions formatted for MCP tools/list."""
+        if self._cached_tools_list is not None:
+            return self._cached_tools_list
+
         tools = []
         profile = getattr(self.policy_engine, "trust_profile", "BALANCED")
         if profile in ("LOCKDOWN", "REMOTE_READ_ONLY"):
@@ -86,36 +95,58 @@ class McpToolRegistry:
                     "inputSchema": schema,
                 }
             )
+
+        if self.device_registry:
+            existing_names = {t["name"] for t in tools}
+            for dev_tool in self.device_registry.get_mcp_tools():
+                if dev_tool["name"] not in existing_names:
+                    tools.append(dev_tool)
+
+        self._cached_tools_list = tools
         return tools
 
     def normalize_tool_name(self, name: str) -> str:
-        """Allow dot-notation, underscore-notation, and tacp_ prefix."""
-        include_mutating = bool(self.patch_service and self.patch_service.config.mutation_enabled)
-        include_batch = bool(
-            include_mutating
-            and self.patch_service
-            and self.patch_service.config.batch_mutation_enabled
-        )
-        include_execution = bool(
-            self.execution_service and self.execution_service.config.execution_enabled
-        )
-        valid_names = {
-            c.name
-            for c in self.capability_service.list_raw(
-                include_mutating=include_mutating,
-                include_batch=include_batch,
-                include_execution=include_execution,
+        """Allow dot-notation, underscore-notation, and tacp_ prefix with O(1) lookup."""
+        if name in self._normalized_cache:
+            return self._normalized_cache[name]
+
+        if self._valid_names_cache is None:
+            include_mutating = bool(self.patch_service and self.patch_service.config.mutation_enabled)
+            include_batch = bool(
+                include_mutating
+                and self.patch_service
+                and self.patch_service.config.batch_mutation_enabled
             )
-        }
+            include_execution = bool(
+                self.execution_service and self.execution_service.config.execution_enabled
+            )
+            valid = {
+                c.name
+                for c in self.capability_service.list_raw(
+                    include_mutating=include_mutating,
+                    include_batch=include_batch,
+                    include_execution=include_execution,
+                )
+            }
+            if self.device_registry:
+                valid.update(self.device_registry._capabilities.keys())
+            self._valid_names_cache = valid
+
+        valid_names = self._valid_names_cache
+        res = name
         if name in valid_names:
-            return name
-        clean_name = name[5:] if name.startswith("tacp_") else name
-        if clean_name in valid_names:
-            return clean_name
-        dot_name = clean_name.replace("_", ".", 1)
-        if dot_name in valid_names:
-            return dot_name
-        return name
+            res = name
+        else:
+            clean_name = name[5:] if name.startswith("tacp_") else name
+            if clean_name in valid_names:
+                res = clean_name
+            else:
+                dot_name = clean_name.replace("_", ".", 1)
+                if dot_name in valid_names:
+                    res = dot_name
+
+        self._normalized_cache[name] = res
+        return res
 
     def execute_tool(
         self,
@@ -128,100 +159,109 @@ class McpToolRegistry:
         args = arguments or {}
         normalized_name = self.normalize_tool_name(name)
 
-        # 1. Resolve capability
-        cap = self.capability_service.get_capability(normalized_name)
+        # 1. Resolve capability (O(1))
+        cap_name = normalized_name
+        cap = _CAPABILITIES_BY_NAME.get(normalized_name)
+        if cap is not None:
+            cap_name = cap.name
+        elif self.device_registry and self.device_registry.get(normalized_name):
+            cap = None
+        else:
+            raise TacpNotFoundError(f"Capability not found: {normalized_name}")
 
         # 2. Build Principal and Context
-        client_principal = principal or Principal.local_agent(agent_id="mcp-client")
+        client_principal = principal or self._default_principal
         context = RequestContext(
-            capability=cap.name,
+            capability=cap_name,
             principal=client_principal,
-            request_id=request_id or str(uuid.uuid4()),
+            request_id=request_id or uuid.uuid4().hex,
         )
 
-        # 3. For mutating and execution capabilities, dispatch directly
-        # to services (unified pipeline)
-        lease_id = args.get("lease_id")
-        if normalized_name in ("workspace.patch", "workspace.patch_batch", "execution.request"):
-            return self._dispatch(
-                cap.name,
-                args,
-                principal=client_principal,
-                request_id=context.request_id,
-                lease_id=lease_id,
-            )
-
-        # 4. Workspace resolution for read-only capabilities if specified
-        ws = None
-        workspace_id = args.get("workspace_id")
-        if workspace_id:
-            ws = self.workspace_service.get_workspace(workspace_id)
-
-        start_time = time.monotonic()
-        decision = self.policy_engine.evaluate_request(
-            context,
-            workspace=ws,
-        )
-        duration_ms = int((time.monotonic() - start_time) * 1000)
-
-        if not decision.allowed:
-            self.audit_service.record_event(
-                AuditEvent(
-                    capability=cap.name,
-                    action=cap.name,
-                    policy_decision=decision.decision_type,
-                    result="FAILED",
-                    duration_ms=duration_ms,
-                    principal=client_principal.id,
+        from tacp.core.admission import get_admission_controller
+        with get_admission_controller().acquire(cap_name):
+            # 3. For mutating and execution capabilities, dispatch directly
+            # to services (unified pipeline)
+            lease_id = args.get("lease_id")
+            if normalized_name in ("workspace.patch", "workspace.patch_batch", "execution.request"):
+                return self._dispatch(
+                    cap_name,
+                    args,
+                    principal=client_principal,
                     request_id=context.request_id,
-                    workspace_id=workspace_id,
-                    parameters_redacted=redact_dict(args),
+                    lease_id=lease_id,
                 )
-            )
-            raise TacpSecurityError(
-                ErrorCode.NOT_AUTHORIZED,
-                f"Access denied: {decision.reason}",
-            )
 
-        # 5. Dispatch to read-only service
-        try:
-            result = self._dispatch(
-                cap.name,
-                args,
-                principal=client_principal,
-                request_id=context.request_id,
+            # 4. Workspace resolution for read-only capabilities if specified
+            ws = None
+            workspace_id = args.get("workspace_id")
+            if workspace_id:
+                ws = self.workspace_service.get_workspace(workspace_id)
+
+            start_time = time.monotonic()
+            decision = self.policy_engine.evaluate_request(
+                context,
+                workspace=ws,
             )
             duration_ms = int((time.monotonic() - start_time) * 1000)
-            self.audit_service.record_event(
-                AuditEvent(
-                    capability=cap.name,
-                    action=cap.name,
-                    policy_decision="ALLOWED",
-                    result="SUCCESS",
-                    duration_ms=duration_ms,
-                    principal=client_principal.id,
-                    request_id=context.request_id,
-                    workspace_id=workspace_id,
-                    parameters_redacted=redact_dict(args),
+
+            if not decision.allowed:
+                self.audit_service.record_event(
+                    AuditEvent(
+                        capability=cap_name,
+                        action=cap_name,
+                        policy_decision=decision.decision_type,
+                        result="FAILED",
+                        duration_ms=duration_ms,
+                        principal=client_principal.id,
+                        request_id=context.request_id,
+                        workspace_id=workspace_id,
+                        parameters_redacted=redact_dict(args),
+                    )
                 )
-            )
-            return result
-        except Exception as exc:
-            duration_ms = int((time.monotonic() - start_time) * 1000)
-            self.audit_service.record_event(
-                AuditEvent(
-                    capability=cap.name,
-                    action=cap.name,
-                    policy_decision="ALLOWED",
-                    result=f"ERROR: {exc}",
-                    duration_ms=duration_ms,
-                    principal=client_principal.id,
-                    request_id=context.request_id,
-                    workspace_id=workspace_id,
-                    parameters_redacted=redact_dict(args),
+                raise TacpSecurityError(
+                    ErrorCode.NOT_AUTHORIZED,
+                    f"Access denied: {decision.reason}",
                 )
-            )
-            raise
+
+            # 5. Dispatch to read-only service
+            try:
+                result = self._dispatch(
+                    cap_name,
+                    args,
+                    principal=client_principal,
+                    request_id=context.request_id,
+                )
+                duration_ms = int((time.monotonic() - start_time) * 1000)
+                self.audit_service.record_event(
+                    AuditEvent(
+                        capability=cap_name,
+                        action=cap_name,
+                        policy_decision="ALLOWED",
+                        result="SUCCESS",
+                        duration_ms=duration_ms,
+                        principal=client_principal.id,
+                        request_id=context.request_id,
+                        workspace_id=workspace_id,
+                        parameters_redacted=redact_dict(args),
+                    )
+                )
+                return result
+            except Exception as exc:
+                duration_ms = int((time.monotonic() - start_time) * 1000)
+                self.audit_service.record_event(
+                    AuditEvent(
+                        capability=cap_name,
+                        action=cap_name,
+                        policy_decision="ALLOWED",
+                        result=f"ERROR: {exc}",
+                        duration_ms=duration_ms,
+                        principal=client_principal.id,
+                        request_id=context.request_id,
+                        workspace_id=workspace_id,
+                        parameters_redacted=redact_dict(args),
+                    )
+                )
+                raise
 
     def _dispatch(
         self,
@@ -264,24 +304,25 @@ class McpToolRegistry:
             ws_id = args.get("workspace_id")
             if not ws_id:
                 raise TacpValidationError("Missing required parameter: workspace_id")
+            subpath = args.get("subpath") if args.get("subpath") is not None else args.get("path", "")
             return self.filesystem_service.list_dir(
                 workspace_id=ws_id,
-                subpath=args.get("subpath", ""),
+                subpath=subpath,
             )
         elif name == "fs.stat":
             ws_id = args.get("workspace_id")
-            subpath = args.get("subpath")
+            subpath = args.get("subpath") if args.get("subpath") is not None else args.get("path")
             if not ws_id or subpath is None:
-                raise TacpValidationError("Missing required parameters: workspace_id and subpath")
+                raise TacpValidationError("Missing required parameters: workspace_id and subpath (or path)")
             return self.filesystem_service.stat_path(
                 workspace_id=ws_id,
                 subpath=subpath,
             )
         elif name == "fs.read":
             ws_id = args.get("workspace_id")
-            subpath = args.get("subpath")
+            subpath = args.get("subpath") if args.get("subpath") is not None else args.get("path")
             if not ws_id or subpath is None:
-                raise TacpValidationError("Missing required parameters: workspace_id and subpath")
+                raise TacpValidationError("Missing required parameters: workspace_id and subpath (or path)")
             return self.filesystem_service.read_file(
                 workspace_id=ws_id,
                 subpath=subpath,
@@ -291,10 +332,11 @@ class McpToolRegistry:
             query = args.get("query")
             if not ws_id or not query:
                 raise TacpValidationError("Missing required parameters: workspace_id and query")
+            subpath = args.get("subpath") if args.get("subpath") is not None else args.get("path", "")
             return self.filesystem_service.search_files(
                 workspace_id=ws_id,
                 query=query,
-                subpath=args.get("subpath", ""),
+                subpath=subpath,
             )
         elif name == "process.list":
             return self.process_service.list_processes()
@@ -395,6 +437,9 @@ class McpToolRegistry:
                 lease_id=lease_id,
             )
             return exec_res.to_dict()
+
+        elif self.device_registry and self.device_registry.get(name):
+            return self.device_registry.dispatch(name, args)
 
         else:
             raise TacpNotFoundError(f"Unhandled tool: {name}")

@@ -1,0 +1,282 @@
+{
+  "READ_ONLY": [
+    {
+      "clients": 1,
+      "total_requests": 10,
+      "throughput_rps": 806.8,
+      "p50_ms": 0.0023,
+      "p95_ms": 0.0155,
+      "max_ms": 3.1961,
+      "errors": 0
+    },
+    {
+      "clients": 2,
+      "total_requests": 20,
+      "throughput_rps": 8215.8,
+      "p50_ms": 0.0019,
+      "p95_ms": 0.0116,
+      "max_ms": 0.0222,
+      "errors": 0
+    },
+    {
+      "clients": 5,
+      "total_requests": 50,
+      "throughput_rps": 15132.9,
+      "p50_ms": 0.0016,
+      "p95_ms": 0.0039,
+      "max_ms": 0.0243,
+      "errors": 0
+    },
+    {
+      "clients": 10,
+      "total_requests": 100,
+      "throughput_rps": 2184.5,
+      "p50_ms": 0.0023,
+      "p95_ms": 0.0128,
+      "max_ms": 0.0249,
+      "errors": 0
+    },
+    {
+      "clients": 25,
+      "total_requests": 150,
+      "throughput_rps": 11621.4,
+      "p50_ms": 0.0017,
+      "p95_ms": 0.0102,
+      "max_ms": 0.0301,
+      "errors": 0
+    },
+    {
+      "clients": 50,
+      "total_requests": 150,
+      "throughput_rps": 9159.5,
+      "p50_ms": 0.0023,
+      "p95_ms": 0.01,
+      "max_ms": 0.0684,
+      "errors": 0
+    }
+  ],
+  "FILESYSTEM": [
+    {
+      "clients": 1,
+      "total_requests": 10,
+      "throughput_rps": 132.7,
+      "p50_ms": 4.4952,
+      "p95_ms": 15.2451,
+      "max_ms": 22.4271,
+      "errors": 0
+    },
+    {
+      "clients": 2,
+      "total_requests": 20,
+      "throughput_rps": 183.9,
+      "p50_ms": 7.4556,
+      "p95_ms": 26.154,
+      "max_ms": 27.4939,
+      "errors": 0
+    },
+    {
+      "clients": 5,
+      "total_requests": 50,
+      "throughput_rps": 281.5,
+      "p50_ms": 13.5908,
+      "p95_ms": 42.0787,
+      "max_ms": 44.0389,
+      "errors": 0
+    },
+    {
+      "clients": 10,
+      "total_requests": 100,
+      "throughput_rps": 193.0,
+      "p50_ms": 15.5075,
+      "p95_ms": 311.4205,
+      "max_ms": 323.2757,
+      "errors": 0
+    },
+    {
+      "clients": 25,
+      "total_requests": 150,
+      "throughput_rps": 270.6,
+      "p50_ms": 46.7031,
+      "p95_ms": 226.1168,
+      "max_ms": 231.536,
+      "errors": 0
+    },
+    {
+      "clients": 50,
+      "total_requests": 150,
+      "throughput_rps": 270.2,
+      "p50_ms": 157.7827,
+      "p95_ms": 317.958,
+      "max_ms": 435.4678,
+      "errors": 0
+    }
+  ],
+  "DEVICE": [
+    {
+      "clients": 1,
+      "total_requests": 10,
+      "throughput_rps": 123.5,
+      "p50_ms": 1.1003,
+      "p95_ms": 4.6515,
+      "max_ms": 64.7605,
+      "errors": 0
+    },
+    {
+      "clients": 2,
+      "total_requests": 20,
+      "throughput_rps": 93.8,
+      "p50_ms": 5.7154,
+      "p95_ms": 138.7586,
+      "max_ms": 163.1536,
+      "errors": 0
+    },
+    {
+      "clients": 5,
+      "total_requests": 50,
+      "throughput_rps": 411.9,
+      "p50_ms": 10.299,
+      "p95_ms": 19.8795,
+      "max_ms": 29.489,
+      "errors": 0
+    },
+    {
+      "clients": 10,
+      "total_requests": 100,
+      "throughput_rps": 232.6,
+      "p50_ms": 19.7629,
+      "p95_ms": 228.9069,
+      "max_ms": 230.7921,
+      "errors": 0
+    },
+    {
+      "clients": 25,
+      "total_requests": 150,
+      "throughput_rps": 202.4,
+      "p50_ms": 65.3801,
+      "p95_ms": 334.2177,
+      "max_ms": 337.9061,
+      "errors": 0
+    },
+    {
+      "clients": 50,
+      "total_requests": 150,
+      "throughput_rps": 169.8,
+      "p50_ms": 192.3879,
+      "p95_ms": 488.6501,
+      "max_ms": 501.4692,
+      "errors": 0
+    }
+  ],
+  "SNAPSHOT": [
+    {
+      "clients": 1,
+      "total_requests": 10,
+      "throughput_rps": 59.0,
+      "p50_ms": 0.733,
+      "p95_ms": 1.2235,
+      "max_ms": 161.0676,
+      "errors": 0
+    },
+    {
+      "clients": 2,
+      "total_requests": 20,
+      "throughput_rps": 540.1,
+      "p50_ms": 3.5276,
+      "p95_ms": 3.8927,
+      "max_ms": 5.5832,
+      "errors": 0
+    },
+    {
+      "clients": 5,
+      "total_requests": 50,
+      "throughput_rps": 120.8,
+      "p50_ms": 10.2631,
+      "p95_ms": 301.0851,
+      "max_ms": 304.0011,
+      "errors": 0
+    },
+    {
+      "clients": 10,
+      "total_requests": 100,
+      "throughput_rps": 476.4,
+      "p50_ms": 14.6806,
+      "p95_ms": 43.6165,
+      "max_ms": 52.9827,
+      "errors": 0
+    },
+    {
+      "clients": 25,
+      "total_requests": 150,
+      "throughput_rps": 160.4,
+      "p50_ms": 74.3007,
+      "p95_ms": 498.4344,
+      "max_ms": 517.1612,
+      "errors": 0
+    },
+    {
+      "clients": 50,
+      "total_requests": 150,
+      "throughput_rps": 251.2,
+      "p50_ms": 143.4581,
+      "p95_ms": 219.762,
+      "max_ms": 222.7221,
+      "errors": 0
+    }
+  ],
+  "DATABASE_SYSTEM_HEALTH": [
+    {
+      "clients": 1,
+      "total_requests": 10,
+      "throughput_rps": 669.2,
+      "p50_ms": 0.7499,
+      "p95_ms": 1.637,
+      "max_ms": 4.1345,
+      "errors": 0
+    },
+    {
+      "clients": 2,
+      "total_requests": 20,
+      "throughput_rps": 503.1,
+      "p50_ms": 1.9616,
+      "p95_ms": 9.0608,
+      "max_ms": 16.1366,
+      "errors": 0
+    },
+    {
+      "clients": 5,
+      "total_requests": 50,
+      "throughput_rps": 524.1,
+      "p50_ms": 3.9777,
+      "p95_ms": 23.6325,
+      "max_ms": 34.3732,
+      "errors": 0
+    },
+    {
+      "clients": 10,
+      "total_requests": 100,
+      "throughput_rps": 430.8,
+      "p50_ms": 17.3022,
+      "p95_ms": 59.9312,
+      "max_ms": 64.7592,
+      "errors": 0
+    },
+    {
+      "clients": 25,
+      "total_requests": 150,
+      "throughput_rps": 372.2,
+      "p50_ms": 22.091,
+      "p95_ms": 171.4632,
+      "max_ms": 226.9426,
+      "errors": 0
+    },
+    {
+      "clients": 50,
+      "total_requests": 150,
+      "throughput_rps": 233.7,
+      "p50_ms": 123.4983,
+      "p95_ms": 314.6315,
+      "max_ms": 316.8762,
+      "errors": 0
+    }
+  ]
+}

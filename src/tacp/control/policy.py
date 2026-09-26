@@ -77,6 +77,31 @@ class PolicyEngine:
         "execution.cancel",
     }
 
+    DEVICE_MUTATING_CAPABILITIES = {
+        "shell.exec",
+        "process.kill",
+        "process.signal",
+        "package.install",
+        "package.uninstall",
+        "app.launch",
+        "clipboard.set",
+        "input.tap",
+        "input.key",
+        "notifications.post",
+        "filesystem.write",
+        "filesystem.delete",
+        "filesystem.append",
+        "filesystem.copy",
+        "filesystem.move",
+        "filesystem.mkdir",
+        "filesystem.unzip",
+        "filesystem.zip",
+        "automation.create",
+        "automation.start",
+        "tasks.cancel",
+        "tts.speak",
+    }
+
     PROTECTED_PATTERNS = {
         ".git",
         ".tacp",
@@ -101,6 +126,7 @@ class PolicyEngine:
         remote_read_only: bool = False,
         remote_mutation_enabled: bool = False,
         remote_execution_enabled: bool = False,
+        device_control_enabled: bool = False,
     ) -> None:
         self.read_only_enforced = read_only_enforced
         self.mutation_enabled = mutation_enabled
@@ -113,6 +139,7 @@ class PolicyEngine:
         self.remote_read_only = remote_read_only or (self.trust_profile == "REMOTE_READ_ONLY")
         self.remote_mutation_enabled = remote_mutation_enabled
         self.remote_execution_enabled = remote_execution_enabled
+        self.device_control_enabled = device_control_enabled
 
     def _check_target_path(self, target_path: str) -> Optional[PolicyDecision]:
         clean_target = target_path.replace("\\", "/")
@@ -155,11 +182,22 @@ class PolicyEngine:
     ) -> PolicyDecision:
         cap = context.capability
 
+        is_device_cap = self.device_control_enabled and (
+            any(cap.startswith(ns) for ns in (
+                "shell.", "device.", "filesystem.", "storage.",
+                "package.", "app.", "network.", "wifi.", "camera.", "microphone.",
+                "audio.", "tts.", "location.", "sensors.", "clipboard.",
+                "notifications.", "screen.", "input.", "settings.", "logs.",
+                "tasks.", "automation.", "diagnostics."
+            )) or cap in ("process.kill", "process.signal")
+        )
+
         # Invariant 1: Check known capabilities (Default Deny)
         if (
             cap not in self.ALLOWED_CAPABILITIES
             and cap not in self.MUTATING_CAPABILITIES
             and cap not in self.EXECUTION_CAPABILITIES
+            and not is_device_cap
         ):
             return PolicyDecision(
                 allowed=False,
@@ -169,7 +207,7 @@ class PolicyEngine:
 
         # Invariant 1b: Trust Profile LOCKDOWN strictly forbids all mutation and execution
         if self.trust_profile == "LOCKDOWN":
-            if cap in self.MUTATING_CAPABILITIES or cap in self.EXECUTION_CAPABILITIES:
+            if cap in self.MUTATING_CAPABILITIES or cap in self.EXECUTION_CAPABILITIES or (is_device_cap and cap in self.DEVICE_MUTATING_CAPABILITIES):
                 return PolicyDecision(
                     allowed=False,
                     reason=(
@@ -185,6 +223,7 @@ class PolicyEngine:
                 cap in self.MUTATING_CAPABILITIES
                 or cap in self.EXECUTION_CAPABILITIES
                 or cap == "audit.verify_integrity"
+                or (is_device_cap and cap in self.DEVICE_MUTATING_CAPABILITIES)
             ):
                 return PolicyDecision(
                     allowed=False,
@@ -210,6 +249,7 @@ class PolicyEngine:
                     cap in self.MUTATING_CAPABILITIES
                     or cap in self.EXECUTION_CAPABILITIES
                     or cap == "audit.verify_integrity"
+                    or (is_device_cap and cap in self.DEVICE_MUTATING_CAPABILITIES)
                 ):
                     return PolicyDecision(
                         allowed=False,
@@ -234,6 +274,30 @@ class PolicyEngine:
                     decision_type="DENY",
                     risk_level="R0",
                 )
+
+        # Device Capabilities Governance
+        if is_device_cap:
+            if cap in self.DEVICE_MUTATING_CAPABILITIES:
+                if self.read_only_enforced:
+                    return PolicyDecision(
+                        allowed=False,
+                        reason=f"Mutating device capability '{cap}' is prohibited when read-only enforcement is active",
+                        decision_type="DENY",
+                        risk_level="R1",
+                    )
+                if cap == "shell.exec" and not self.execution_enabled:
+                    return PolicyDecision(
+                        allowed=False,
+                        reason="Shell execution is disabled in TACP policy",
+                        decision_type="DENY",
+                        risk_level="R1",
+                    )
+            return PolicyDecision(
+                allowed=True,
+                reason=f"Device capability '{cap}' authorized under trust profile {self.trust_profile}",
+                decision_type="ALLOW",
+                risk_level="R0" if cap not in self.DEVICE_MUTATING_CAPABILITIES else "R1",
+            )
 
         # Lease Evaluation Helper
         has_lease = False

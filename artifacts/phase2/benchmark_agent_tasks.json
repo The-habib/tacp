@@ -1,0 +1,72 @@
+[
+  {
+    "task": "Task A (Device Overview - Optimized)",
+    "calls": 1,
+    "payload_bytes": 14316,
+    "local_p50_ms": 119.02,
+    "local_p95_ms": 344.36,
+    "remote_p50_ms": 639.02,
+    "remote_p95_ms": 648.06,
+    "errors": 0
+  },
+  {
+    "task": "Task A (Device Overview - 5 calls)",
+    "calls": 5,
+    "payload_bytes": 5006,
+    "local_p50_ms": 114.22,
+    "local_p95_ms": 177.49,
+    "remote_p50_ms": 2155.14,
+    "remote_p95_ms": 2230.02,
+    "errors": 0
+  },
+  {
+    "task": "Task B (List Files)",
+    "calls": 1,
+    "payload_bytes": 174,
+    "local_p50_ms": 13.11,
+    "local_p95_ms": 16.5,
+    "remote_p50_ms": 427.11,
+    "remote_p95_ms": 443.21,
+    "errors": 0
+  },
+  {
+    "task": "Task C (Search Files)",
+    "calls": 1,
+    "payload_bytes": 176,
+    "local_p50_ms": 10.6,
+    "local_p95_ms": 15.64,
+    "remote_p50_ms": 408.87,
+    "remote_p95_ms": 421.77,
+    "errors": 0
+  },
+  {
+    "task": "Task D (Process List)",
+    "calls": 1,
+    "payload_bytes": 1395,
+    "local_p50_ms": 35.4,
+    "local_p95_ms": 49.31,
+    "remote_p50_ms": 412.84,
+    "remote_p95_ms": 434.47,
+    "errors": 0
+  },
+  {
+    "task": "Task E (Screen Capture)",
+    "calls": 1,
+    "payload_bytes": 559,
+    "local_p50_ms": 19.76,
+    "local_p95_ms": 50.57,
+    "remote_p50_ms": 453.83,
+    "remote_p95_ms": 596.94,
+    "errors": 0
+  },
+  {
+    "task": "Task F (Companion / Health Check)",
+    "calls": 1,
+    "payload_bytes": 422,
+    "local_p50_ms": 13.83,
+    "local_p95_ms": 36.82,
+    "remote_p50_ms": 410.42,
+    "remote_p95_ms": 412.32,
+    "errors": 0
+  }
+]

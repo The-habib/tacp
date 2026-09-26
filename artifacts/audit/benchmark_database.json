@@ -1,0 +1,61 @@
+{
+  "suite": "benchmark_database",
+  "environment": {
+    "timestamp": "2026-09-26T11:00:41Z",
+    "os": "Android",
+    "platform": "Android-16-aarch64-64bit",
+    "python_version": "3.14.6",
+    "arch": "aarch64",
+    "pid": 5449,
+    "rss_mb": 469.09
+  },
+  "metrics": [
+    {
+      "name": "db_connection_open_close",
+      "iterations": 30,
+      "min_ms": 0.4809,
+      "p50_ms": 1.0439,
+      "p95_ms": 1.4963,
+      "p99_ms": 1.5456,
+      "max_ms": 1.7467,
+      "mean_ms": 1.0295,
+      "stdev_ms": 0.4138
+    },
+    {
+      "name": "db_simple_select_query",
+      "iterations": 100,
+      "min_ms": 0.0052,
+      "p50_ms": 0.0055,
+      "p95_ms": 0.006,
+      "p99_ms": 0.0069,
+      "max_ms": 0.007,
+      "mean_ms": 0.0055,
+      "stdev_ms": 0.0003
+    },
+    {
+      "name": "db_audit_insert_with_hash_chain",
+      "iterations": 50,
+      "min_ms": 0.0974,
+      "p50_ms": 0.1147,
+      "p95_ms": 0.1539,
+      "p99_ms": 0.1731,
+      "max_ms": 0.2046,
+      "mean_ms": 0.1223,
+      "stdev_ms": 0.0211
+    },
+    {
+      "name": "db_audit_chain_verify_integrity",
+      "iterations": 20,
+      "min_ms": 50.4229,
+      "p50_ms": 51.2576,
+      "p95_ms": 53.4656,
+      "p99_ms": 53.4656,
+      "max_ms": 55.8329,
+      "mean_ms": 51.6148,
+      "stdev_ms": 1.2689
+    }
+  ],
+  "extra": {
+    "rss_mb": 469.08984375
+  }
+}

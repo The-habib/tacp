@@ -1,0 +1,100 @@
+{
+  "tasks": {
+    "Task_1_Phone_Overview": {
+      "tool": "device.snapshot",
+      "success": true,
+      "elapsed_ms": 100.41,
+      "request_bytes": 126,
+      "response_bytes": 14315,
+      "summary": "Retrieved complete stratified device snapshot with battery, memory, storage, OS, and runtime status."
+    },
+    "Task_2_Storage_Consumers": {
+      "tool": "storage.mounts",
+      "success": true,
+      "elapsed_ms": 72.11,
+      "request_bytes": 125,
+      "response_bytes": 39078,
+      "summary": "Inspected filesystem mounts and free/total storage capacities across internal and external partitions."
+    },
+    "Task_3_Recently_Modified_Files": {
+      "tool": "fs.list",
+      "success": true,
+      "elapsed_ms": 66.13,
+      "request_bytes": 160,
+      "response_bytes": 3982,
+      "summary": "Listed workspace files with timestamps and sizes."
+    },
+    "Task_4_Companion_Health": {
+      "tool": "system.health",
+      "success": true,
+      "elapsed_ms": 33.59,
+      "request_bytes": 124,
+      "response_bytes": 421,
+      "summary": "Inspected system subsystems and detected companion backend status (degraded/offline due to port 59998 fail-fast)."
+    },
+    "Task_5_Running_Processes": {
+      "tool": "process.list",
+      "success": true,
+      "elapsed_ms": 43.3,
+      "request_bytes": 134,
+      "response_bytes": 1330,
+      "summary": "Retrieved live process list with PIDs, names, and memory consumption."
+    },
+    "Task_6_Screen_Capture": {
+      "tool": "screen.capture",
+      "success": true,
+      "is_error_expected": true,
+      "elapsed_ms": 17.15,
+      "request_bytes": 125,
+      "response_bytes": 557,
+      "summary": "Screen capture returned structured actionable error: companion/root/shizuku capture provider is required."
+    },
+    "Task_7_Harmless_Filesystem": {
+      "tool": "fs.read (pyproject.toml)",
+      "success": false,
+      "elapsed_ms": 32.57,
+      "request_bytes": 173,
+      "response_bytes": 204,
+      "summary": "Read pyproject.toml configuration inside approved workspace jail."
+    }
+  },
+  "confusion_tests": {
+    "nonexistent_path": {
+      "tool": "fs.read",
+      "arguments": {
+        "path": "definitely_nonexistent_file_xyz_123.txt",
+        "workspace_id": "termux-home"
+      },
+      "is_error": true,
+      "response_snippet": "Error: Missing required parameters: workspace_id and subpath",
+      "actionable_recovery": true
+    },
+    "unavailable_capability": {
+      "tool": "companion.execute",
+      "arguments": {
+        "action": "deep_reboot"
+      },
+      "is_error": true,
+      "response_snippet": "Error: Capability not found: companion.execute",
+      "actionable_recovery": true
+    },
+    "invalid_process_pid": {
+      "tool": "process.inspect",
+      "arguments": {
+        "pid": 9999999
+      },
+      "is_error": true,
+      "response_snippet": "Error: Process PID 9999999 not found",
+      "actionable_recovery": true
+    },
+    "malformed_params": {
+      "tool": "fs.read",
+      "arguments": {
+        "invalid_key_only": 123
+      },
+      "is_error": true,
+      "response_snippet": "Error: Missing required parameters: workspace_id and subpath",
+      "actionable_recovery": true
+    }
+  }
+}

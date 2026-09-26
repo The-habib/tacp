@@ -1,0 +1,130 @@
+[
+  {
+    "category": "Filesystem",
+    "attack": "path_traversal_dot_dot",
+    "expected": "Rejected / Path jail violation",
+    "actual": "HTTP 200, Error=True, text=Error: Path '../../../etc/passwd' escapes authorized workspa",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "Filesystem",
+    "attack": "absolute_path_escape",
+    "expected": "Rejected / Path jail violation",
+    "actual": "HTTP 200, Error=True, text=Error: Absolute path '/etc/shadow' escapes authorized worksp",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "Filesystem",
+    "attack": "windows_slash_escape",
+    "expected": "Rejected / Path jail violation",
+    "actual": "HTTP 200, Error=True, text=Error: File not found: ..\\..\\windows\\win.ini",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "Filesystem",
+    "attack": "encoded_traversal",
+    "expected": "Rejected / Path jail violation",
+    "actual": "HTTP 200, Error=True, text=Error: Null or encoded characters detected in path specifica",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "Filesystem",
+    "attack": "double_encoded_traversal",
+    "expected": "Rejected / Path jail violation",
+    "actual": "HTTP 200, Error=True, text=Error: Null or encoded characters detected in path specifica",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "Filesystem",
+    "attack": "null_byte_injection",
+    "expected": "Rejected / Path jail violation",
+    "actual": "HTTP 200, Error=True, text=Error: Null or encoded characters detected in path specifica",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "Filesystem",
+    "attack": "proc_environ_escape",
+    "expected": "Rejected / Path jail violation",
+    "actual": "HTTP 200, Error=True, text=Error: Absolute path '/proc/1/environ' escapes authorized wo",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "Process",
+    "attack": "command_chaining_semicolon",
+    "expected": "Rejected or gated by policy engine",
+    "actual": "HTTP 200, isError=True, text=Error: Missing required parameters for execution.request: wo",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "Process",
+    "attack": "command_subshell",
+    "expected": "Rejected or gated by policy engine",
+    "actual": "HTTP 200, isError=True, text=Error: Missing required parameters for execution.request: wo",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "Process",
+    "attack": "pipe_injection",
+    "expected": "Rejected or gated by policy engine",
+    "actual": "HTTP 200, isError=True, text=Error: Missing required parameters for execution.request: wo",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "Process",
+    "attack": "env_injection",
+    "expected": "Rejected or gated by policy engine",
+    "actual": "HTTP 200, isError=True, text=Error: Missing required parameters for execution.request: wo",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "HTTP",
+    "attack": "huge_payload_5mb",
+    "expected": "Handled or rejected with bounded memory",
+    "actual": "HTTP 200",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "Authentication",
+    "attack": "forged_bearer_token",
+    "expected": "HTTP 401/403 Unauthorized",
+    "actual": "HTTP 401",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "Authentication",
+    "attack": "sql_injection_in_token",
+    "expected": "HTTP 401/403 Unauthorized",
+    "actual": "HTTP 401",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "Authentication",
+    "attack": "revoked_token_reuse",
+    "expected": "HTTP 401/403 Unauthorized",
+    "actual": "HTTP 401",
+    "status": "PASS",
+    "severity": "NONE"
+  },
+  {
+    "category": "Authentication",
+    "attack": "empty_token",
+    "expected": "HTTP 401/403 Unauthorized",
+    "actual": "HTTP 401",
+    "status": "PASS",
+    "severity": "NONE"
+  }
+]

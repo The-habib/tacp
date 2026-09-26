@@ -64,13 +64,10 @@ class AuditService:
             conn = self.db.connect()
             conn.execute("BEGIN IMMEDIATE;")
             try:
-                if self._latest_entry_hash is None:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT entry_hash FROM audit_logs ORDER BY rowid DESC LIMIT 1;")
-                    row = cursor.fetchone()
-                    prev_hash = row["entry_hash"] if row and row["entry_hash"] else GENESIS_HASH
-                else:
-                    prev_hash = self._latest_entry_hash
+                cursor = conn.cursor()
+                cursor.execute("SELECT entry_hash FROM audit_logs ORDER BY rowid DESC LIMIT 1;")
+                row = cursor.fetchone()
+                prev_hash = row["entry_hash"] if row and row["entry_hash"] else GENESIS_HASH
 
                 entry_hash = compute_audit_entry_hash(
                     prev_hash=prev_hash,
@@ -155,13 +152,13 @@ class AuditService:
             )
         return events
 
-    def verify_integrity(self) -> bool:
-        """Verify the cryptographic hash chain and structural integrity of all audit records."""
+    def verify_chain_detailed(self) -> Dict[str, Any]:
+        """Verify the cryptographic hash chain and return pinpoint diagnostics on tampering."""
         conn = self.db.connect()
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT id, timestamp, request_id, principal, capability,
+            SELECT rowid, id, timestamp, request_id, principal, capability,
                    workspace_id, action, policy_decision, result,
                    duration_ms, parameters_json, prev_hash, entry_hash
             FROM audit_logs
@@ -171,21 +168,49 @@ class AuditService:
         rows = cursor.fetchall()
         expected_prev = GENESIS_HASH
 
-        for r in rows:
-            if not r["id"] or not r["timestamp"]:
-                return False
+        for seq, r in enumerate(rows, start=1):
+            row_id = r["rowid"]
+            entry_id = r["id"]
+            if not entry_id or not r["timestamp"]:
+                return {
+                    "valid": False,
+                    "sequence": seq,
+                    "rowid": row_id,
+                    "entry_id": entry_id,
+                    "error": "Missing mandatory ID or timestamp field",
+                }
             try:
                 params_json = r["parameters_json"]
                 json.loads(params_json)
-            except Exception:
-                return False
+            except Exception as e:
+                return {
+                    "valid": False,
+                    "sequence": seq,
+                    "rowid": row_id,
+                    "entry_id": entry_id,
+                    "error": f"Corrupted parameters_json: {e}",
+                }
 
             actual_prev = r["prev_hash"]
             actual_entry_hash = r["entry_hash"]
             if not actual_prev or not actual_entry_hash:
-                return False
+                return {
+                    "valid": False,
+                    "sequence": seq,
+                    "rowid": row_id,
+                    "entry_id": entry_id,
+                    "error": "Missing hash pointers in record",
+                }
             if actual_prev != expected_prev:
-                return False
+                return {
+                    "valid": False,
+                    "sequence": seq,
+                    "rowid": row_id,
+                    "entry_id": entry_id,
+                    "error": "Broken previous hash pointer (tampering/deletion detected)",
+                    "expected_prev_hash": expected_prev,
+                    "actual_prev_hash": actual_prev,
+                }
 
             recomputed_hash = compute_audit_entry_hash(
                 prev_hash=actual_prev,
@@ -202,8 +227,79 @@ class AuditService:
                 parameters_json=params_json,
             )
             if actual_entry_hash != recomputed_hash:
-                return False
+                return {
+                    "valid": False,
+                    "sequence": seq,
+                    "rowid": row_id,
+                    "entry_id": entry_id,
+                    "error": "Mutated row data or invalid entry hash (tampering detected)",
+                    "expected_entry_hash": recomputed_hash,
+                    "actual_entry_hash": actual_entry_hash,
+                }
 
             expected_prev = actual_entry_hash
 
-        return True
+        return {
+            "valid": True,
+            "total_records": len(rows),
+            "genesis_hash": GENESIS_HASH,
+            "tip_hash": expected_prev,
+        }
+
+    def verify_integrity(self) -> bool:
+        """Verify the cryptographic hash chain and structural integrity of all audit records."""
+        return self.verify_chain_detailed()["valid"]
+
+    def reanchor_chain(self) -> Dict[str, Any]:
+        """Cryptographically recompute and repair hash pointers across all historical records."""
+        with self._lock:
+            conn = self.db.connect()
+            conn.execute("BEGIN IMMEDIATE;")
+            try:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT rowid, id, timestamp, request_id, principal, capability,
+                           workspace_id, action, policy_decision, result,
+                           duration_ms, parameters_json
+                    FROM audit_logs
+                    ORDER BY rowid ASC;
+                    """
+                )
+                rows = cursor.fetchall()
+                prev_hash = GENESIS_HASH
+                reanchored_count = 0
+
+                for r in rows:
+                    entry_hash = compute_audit_entry_hash(
+                        prev_hash=prev_hash,
+                        id=r["id"],
+                        timestamp=r["timestamp"],
+                        request_id=r["request_id"],
+                        principal=r["principal"],
+                        capability=r["capability"],
+                        workspace_id=r["workspace_id"],
+                        action=r["action"],
+                        policy_decision=r["policy_decision"],
+                        result=r["result"],
+                        duration_ms=r["duration_ms"],
+                        parameters_json=r["parameters_json"],
+                    )
+                    conn.execute(
+                        "UPDATE audit_logs SET prev_hash = ?, entry_hash = ? WHERE rowid = ?;",
+                        (prev_hash, entry_hash, r["rowid"]),
+                    )
+                    prev_hash = entry_hash
+                    reanchored_count += 1
+
+                conn.commit()
+                self._latest_entry_hash = prev_hash
+                return {
+                    "reanchored": True,
+                    "total_records": reanchored_count,
+                    "tip_hash": prev_hash,
+                }
+            except Exception:
+                conn.rollback()
+                self._latest_entry_hash = None
+                raise

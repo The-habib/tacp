@@ -250,6 +250,11 @@ class PatchService:
                     ),
                 )
                 conn.commit()
+                try:
+                    from tacp.core.state import DeviceStateManager
+                    DeviceStateManager.get_default().invalidate("storage")
+                except Exception:
+                    pass
 
             # Stage 15 & 16: Audit & Result
             duration_ms = int((time.perf_counter() - start_time) * 1000)
@@ -752,6 +757,11 @@ class PatchService:
                     ),
                 )
                 conn.commit()
+                try:
+                    from tacp.core.state import DeviceStateManager
+                    DeviceStateManager.get_default().invalidate("storage")
+                except Exception:
+                    pass
 
             # Stage 15 & 16: Audit & Result
             duration_ms = int((time.perf_counter() - start_time) * 1000)

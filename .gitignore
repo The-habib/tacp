@@ -35,5 +35,11 @@ secrets/
 .DS_Store
 .idea/
 .vscode/
-*.swp
-*.swo
+# Connection artifacts with credentials (NEVER COMMIT)
+TACP_CONNECTION_INFO.json
+TACP_AGENT_CONNECT_PROMPT.txt
+TACP_CLIENT_CONFIGS.md
+antigravity-mcp-config.json
+*.jsonl
+scripts/test_ts/
+

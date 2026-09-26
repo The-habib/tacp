@@ -1,0 +1,32 @@
+{
+  "remote_url": "https://men-favors-counting-packed.trycloudflare.com/mcp",
+  "local_server_p50_ms": 8.1,
+  "network_rtt_estimated_ms": 924.55,
+  "cold_remote_ms": 1112.2,
+  "warm_remote_ms": 932.65,
+  "seq10_p50_ms": 412.13,
+  "seq10_p95_ms": 403.8,
+  "seq30_p50_ms": 407.49,
+  "seq30_p95_ms": 396.79,
+  "concurrent_5": {
+    "p50": 528.3414060249925,
+    "p95": 7676.112132030539,
+    "p99": 7676.112132030539,
+    "errors": 0,
+    "count": 10
+  },
+  "concurrent_10": {
+    "p50": 459.23364549526013,
+    "p95": 601.1799470288679,
+    "p99": 601.1799470288679,
+    "errors": 0,
+    "count": 20
+  },
+  "concurrent_25": {
+    "p50": 738.3689580019563,
+    "p95": 1275.7027079933323,
+    "p99": 1299.5715090073645,
+    "errors": 0,
+    "count": 25
+  }
+}

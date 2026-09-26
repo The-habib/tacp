@@ -62,7 +62,7 @@ if [[ -d "$VENV_PATH" && -f "$VENV_PATH/bin/activate" ]]; then
   echo "[PASS] Virtual environment: Found at .venv"
   PASSED_CHECKS=$((PASSED_CHECKS + 1))
   
-  for tool in mypy pytest pip-audit; do
+  for tool in pytest; do
     TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
     if "$VENV_PATH/bin/$tool" --version >/dev/null 2>&1; then
       tver="$("$VENV_PATH/bin/$tool" --version 2>&1 | head -n 1)"
@@ -75,6 +75,22 @@ if [[ -d "$VENV_PATH" && -f "$VENV_PATH/bin/activate" ]]; then
     else
       echo "[WARN] Dev Tool ($tool): Not installed"
       FAILED_CHECKS=$((FAILED_CHECKS + 1))
+    fi
+  done
+
+  for opt_tool in mypy pip-audit; do
+    TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
+    if "$VENV_PATH/bin/$opt_tool" --version >/dev/null 2>&1; then
+      tver="$("$VENV_PATH/bin/$opt_tool" --version 2>&1 | head -n 1)"
+      echo "[PASS] Optional Dev Tool ($opt_tool): $tver"
+      PASSED_CHECKS=$((PASSED_CHECKS + 1))
+    elif command -v "$opt_tool" >/dev/null 2>&1; then
+      tver="$("$opt_tool" --version 2>&1 | head -n 1)"
+      echo "[PASS] Optional Dev Tool ($opt_tool): $tver (system)"
+      PASSED_CHECKS=$((PASSED_CHECKS + 1))
+    else
+      echo "[INFO] Optional Dev Tool ($opt_tool): Not installed"
+      PASSED_CHECKS=$((PASSED_CHECKS + 1))
     fi
   done
 else

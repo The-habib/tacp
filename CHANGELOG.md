@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0-rc.1] - 2026-09-26
+
+### Phase 3: Production Candidate & Autonomous Acceptance Hardening
+
+#### High-Performance Concurrency & Cache Optimization
+- **Multi-Lane Admission Control (`AdmissionController`)**: Implemented 6 isolated concurrency lanes (`FAST_READ`: 64, `FILESYSTEM`: 8, `PROCESS`: 4, `COMPANION`: 4, `MEDIA`: 2, `MUTATION`: 2). Guarantees sub-2ms telemetry reads during heavy mutation load without head-of-line blocking.
+- **SingleFlight Coalescing (`SingleFlight`)**: Eliminates cache stampedes by collapsing concurrent queries for expired resources into a single underlying execution (99.0% coalescing efficiency).
+- **Negative Caching**: Accelerated failing Android permission probes (`pm list packages`, sysfs) from 1,538 ms down to 36 µs (42,700x speedup).
+- **Companion Circuit Breaker (`HttpCompanionTransport`)**: Fail-fast circuit breaker trips to OPEN after 3 consecutive connection failures to companion ports, dropping fail latency from 10s TCP timeout to 6.5 µs.
+
+#### Cryptographic Audit & Integrity Verification
+- **Cross-Process Immediate Transactions**: Re-engineered `record_event` to execute within `BEGIN IMMEDIATE;`, reading the tip entry hash directly from SQLite to prevent race condition forks under multi-process concurrency.
+- **Audit Re-Anchoring (`tacp audit reanchor`)**: Added CLI command and `AuditService.reanchor_chain()` to cryptographically re-hash and repair historical chains from `GENESIS_HASH` to tip. Verified 10,495 rows 100% valid.
+- **Pinpoint Diagnostic CLI (`tacp audit verify`)**: Reports exact sequence numbers, row IDs, and expected vs actual hashes on any data corruption or row deletion.
+
+#### Protocol & UX Resilience
+- **Filesystem Parameter Aliasing**: Added transparent fallback support in `fs.read`, `fs.list`, `fs.stat`, and `fs.search` for standard `path` argument aliases alongside `subpath`.
+- **Credential Hygiene**: Masked all bearer tokens in documentation templates to `<TACP_AUTH_TOKEN>` and applied `chmod 600` to user configuration files.
+- **Paced Endurance Soak Runner**: Extended `benchmarks/phase3/soak_test.py` with `--duration-minutes` and `--pace-hz` for sustained multi-minute endurance testing.
+- **Barrier-Synchronized Coalesce Unit Tests**: Added `threading.Barrier` in `tests/unit/test_coalesce.py`, eliminating test flakiness under system load (0/20 failure rate).
+
+---
+
+## [0.6.0-universal] - 2026-09-24
+
+### Universal Agent-Agnostic Remote MCP Platform
+
+#### Agent-Agnostic Model & Dual Transports
+- **Universal Compatibility**: Transformed TACP into a vendor-neutral MCP server compatible with Claude Desktop, Cursor IDE, VS Code, ChatGPT, Gemini, and custom MCP clients.
+- **Streamable HTTP Transport (`src/tacp/access/mcp/transports/streamable_http.py`)**: Full implementation of MCP Streamable HTTP specification over `/mcp` with JSON-RPC 2.0 dispatch, Server-Sent Events (SSE) streaming, `Mcp-Session-Id` tracking, and CORS support.
+- **Health & Readiness Endpoints**: Added standard probes (`/health`, `/ready`, `/status`) for uptime monitoring and gateway liveness verification.
+- **Stdio Transport Preserved**: Continued support for local agents and SSH pipes via `tacp serve-stdio`.
+
+#### Cryptographic Bearer Authentication & Identity
+- **Token Management (`TokenService`)**: Introduced cryptographically secure bearer tokens (`tacp_sec_<hex>`) hashed with SHA-256 into SQLite (Migration 8 `auth_tokens` table). Tokens are never stored in plaintext.
+- **Fine-Grained Scope Hierarchy**: Enforced explicit token scopes (`tacp.read`, `tacp.files.read`, `tacp.files.write`, `tacp.system.read`, `tacp.process.read`, `tacp.execute`, `tacp.admin`).
+- **Device Identity & Pairing (`PairingService`)**: Implemented persistent device identity (`~/.tacp/device.json`) and ephemeral human-readable pairing codes (`XXXX-XXXX`) with configurable TTLs.
+
+#### Remote NAT-Traversal & Multi-Provider Architecture
+- **Remote Lifecycle Manager (`RemoteManager`)**: Centralized control for remote connectivity states, port allocation, and token issuance.
+- **Tunnel Providers**:
+  - `cloudflare`: Outbound Cloudflare Quick Tunnels for instant remote access across cellular CGNAT.
+  - `direct`: Direct LAN and Tailscale mesh VPN connectivity.
+  - `relay`: Persistent outbound relay connection to self-hosted TACP Gateways.
+- **Standalone Remote Gateway (`tacp gateway`)**: Self-hostable, zero-cloud MCP gateway server deployable on Linux VPS or Docker.
+- **OpenAI Isolation (`tacp.vendors.openai`)**: Isolated OpenAI tunnel client into an optional vendor adapter subpackage, removing hard proprietary dependencies.
+
+#### CLI & Tooling Suite
+- Added `tacp serve-http [--host] [--port] [--auth]`
+- Added `tacp auth (create|list|revoke)`
+- Added `tacp remote (status|enable|disable|url|pair)`
+- Added `tacp gateway [--host] [--port]`
+- Added `tacp workspace remove <id>`
+- Added `tacp audit verify`
+- Added standalone automated test runner `scripts/test_mcp_http.py`.
+
+---
+
 ## [0.5.1-rc.1] - 2026-09-11
 
 ### Phase 6.5: OpenAI Secure MCP Tunnel Remote ChatGPT Integration (Read-Only Observation Gate)

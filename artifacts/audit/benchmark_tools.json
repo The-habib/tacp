@@ -1,0 +1,116 @@
+{
+  "suite": "benchmark_tools",
+  "environment": {
+    "timestamp": "2026-09-26T11:00:39Z",
+    "os": "Android",
+    "platform": "Android-16-aarch64-64bit",
+    "python_version": "3.14.6",
+    "arch": "aarch64",
+    "pid": 5449,
+    "rss_mb": 469.09
+  },
+  "metrics": [
+    {
+      "name": "tool_system_inspect_e2e",
+      "iterations": 50,
+      "min_ms": 0.6349,
+      "p50_ms": 1.148,
+      "p95_ms": 1.6722,
+      "p99_ms": 1.9579,
+      "max_ms": 8.7989,
+      "mean_ms": 1.3149,
+      "stdev_ms": 1.1231
+    },
+    {
+      "name": "tool_system_health_e2e",
+      "iterations": 50,
+      "min_ms": 0.267,
+      "p50_ms": 0.3613,
+      "p95_ms": 0.9318,
+      "p99_ms": 4.5967,
+      "max_ms": 31.3811,
+      "mean_ms": 1.1415,
+      "stdev_ms": 4.4079
+    },
+    {
+      "name": "tool_device_info_e2e",
+      "iterations": 50,
+      "min_ms": 8.4644,
+      "p50_ms": 16.9454,
+      "p95_ms": 20.2517,
+      "p99_ms": 22.003,
+      "max_ms": 52.9909,
+      "mean_ms": 16.8976,
+      "stdev_ms": 6.1161
+    },
+    {
+      "name": "tool_storage_overview_e2e",
+      "iterations": 30,
+      "min_ms": 2.077,
+      "p50_ms": 3.3671,
+      "p95_ms": 4.4715,
+      "p99_ms": 10.4006,
+      "max_ms": 16.5849,
+      "mean_ms": 3.9428,
+      "stdev_ms": 2.7759
+    },
+    {
+      "name": "tool_device_snapshot_e2e",
+      "iterations": 20,
+      "min_ms": 111.6371,
+      "p50_ms": 167.2266,
+      "p95_ms": 264.5416,
+      "p99_ms": 264.5416,
+      "max_ms": 273.0272,
+      "mean_ms": 173.6693,
+      "stdev_ms": 44.0272
+    },
+    {
+      "name": "latency_class_name_normalization",
+      "iterations": 200,
+      "min_ms": 0.0008,
+      "p50_ms": 0.0009,
+      "p95_ms": 0.001,
+      "p99_ms": 0.0011,
+      "max_ms": 0.0015,
+      "mean_ms": 0.0009,
+      "stdev_ms": 0.0001
+    },
+    {
+      "name": "latency_class_registry_execute_tool",
+      "iterations": 50,
+      "min_ms": 0.8351,
+      "p50_ms": 0.9445,
+      "p95_ms": 1.1448,
+      "p99_ms": 1.3497,
+      "max_ms": 1.5042,
+      "mean_ms": 0.9748,
+      "stdev_ms": 0.1227
+    },
+    {
+      "name": "latency_class_raw_system_inspect",
+      "iterations": 100,
+      "min_ms": 0.3029,
+      "p50_ms": 0.3157,
+      "p95_ms": 0.3989,
+      "p99_ms": 0.4818,
+      "max_ms": 0.8506,
+      "mean_ms": 0.3308,
+      "stdev_ms": 0.0615
+    },
+    {
+      "name": "latency_class_audit_record_event",
+      "iterations": 50,
+      "min_ms": 0.2299,
+      "p50_ms": 0.2672,
+      "p95_ms": 0.4116,
+      "p99_ms": 0.4901,
+      "max_ms": 0.621,
+      "mean_ms": 0.2976,
+      "stdev_ms": 0.0752
+    }
+  ],
+  "extra": {
+    "rss_mb": 469.08984375
+  }
+}

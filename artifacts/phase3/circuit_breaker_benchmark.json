@@ -1,0 +1,16 @@
+{
+  "request_count": 50,
+  "without_circuit_breaker": {
+    "total_time_ms": 87.05,
+    "p50_ms": 0.692,
+    "p95_ms": 0.979,
+    "mean_ms": 1.741
+  },
+  "with_circuit_breaker_open": {
+    "total_time_ms": 4.43,
+    "p50_fail_fast_ms": 0.0033,
+    "p95_fail_fast_ms": 0.0043,
+    "mean_fail_fast_ms": 0.0035
+  },
+  "speedup_factor": "493.0x faster fail-fast"
+}

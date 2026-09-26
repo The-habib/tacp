@@ -1,0 +1,50 @@
+{
+  "suite": "benchmark_policy",
+  "environment": {
+    "timestamp": "2026-09-26T11:00:40Z",
+    "os": "Android",
+    "platform": "Android-16-aarch64-64bit",
+    "python_version": "3.14.6",
+    "arch": "aarch64",
+    "pid": 5449,
+    "rss_mb": 469.09
+  },
+  "metrics": [
+    {
+      "name": "policy_evaluate_read_only",
+      "iterations": 100,
+      "min_ms": 0.0033,
+      "p50_ms": 0.0033,
+      "p95_ms": 0.0034,
+      "p99_ms": 0.004,
+      "max_ms": 0.004,
+      "mean_ms": 0.0034,
+      "stdev_ms": 0.0001
+    },
+    {
+      "name": "policy_evaluate_mutation_denied",
+      "iterations": 100,
+      "min_ms": 0.0033,
+      "p50_ms": 0.0034,
+      "p95_ms": 0.0035,
+      "p99_ms": 0.0035,
+      "max_ms": 0.0041,
+      "mean_ms": 0.0034,
+      "stdev_ms": 0.0001
+    },
+    {
+      "name": "token_verify_hash_and_db",
+      "iterations": 50,
+      "min_ms": 0.0025,
+      "p50_ms": 0.0027,
+      "p95_ms": 0.0029,
+      "p99_ms": 0.0032,
+      "max_ms": 0.0036,
+      "mean_ms": 0.0027,
+      "stdev_ms": 0.0002
+    }
+  ],
+  "extra": {
+    "rss_mb": 469.08984375
+  }
+}

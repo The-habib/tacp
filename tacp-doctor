@@ -1,0 +1,148 @@
+#!/data/data/com.termux/files/home/tacp/.venv/bin/python3
+"""tacp-doctor: Comprehensive Android Device & TACP Diagnostic Tool.
+
+Outputs machine-readable JSON (--json) or human-readable report,
+and updates TACP_DEVICE_CAPABILITY_REPORT.json and TACP_DEVICE_CAPABILITY_REPORT.md.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+
+# Add src to Python path
+repo_root = Path(__file__).resolve().parent
+sys.path.insert(0, str(repo_root / "src"))
+
+from tacp.core.discovery import DeviceDiscovery
+
+
+def generate_markdown_report(report: dict) -> str:
+    dev = report["device"]
+    env = report["environment"]
+    backends = report["backends"]
+    mounts = env["storage_mounts"]
+
+    lines = [
+        "# TACP Android Device Capability Report",
+        "",
+        f"**Generated:** {report['timestamp']}  ",
+        f"**Device:** {dev['brand'].upper()} {dev['model']} (Platform: `{dev['platform']}`)  ",
+        f"**OS:** Android {dev['android_version']} (SDK {dev['sdk_int']}, Patch: {dev['security_patch']})  ",
+        f"**Kernel / Arch:** Linux {dev['architecture']}  ",
+        f"**TACP Version:** `{report['tacp']['version']}` (Protocol: `{report['tacp']['protocol_version']}`)  ",
+        "",
+        "---",
+        "",
+        "## 1. Execution Backends & Privilege Matrix",
+        "",
+        "| Backend | Availability | Privilege Level | Notes |",
+        "| :--- | :--- | :--- | :--- |",
+    ]
+
+    for b_name, b_info in backends.items():
+        avail = "**AVAILABLE**" if b_info.get("available") else f"`{b_info.get('status', 'UNAVAILABLE')}`"
+        priv = b_info.get("privilege", "N/A")
+        det = b_info.get("details", "")
+        lines.append(f"| `{b_name}` | {avail} | `{priv}` | {det} |")
+
+    lines.extend([
+        "",
+        "---",
+        "",
+        "## 2. Hardware & Resource Metrics",
+        "",
+        f"- **CPU Cores:** {dev['cpu_cores']} cores (`{dev['architecture']}`)",
+        f"- **RAM (Total / Available):** {dev['memory'].get('total_mb', 0)} MB / {dev['memory'].get('available_mb', 0)} MB",
+        f"- **Primary Storage Free:** {round(mounts[0]['free_gb'], 2) if mounts else 'N/A'} GB",
+        f"- **SELinux Mode:** `{env['selinux']}`",
+        f"- **Termux UID / GID:** `uid={env['uid']}, gid={env['gid']}`",
+        "",
+        "---",
+        "",
+        "## 3. Storage Mounts & Filesystem Roots",
+        "",
+        "| Label | Path | Type | Writable | Total | Free | Used % |",
+        "| :--- | :--- | :--- | :--- | :--- | :--- | :--- |",
+    ])
+
+    for m in mounts:
+        w = "YES" if m["writable"] else "NO (Read-only)"
+        lines.append(f"| `{m['label']}` | `{m['path']}` | {m['category']} | {w} | {m['total_gb']} GB | {m['free_gb']} GB | {m['used_percent']}% |")
+
+    lines.extend([
+        "",
+        "---",
+        "",
+        "## 4. Installed Android Applications (Sample)",
+        "",
+        "Discovered third-party packages installed on user 0:",
+        "",
+    ])
+
+    for pkg in report.get("installed_packages_sample", [])[:20]:
+        lines.append(f"- `{pkg['package']}`")
+
+    lines.extend([
+        "",
+        "---",
+        "",
+        "## 5. Next Steps for Capability Expansion",
+        "",
+        "1. **Termux:API Companion**: To enable native hardware sensors, camera, telephony, and SMS, install `com.termux.api` APK from F-Droid.",
+        "2. **Shizuku / ADB Privileges**: For rootless package installation, input injection, and full dumpsys, activate Shizuku via Wireless Debugging (`adb pair localhost:PORT`).",
+        "3. **TACP Android Bridge**: Build and run the `android-bridge` companion for Accessibility UI tree extraction and MediaProjection live screen capture.",
+    ])
+
+    return "\n".join(lines)
+
+
+def main() -> int:
+    report = DeviceDiscovery.run_full_discovery()
+
+    # Save reports
+    json_path = repo_root / "TACP_DEVICE_CAPABILITY_REPORT.json"
+    md_path = repo_root / "TACP_DEVICE_CAPABILITY_REPORT.md"
+
+    json_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    md_path.write_text(generate_markdown_report(report), encoding="utf-8")
+
+    if "--json" in sys.argv:
+        print(json.dumps(report, indent=2))
+        return 0
+
+    # Human-readable output
+    dev = report["device"]
+    env = report["environment"]
+    backends = report["backends"]
+
+    print("============================================================")
+    print(" TACP Android Device Capability Doctor                      ")
+    print("============================================================")
+    print(f"Device        : {dev['brand'].upper()} {dev['model']} (Board: {dev['platform']})")
+    print(f"Android OS    : Version {dev['android_version']} (SDK {dev['sdk_int']}, Patch: {dev['security_patch']})")
+    print(f"Architecture  : {dev['architecture']} ({dev['cpu_cores']} cores)")
+    print(f"Memory        : {dev['memory'].get('available_mb')} MB free / {dev['memory'].get('total_mb')} MB total")
+    print(f"SELinux       : {env['selinux']}")
+    print(f"Termux UID    : {env['uid']}")
+    print("------------------------------------------------------------")
+    print("Execution Backends:")
+    for b_name, b_info in backends.items():
+        st = "AVAILABLE" if b_info.get("available") else b_info.get("status", "UNAVAILABLE").upper()
+        print(f"  - {b_name:<18} : [{st}] {b_info.get('details', '')}")
+    print("------------------------------------------------------------")
+    print("Storage Roots:")
+    for m in env["storage_mounts"][:4]:
+        w = "RW" if m["writable"] else "RO"
+        print(f"  - {m['label']:<15} : {m['path']} ({m['free_gb']} GB free, {w})")
+    print("------------------------------------------------------------")
+    print(f"Report written to: {json_path}")
+    print(f"Markdown report  : {md_path}")
+    print("============================================================")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

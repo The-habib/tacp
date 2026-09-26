@@ -1,0 +1,19 @@
+{
+  "commit": "ee53941675da8e7b4e3b71835282b2ff43798199",
+  "version": "0.4.0-rc.1",
+  "android_version": "16",
+  "api_level": 36,
+  "kernel": "16",
+  "python_version": "3.14.6",
+  "cpu_arch": "aarch64",
+  "mem_total": "7480576 kB",
+  "mem_available": "1153432 kB",
+  "mem_free": "110516 kB",
+  "tacp_rss_mb": 33.98,
+  "mcp_transport": "Streamable-HTTP / stdio (JSON-RPC 2.0)",
+  "remote_transport": "Cloudflare Tunnel (trycloudflare.com edge to local HTTP:8765)",
+  "tool_count": 79,
+  "resource_count": 8,
+  "prompt_count": 3,
+  "capability_count": 68
+}

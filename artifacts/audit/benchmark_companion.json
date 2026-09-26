@@ -1,0 +1,105 @@
+{
+  "suite": "benchmark_companion",
+  "environment": {
+    "timestamp": "2026-09-26T11:00:54Z",
+    "os": "Android",
+    "platform": "Android-16-aarch64-64bit",
+    "python_version": "3.14.6",
+    "arch": "aarch64",
+    "pid": 5449,
+    "rss_mb": 469.09
+  },
+  "metrics": [
+    {
+      "name": "companion_probe_all_forced",
+      "iterations": 20,
+      "min_ms": 95.256,
+      "p50_ms": 113.5434,
+      "p95_ms": 135.5139,
+      "p99_ms": 135.5139,
+      "max_ms": 150.7198,
+      "mean_ms": 117.7985,
+      "stdev_ms": 14.3535
+    },
+    {
+      "name": "companion_probe_all_cached",
+      "iterations": 100,
+      "min_ms": 0.013,
+      "p50_ms": 0.0137,
+      "p95_ms": 0.015,
+      "p99_ms": 0.0161,
+      "max_ms": 0.0184,
+      "mean_ms": 0.0138,
+      "stdev_ms": 0.0007
+    },
+    {
+      "name": "backend_probe_termux",
+      "iterations": 30,
+      "min_ms": 0.0204,
+      "p50_ms": 0.0221,
+      "p95_ms": 0.026,
+      "p99_ms": 0.0426,
+      "max_ms": 0.0741,
+      "mean_ms": 0.0249,
+      "stdev_ms": 0.0101
+    },
+    {
+      "name": "backend_probe_android_shell",
+      "iterations": 30,
+      "min_ms": 0.2718,
+      "p50_ms": 0.3029,
+      "p95_ms": 0.3479,
+      "p99_ms": 0.3573,
+      "max_ms": 0.4412,
+      "mean_ms": 0.3117,
+      "stdev_ms": 0.0324
+    },
+    {
+      "name": "backend_probe_termux_api",
+      "iterations": 30,
+      "min_ms": 47.9113,
+      "p50_ms": 68.476,
+      "p95_ms": 88.6951,
+      "p99_ms": 95.2982,
+      "max_ms": 120.5223,
+      "mean_ms": 70.4011,
+      "stdev_ms": 16.5401
+    },
+    {
+      "name": "backend_probe_shizuku",
+      "iterations": 30,
+      "min_ms": 18.679,
+      "p50_ms": 22.6578,
+      "p95_ms": 39.8735,
+      "p99_ms": 40.6929,
+      "max_ms": 41.9739,
+      "mean_ms": 26.5396,
+      "stdev_ms": 7.5413
+    },
+    {
+      "name": "backend_probe_root",
+      "iterations": 30,
+      "min_ms": 5.7148,
+      "p50_ms": 6.4637,
+      "p95_ms": 26.342,
+      "p99_ms": 29.0721,
+      "max_ms": 32.8433,
+      "mean_ms": 10.5585,
+      "stdev_ms": 7.9151
+    },
+    {
+      "name": "registry_list_all_68_capabilities",
+      "iterations": 20,
+      "min_ms": 0.294,
+      "p50_ms": 0.2985,
+      "p95_ms": 0.3301,
+      "p99_ms": 0.3301,
+      "max_ms": 0.3493,
+      "mean_ms": 0.303,
+      "stdev_ms": 0.0133
+    }
+  ],
+  "extra": {
+    "rss_mb": 469.08984375
+  }
+}
