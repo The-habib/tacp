@@ -252,6 +252,7 @@ class PatchService:
                 conn.commit()
                 try:
                     from tacp.core.state import DeviceStateManager
+
                     DeviceStateManager.get_default().invalidate("storage")
                 except Exception:
                     pass
@@ -759,6 +760,7 @@ class PatchService:
                 conn.commit()
                 try:
                     from tacp.core.state import DeviceStateManager
+
                     DeviceStateManager.get_default().invalidate("storage")
                 except Exception:
                     pass

@@ -55,8 +55,7 @@ def cmd_capabilities(args: argparse.Namespace) -> int:
             caps = [
                 c
                 for c in caps
-                if backend_filter.lower()
-                in [b.lower() for b in c.get("supported_backends", [])]
+                if backend_filter.lower() in [b.lower() for b in c.get("supported_backends", [])]
             ]
 
         if getattr(args, "available", False):
@@ -66,17 +65,13 @@ def cmd_capabilities(args: argparse.Namespace) -> int:
             print(json.dumps({"capabilities": caps, "total": len(caps)}, indent=2))
             return 0
 
-        print(
-            f"\n{'ID':<25} {'CATEGORY':<12} {'AVAILABILITY':<15} {'BACKEND':<14} {'DESCRIPTION'}"
-        )
+        print(f"\n{'ID':<25} {'CATEGORY':<12} {'AVAILABILITY':<15} {'BACKEND':<14} {'DESCRIPTION'}")
         print("-" * 90)
         for c in caps:
             avail = c.get("availability", "UNKNOWN")
             active_b = c.get("active_backend") or "none"
             desc = c.get("description", "")[:28]
-            print(
-                f"{c['id']:<25} {c.get('category',''):<12} {avail:<15} {active_b:<14} {desc}"
-            )
+            print(f"{c['id']:<25} {c.get('category', ''):<12} {avail:<15} {active_b:<14} {desc}")
         print(f"\nTotal device capabilities: {len(caps)}\n")
         return 0
 
@@ -278,7 +273,7 @@ def cmd_remote(args: argparse.Namespace) -> int:
         if provider == "cloudflare":
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(0.5)
-            port_open = (sock.connect_ex(("127.0.0.1", port)) == 0)
+            port_open = sock.connect_ex(("127.0.0.1", port)) == 0
             sock.close()
 
             if not port_open:
@@ -286,10 +281,13 @@ def cmd_remote(args: argparse.Namespace) -> int:
                 http_pid_file = config.data_dir / "tacp-http.pid"
                 server_cmd = [
                     sys.executable,
-                    "-m", "tacp.cli.main",
+                    "-m",
+                    "tacp.cli.main",
                     "serve-http",
-                    "--host", "127.0.0.1",
-                    "--port", str(port),
+                    "--host",
+                    "127.0.0.1",
+                    "--port",
+                    str(port),
                 ]
                 if auth_required:
                     server_cmd.append("--auth")
@@ -459,7 +457,7 @@ def cmd_connection(_args: argparse.Namespace) -> int:
 Use the standard MCP Streamable HTTP transport.
 
 MCP endpoint:
-{endpoint or 'https://<ACTIVE_ENDPOINT>/mcp'}
+{endpoint or "https://<ACTIVE_ENDPOINT>/mcp"}
 
 Authentication:
 Authorization: Bearer <YOUR_BEARER_TOKEN>
@@ -547,7 +545,9 @@ def cmd_auth(args: argparse.Namespace) -> int:
         include_all = getattr(args, "all", False)
         tokens = token_service.list_tokens(include_revoked=include_all)
         if not tokens:
-            print("No authentication tokens found. Create one with: tacp auth create --name 'My Agent'")
+            print(
+                "No authentication tokens found. Create one with: tacp auth create --name 'My Agent'"
+            )
             return 0
 
         print(f"\n{'ID':<16} {'NAME':<20} {'PREFIX':<20} {'SCOPES':<25} {'STATUS'}")
@@ -655,7 +655,9 @@ def cmd_serve_http(args: argparse.Namespace) -> int:
         object.__setattr__(config, "execution_enabled", True)
         object.__setattr__(config, "read_only", False)
     object.__setattr__(config, "remote_enabled", True)
-    if getattr(args, "device_control", False) or os.environ.get("TACP_DEVICE_CONTROL", "0").lower() in ("1", "true", "yes"):
+    if getattr(args, "device_control", False) or os.environ.get(
+        "TACP_DEVICE_CONTROL", "0"
+    ).lower() in ("1", "true", "yes"):
         object.__setattr__(config, "device_control_enabled", True)
 
     server = create_mcp_server(config)
@@ -886,7 +888,9 @@ def cmd_execution(args: argparse.Namespace) -> int:
         if not records:
             print("No execution records found.")
             return 0
-        print(f"\n{'EXEC ID':<16} {'STATUS':<12} {'EXIT':<6} {'EXE':<15} {'DURATION':<10} {'WORKSPACE'}")
+        print(
+            f"\n{'EXEC ID':<16} {'STATUS':<12} {'EXIT':<6} {'EXE':<15} {'DURATION':<10} {'WORKSPACE'}"
+        )
         print("-" * 75)
         for r in records:
             dur = f"{r.get('duration_ms', 0)}ms" if r.get("duration_ms") is not None else "-"
@@ -1299,9 +1303,9 @@ def cmd_storage(args: argparse.Namespace) -> int:
             print("-" * 80)
             for m in res.get("storage_roots", []):
                 print(
-                    f"{m.get('label',''):<18} {m.get('path',''):<32} "
-                    f"{m.get('free_gb',0):.2f} GB   {m.get('total_gb',0):.2f} GB   "
-                    f"{m.get('used_percent',0)}%"
+                    f"{m.get('label', ''):<18} {m.get('path', ''):<32} "
+                    f"{m.get('free_gb', 0):.2f} GB   {m.get('total_gb', 0):.2f} GB   "
+                    f"{m.get('used_percent', 0)}%"
                 )
             print()
     elif action == "mounts":
@@ -1490,15 +1494,27 @@ def build_parser() -> argparse.ArgumentParser:
 
     # capabilities
     cap_parser = subparsers.add_parser("capabilities", help="List registered capabilities")
-    cap_parser.add_argument("--device", action="store_true", help="List all Android device capabilities")
-    cap_parser.add_argument("--category", help="Filter by capability category (shell, device, package, etc.)")
-    cap_parser.add_argument("--backend", help="Filter by supported backend (termux, android_shell, etc.)")
-    cap_parser.add_argument("--available", action="store_true", help="Filter by available capabilities only")
-    cap_parser.add_argument("--json", action="store_true", help="Output in machine-readable JSON format")
+    cap_parser.add_argument(
+        "--device", action="store_true", help="List all Android device capabilities"
+    )
+    cap_parser.add_argument(
+        "--category", help="Filter by capability category (shell, device, package, etc.)"
+    )
+    cap_parser.add_argument(
+        "--backend", help="Filter by supported backend (termux, android_shell, etc.)"
+    )
+    cap_parser.add_argument(
+        "--available", action="store_true", help="Filter by available capabilities only"
+    )
+    cap_parser.add_argument(
+        "--json", action="store_true", help="Output in machine-readable JSON format"
+    )
 
     # doctor
     doc_parser = subparsers.add_parser("doctor", help="Run environmental and health diagnostics")
-    doc_parser.add_argument("--json", action="store_true", help="Output diagnostic report in JSON format")
+    doc_parser.add_argument(
+        "--json", action="store_true", help="Output diagnostic report in JSON format"
+    )
 
     # status
     subparsers.add_parser("status", help="Show runtime system status")
@@ -1524,24 +1540,48 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     # serve-stdio (explicit alias to serve)
-    serve_stdio = subparsers.add_parser("serve-stdio", help="Start the stdio MCP server loop explicitly")
+    serve_stdio = subparsers.add_parser(
+        "serve-stdio", help="Start the stdio MCP server loop explicitly"
+    )
     serve_stdio.add_argument("--workspace", type=str, help="Initial workspace directory")
     serve_stdio.add_argument("--workspace-name", type=str, help="Initial workspace name")
-    serve_stdio.add_argument("--allow-mutation", action="store_true", help="Enable single-file mutation")
-    serve_stdio.add_argument("--allow-batch-mutation", action="store_true", help="Enable batch mutation")
-    serve_stdio.add_argument("--allow-execution", action="store_true", help="Enable command execution")
+    serve_stdio.add_argument(
+        "--allow-mutation", action="store_true", help="Enable single-file mutation"
+    )
+    serve_stdio.add_argument(
+        "--allow-batch-mutation", action="store_true", help="Enable batch mutation"
+    )
+    serve_stdio.add_argument(
+        "--allow-execution", action="store_true", help="Enable command execution"
+    )
 
     # serve-http (Streamable HTTP)
-    serve_http = subparsers.add_parser("serve-http", help="Start the Streamable HTTP MCP server loop")
+    serve_http = subparsers.add_parser(
+        "serve-http", help="Start the Streamable HTTP MCP server loop"
+    )
     serve_http.add_argument("--host", type=str, default="127.0.0.1", help="HTTP listen host")
     serve_http.add_argument("--port", type=int, default=8765, help="HTTP listen port")
-    serve_http.add_argument("--auth", action="store_true", help="Enforce Bearer token authentication")
+    serve_http.add_argument(
+        "--auth", action="store_true", help="Enforce Bearer token authentication"
+    )
     serve_http.add_argument("--workspace", type=str, help="Initial workspace directory")
     serve_http.add_argument("--workspace-name", type=str, help="Initial workspace name")
-    serve_http.add_argument("--allow-mutation", action="store_true", help="Enable single-file workspace mutation")
-    serve_http.add_argument("--allow-batch-mutation", action="store_true", help="Enable multi-file batch workspace mutation")
-    serve_http.add_argument("--allow-execution", action="store_true", help="Enable controlled command execution")
-    serve_http.add_argument("--device-control", action="store_true", help="Enable deep Android device control capabilities")
+    serve_http.add_argument(
+        "--allow-mutation", action="store_true", help="Enable single-file workspace mutation"
+    )
+    serve_http.add_argument(
+        "--allow-batch-mutation",
+        action="store_true",
+        help="Enable multi-file batch workspace mutation",
+    )
+    serve_http.add_argument(
+        "--allow-execution", action="store_true", help="Enable controlled command execution"
+    )
+    serve_http.add_argument(
+        "--device-control",
+        action="store_true",
+        help="Enable deep Android device control capabilities",
+    )
 
     # auth
     auth_parser = subparsers.add_parser("auth", help="Manage authentication tokens")
@@ -1559,11 +1599,22 @@ def build_parser() -> argparse.ArgumentParser:
     remote_parser = subparsers.add_parser("remote", help="Manage remote MCP connectivity")
     remote_sub = remote_parser.add_subparsers(dest="remote_action")
     remote_sub.add_parser("status", help="Show remote integration status")
-    rem_setup = remote_sub.add_parser("setup", help="Run automated zero-touch setup and remote deployment")
+    rem_setup = remote_sub.add_parser(
+        "setup", help="Run automated zero-touch setup and remote deployment"
+    )
     rem_setup.add_argument("--port", type=int, default=8765, help="Local HTTP port (default: 8765)")
-    rem_setup.add_argument("--provider", choices=["cloudflare", "relay", "direct"], default="cloudflare", help="Remote provider type (default: cloudflare)")
-    rem_setup.add_argument("--no-remote", action="store_true", help="Set up locally without remote tunnel exposure")
-    rem_enable = remote_sub.add_parser("enable", help="Enable remote MCP access via tunnel or gateway")
+    rem_setup.add_argument(
+        "--provider",
+        choices=["cloudflare", "relay", "direct"],
+        default="cloudflare",
+        help="Remote provider type (default: cloudflare)",
+    )
+    rem_setup.add_argument(
+        "--no-remote", action="store_true", help="Set up locally without remote tunnel exposure"
+    )
+    rem_enable = remote_sub.add_parser(
+        "enable", help="Enable remote MCP access via tunnel or gateway"
+    )
     rem_enable.add_argument(
         "--provider",
         choices=["cloudflare", "relay", "direct"],
@@ -1573,15 +1624,23 @@ def build_parser() -> argparse.ArgumentParser:
     rem_enable.add_argument("--port", type=int, default=8765, help="Local HTTP port")
     rem_enable.add_argument("--gateway-url", help="Gateway URL (required for relay provider)")
     rem_enable.add_argument("--custom-domain", help="Custom domain/host for direct provider")
-    rem_enable.add_argument("--no-auth", action="store_true", help="Disable token authentication requirement")
-    rem_enable.add_argument("--device-control", action="store_true", help="Enable deep Android device control capabilities")
+    rem_enable.add_argument(
+        "--no-auth", action="store_true", help="Disable token authentication requirement"
+    )
+    rem_enable.add_argument(
+        "--device-control",
+        action="store_true",
+        help="Enable deep Android device control capabilities",
+    )
     remote_sub.add_parser("disable", help="Disable remote MCP access")
     remote_sub.add_parser("url", help="Show active public MCP endpoint URL")
     rem_pair = remote_sub.add_parser("pair", help="Generate device pairing code")
     rem_pair.add_argument("--ttl", type=int, default=10, help="Pairing code validity in minutes")
 
     # gateway
-    gw_parser = subparsers.add_parser("gateway", help="Run standalone TACP Remote MCP Gateway server")
+    gw_parser = subparsers.add_parser(
+        "gateway", help="Run standalone TACP Remote MCP Gateway server"
+    )
     gw_parser.add_argument("--host", default="0.0.0.0", help="Listen host")
     gw_parser.add_argument("--port", type=int, default=9090, help="Listen port")
 
@@ -1606,8 +1665,12 @@ def build_parser() -> argparse.ArgumentParser:
     exec_req.add_argument("--stdin", help="Input string for stdin")
     exec_req.add_argument("--approval-token", help="Approval token if required")
     exec_req.add_argument("--contract-file", help="Path to contract JSON file")
-    exec_req.add_argument("--allow-execution", action="store_true", help="Enable execution capability")
-    exec_req.add_argument("--auto-approve", action="store_true", help="Automatically approve ticket")
+    exec_req.add_argument(
+        "--allow-execution", action="store_true", help="Enable execution capability"
+    )
+    exec_req.add_argument(
+        "--auto-approve", action="store_true", help="Automatically approve ticket"
+    )
     exec_req.add_argument("--json", action="store_true", help="Output in JSON format")
     exec_req.add_argument("--principal", default="cli-user", help="Principal identity")
 
@@ -1650,13 +1713,27 @@ def build_parser() -> argparse.ArgumentParser:
     audit_recent.add_argument("--limit", type=int, default=20, help="Number of records to show")
     audit_recent.add_argument("--json", action="store_true", help="Output in JSON format")
     audit_sub.add_parser("verify", help="Verify cryptographic hash chain integrity")
-    audit_sub.add_parser("reanchor", help="Cryptographically recompute and repair hash pointers across all historical records")
+    audit_sub.add_parser(
+        "reanchor",
+        help="Cryptographically recompute and repair hash pointers across all historical records",
+    )
 
     # setup
-    setup_parser = subparsers.add_parser("setup", help="Run automated zero-touch setup and remote deployment")
-    setup_parser.add_argument("--port", type=int, default=8765, help="Local HTTP port (default: 8765)")
-    setup_parser.add_argument("--provider", choices=["cloudflare", "relay", "direct"], default="cloudflare", help="Remote provider type (default: cloudflare)")
-    setup_parser.add_argument("--no-remote", action="store_true", help="Set up locally without remote tunnel exposure")
+    setup_parser = subparsers.add_parser(
+        "setup", help="Run automated zero-touch setup and remote deployment"
+    )
+    setup_parser.add_argument(
+        "--port", type=int, default=8765, help="Local HTTP port (default: 8765)"
+    )
+    setup_parser.add_argument(
+        "--provider",
+        choices=["cloudflare", "relay", "direct"],
+        default="cloudflare",
+        help="Remote provider type (default: cloudflare)",
+    )
+    setup_parser.add_argument(
+        "--no-remote", action="store_true", help="Set up locally without remote tunnel exposure"
+    )
 
     # connection
     conn_parser = subparsers.add_parser("connection", help="Manage connection bundles and export")
@@ -1668,7 +1745,9 @@ def build_parser() -> argparse.ArgumentParser:
     rem_test.add_argument("--token", help="Bearer token for authentication")
 
     # device
-    dev_parser = subparsers.add_parser("device", help="Android device hardware and state inspection")
+    dev_parser = subparsers.add_parser(
+        "device", help="Android device hardware and state inspection"
+    )
     dev_parser.add_argument("--json", action="store_true", help="Output in JSON format")
     dev_sub = dev_parser.add_subparsers(dest="device_action")
     dev_sub.add_parser("info", help="Hardware, model, OS, architecture details")
@@ -1693,7 +1772,9 @@ def build_parser() -> argparse.ArgumentParser:
     apps_sub = apps_parser.add_subparsers(dest="apps_action")
     app_list = apps_sub.add_parser("list", help="List installed packages")
     app_list.add_argument("--user", default="0", help="User profile ID (default: 0)")
-    app_list.add_argument("--third-party", action="store_true", default=True, help="Third-party packages only")
+    app_list.add_argument(
+        "--third-party", action="store_true", default=True, help="Third-party packages only"
+    )
     app_info = apps_sub.add_parser("info", help="Inspect package metadata and APK details")
     app_info.add_argument("package", help="Package name")
     app_launch = apps_sub.add_parser("launch", help="Launch Android application")
@@ -1734,7 +1815,9 @@ def build_parser() -> argparse.ArgumentParser:
     t_cancel.add_argument("task_id", help="Task ID")
 
     # self-test
-    st_parser = subparsers.add_parser("self-test", help="Run comprehensive device control plane self-test")
+    st_parser = subparsers.add_parser(
+        "self-test", help="Run comprehensive device control plane self-test"
+    )
     st_parser.add_argument("--json", action="store_true", help="Output test results in JSON format")
 
     return parser

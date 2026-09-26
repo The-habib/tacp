@@ -3,17 +3,14 @@
 from __future__ import annotations
 
 import json
-import os
-import shutil
 import time
 import uuid
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from tacp.backends.base import BaseBackend
 from tacp.core.discovery import DeviceDiscovery
-
 
 # In-memory storage for tasks and automations
 _TASKS: Dict[str, Dict[str, Any]] = {}
@@ -88,11 +85,13 @@ def handle_automation_start(backend: BaseBackend, params: Dict[str, Any]) -> Dic
     # Execute steps (simulated/dispatched)
     for idx, step in enumerate(auto.get("steps", [])):
         step_tool = step.get("tool", "unknown")
-        task_record["step_results"].append({
-            "step_index": idx,
-            "tool": step_tool,
-            "status": "completed",
-        })
+        task_record["step_results"].append(
+            {
+                "step_index": idx,
+                "tool": step_tool,
+                "status": "completed",
+            }
+        )
 
     task_record["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     _TASKS[task_id] = task_record

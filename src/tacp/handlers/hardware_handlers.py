@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
-from pathlib import Path
 from typing import Any, Dict
 
 from tacp.backends.base import BaseBackend
@@ -39,7 +37,7 @@ def handle_microphone_record(backend: BaseBackend, params: Dict[str, Any]) -> Di
 
 def handle_tts_speak(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str, Any]:
     """Speak text using device Text-to-Speech synthesizer."""
-    text = params.get("text", "")
+    _text = params.get("text", "")
     return {
         "success": False,
         "error": "Text-to-Speech requires com.termux.api companion APK or Android Bridge.",
@@ -76,7 +74,7 @@ def handle_clipboard_get(backend: BaseBackend, params: Dict[str, Any]) -> Dict[s
 
 def handle_clipboard_set(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str, Any]:
     """Set text onto Android system clipboard."""
-    text = params.get("text", "")
+    _text = params.get("text", "")
     return {
         "success": False,
         "error": "Writing to clipboard requires com.termux.api companion APK or Android Bridge on Android 16.",
@@ -86,8 +84,8 @@ def handle_clipboard_set(backend: BaseBackend, params: Dict[str, Any]) -> Dict[s
 
 def handle_notifications_post(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str, Any]:
     """Post a notification in Android status bar."""
-    title = params.get("title", "TACP")
-    content = params.get("content", "")
+    _title = params.get("title", "TACP")
+    _content = params.get("content", "")
     return {
         "success": False,
         "error": "Posting notifications requires com.termux.api companion APK or Android Bridge with POST_NOTIFICATIONS permission.",
@@ -108,7 +106,9 @@ def handle_screen_info(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str
 
     density_str = None
     try:
-        p = subprocess.run(["/system/bin/wm", "density"], capture_output=True, text=True, timeout=2.0)
+        p = subprocess.run(
+            ["/system/bin/wm", "density"], capture_output=True, text=True, timeout=2.0
+        )
         if "Physical density:" in p.stdout:
             density_str = p.stdout.split("Physical density:")[-1].strip()
     except Exception:
@@ -133,8 +133,8 @@ def handle_screen_capture(backend: BaseBackend, params: Dict[str, Any]) -> Dict[
 
 def handle_input_tap(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str, Any]:
     """Inject tap gesture at (x, y) coordinates."""
-    x = params.get("x")
-    y = params.get("y")
+    _x = params.get("x")
+    _y = params.get("y")
     return {
         "success": False,
         "error": "Simulated touch input requires Shizuku, root, or TACP Accessibility Bridge (INJECT_EVENTS permission).",
@@ -144,7 +144,7 @@ def handle_input_tap(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str, 
 
 def handle_input_key(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str, Any]:
     """Send Android keyevent (e.g. KEYCODE_BACK, KEYCODE_HOME)."""
-    key = params.get("key")
+    _key = params.get("key")
     return {
         "success": False,
         "error": "Keyevent injection requires Shizuku, root, or TACP Accessibility Bridge.",
@@ -171,8 +171,17 @@ def handle_settings_get(backend: BaseBackend, params: Dict[str, Any]) -> Dict[st
         return {"success": False, "error": "Missing required parameter 'key'"}
 
     try:
-        p = subprocess.run(["/system/bin/settings", "get", namespace, key], capture_output=True, text=True, timeout=2.0)
-        if p.returncode == 0 and "Permission Denial" not in p.stdout and "Permission Denial" not in p.stderr:
+        p = subprocess.run(
+            ["/system/bin/settings", "get", namespace, key],
+            capture_output=True,
+            text=True,
+            timeout=2.0,
+        )
+        if (
+            p.returncode == 0
+            and "Permission Denial" not in p.stdout
+            and "Permission Denial" not in p.stderr
+        ):
             return {"success": True, "namespace": namespace, "key": key, "value": p.stdout.strip()}
     except Exception:
         pass

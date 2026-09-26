@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import os
 import platform
 import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class DeviceDiscovery:
@@ -187,17 +186,21 @@ class DeviceDiscovery:
                     usage = shutil.disk_usage(p_str)
                     writable = os.access(p_str, os.W_OK)
                     readable = os.access(p_str, os.R_OK)
-                    mounts.append({
-                        "path": p_str,
-                        "label": label,
-                        "category": category,
-                        "readable": readable,
-                        "writable": writable,
-                        "total_gb": round(usage.total / (1024 ** 3), 2),
-                        "used_gb": round(usage.used / (1024 ** 3), 2),
-                        "free_gb": round(usage.free / (1024 ** 3), 2),
-                        "used_percent": round((usage.used / usage.total) * 100, 1) if usage.total else 0,
-                    })
+                    mounts.append(
+                        {
+                            "path": p_str,
+                            "label": label,
+                            "category": category,
+                            "readable": readable,
+                            "writable": writable,
+                            "total_gb": round(usage.total / (1024**3), 2),
+                            "used_gb": round(usage.used / (1024**3), 2),
+                            "free_gb": round(usage.free / (1024**3), 2),
+                            "used_percent": round((usage.used / usage.total) * 100, 1)
+                            if usage.total
+                            else 0,
+                        }
+                    )
                 except Exception:
                     pass
 
@@ -243,7 +246,13 @@ class DeviceDiscovery:
         if not force and cls._root_cache is not None and (now - cls._root_time < 60.0):
             return cls._root_cache
 
-        su_paths = ["/system/bin/su", "/system/xbin/su", "/sbin/su", "/data/local/tmp/su", "/data/data/com.termux/files/usr/bin/su"]
+        su_paths = [
+            "/system/bin/su",
+            "/system/xbin/su",
+            "/sbin/su",
+            "/data/local/tmp/su",
+            "/data/data/com.termux/files/usr/bin/su",
+        ]
         found_su = None
         for path in su_paths:
             if os.path.exists(path) and os.access(path, os.X_OK):
@@ -284,7 +293,9 @@ class DeviceDiscovery:
                     "status": "su_failed",
                     "su_binary": found_su,
                     "uid": os.getuid(),
-                    "details": p.stderr.strip() or p.stdout.strip() or "su exited with non-zero status",
+                    "details": p.stderr.strip()
+                    or p.stdout.strip()
+                    or "su exited with non-zero status",
                 }
         except Exception as exc:
             res = {
@@ -311,9 +322,15 @@ class DeviceDiscovery:
 
         if rish_exists:
             try:
-                p = subprocess.run([rish_path, "-c", "id"], capture_output=True, text=True, timeout=1.5)
+                p = subprocess.run(
+                    [rish_path, "-c", "id"], capture_output=True, text=True, timeout=1.5
+                )
                 if p.returncode == 0:
-                    uid = 2000 if "uid=2000" in p.stdout else (0 if "uid=0" in p.stdout else os.getuid())
+                    uid = (
+                        2000
+                        if "uid=2000" in p.stdout
+                        else (0 if "uid=0" in p.stdout else os.getuid())
+                    )
                     res = {
                         "available": True,
                         "status": "available",
@@ -350,27 +367,40 @@ class DeviceDiscovery:
         apk_installed = False
         if cli_installed:
             try:
-                p = subprocess.run(["/system/bin/pm", "list", "packages", "com.termux.api"], capture_output=True, text=True, timeout=1.5)
+                p = subprocess.run(
+                    ["/system/bin/pm", "list", "packages", "com.termux.api"],
+                    capture_output=True,
+                    text=True,
+                    timeout=1.5,
+                )
                 if p.returncode == 0 and "package:com.termux.api" in p.stdout:
                     apk_installed = True
             except Exception:
                 pass
 
         available = cli_installed and apk_installed
-        status = "available" if available else ("companion_apk_required" if cli_installed else "cli_package_required")
+        status = (
+            "available"
+            if available
+            else ("companion_apk_required" if cli_installed else "cli_package_required")
+        )
         res = {
             "available": available,
             "status": status,
             "cli_installed": cli_installed,
             "companion_apk_installed": apk_installed,
-            "details": "Termux:API fully operational" if available else "Install com.termux.api APK from F-Droid to enable Termux API bridge",
+            "details": "Termux:API fully operational"
+            if available
+            else "Install com.termux.api APK from F-Droid to enable Termux API bridge",
         }
         cls._termux_api_cache = res
         cls._termux_api_time = now
         return res
 
     @classmethod
-    def get_installed_packages(cls, max_count: int = 50, force: bool = False) -> List[Dict[str, str]]:
+    def get_installed_packages(
+        cls, max_count: int = 50, force: bool = False
+    ) -> List[Dict[str, str]]:
         """List third-party installed packages with 60s cache."""
         now = time.time()
         if not force and cls._packages_cache is not None and (now - cls._packages_time < 60.0):
@@ -422,7 +452,20 @@ class DeviceDiscovery:
         # Discovered binaries (static cached)
         if cls._binaries_cache is None or force:
             android_binaries = {}
-            for b in ["getprop", "pm", "am", "cmd", "dumpsys", "logcat", "screencap", "input", "settings", "toybox", "df", "sh"]:
+            for b in [
+                "getprop",
+                "pm",
+                "am",
+                "cmd",
+                "dumpsys",
+                "logcat",
+                "screencap",
+                "input",
+                "settings",
+                "toybox",
+                "df",
+                "sh",
+            ]:
                 full_path = f"/system/bin/{b}"
                 exists = os.path.exists(full_path)
                 android_binaries[b] = {
@@ -432,7 +475,26 @@ class DeviceDiscovery:
                 }
 
             termux_binaries = {}
-            for b in ["curl", "ping", "dig", "nslookup", "git", "jq", "rg", "tar", "zip", "unzip", "python3", "node", "npm", "cloudflared", "ifconfig", "netstat", "termux-open", "termux-wake-lock"]:
+            for b in [
+                "curl",
+                "ping",
+                "dig",
+                "nslookup",
+                "git",
+                "jq",
+                "rg",
+                "tar",
+                "zip",
+                "unzip",
+                "python3",
+                "node",
+                "npm",
+                "cloudflared",
+                "ifconfig",
+                "netstat",
+                "termux-open",
+                "termux-wake-lock",
+            ]:
                 loc = shutil.which(b)
                 termux_binaries[b] = {
                     "installed": bool(loc),

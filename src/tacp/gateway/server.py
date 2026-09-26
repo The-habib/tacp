@@ -14,6 +14,7 @@ import sys
 import threading
 import time
 import uuid
+from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 
@@ -28,8 +29,6 @@ class PendingClientRequest:
     response_event: threading.Event
     response_payload: Optional[Dict[str, Any]] = None
     created_at: float = 0.0
-
-
 
 
 class GatewayState:
@@ -91,7 +90,9 @@ class GatewayState:
                 return p_req.response_payload
             return None
 
-    def poll_for_device(self, device_id: str, device_secret: str, wait_timeout: float = 25.0) -> Optional[PendingClientRequest]:
+    def poll_for_device(
+        self, device_id: str, device_secret: str, wait_timeout: float = 25.0
+    ) -> Optional[PendingClientRequest]:
         with self._lock:
             dev = self.devices.get(device_id)
             if not dev or dev.get("secret") != device_secret:
@@ -129,7 +130,9 @@ class GatewayHttpHandler(BaseHTTPRequestHandler):
     def _cors_headers(self) -> None:
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, Mcp-Session-Id")
+        self.send_header(
+            "Access-Control-Allow-Headers", "Content-Type, Authorization, Mcp-Session-Id"
+        )
 
     def do_OPTIONS(self) -> None:
         self.send_response(204)
@@ -162,13 +165,15 @@ class GatewayHttpHandler(BaseHTTPRequestHandler):
 
         # MCP Metadata
         if path.endswith("/mcp") or path == "/":
-            body = json.dumps({
-                "name": "tacp-gateway",
-                "version": "1.0.0",
-                "protocolVersion": "2026-07-28",
-                "transport": "streamable-http",
-                "description": "TACP Universal Remote MCP Gateway",
-            }).encode("utf-8")
+            body = json.dumps(
+                {
+                    "name": "tacp-gateway",
+                    "version": "1.0.0",
+                    "protocolVersion": "2026-07-28",
+                    "transport": "streamable-http",
+                    "description": "TACP Universal Remote MCP Gateway",
+                }
+            ).encode("utf-8")
             self.send_response(200)
             self._cors_headers()
             self.send_header("Content-Type", "application/json")
@@ -205,7 +210,9 @@ class GatewayHttpHandler(BaseHTTPRequestHandler):
             if ok:
                 self.send_response(200)
                 self.end_headers()
-                self.wfile.write(json.dumps({"status": "registered", "device_id": dev_id}).encode("utf-8"))
+                self.wfile.write(
+                    json.dumps({"status": "registered", "device_id": dev_id}).encode("utf-8")
+                )
             else:
                 self.send_response(403)
                 self.end_headers()
@@ -225,11 +232,15 @@ class GatewayHttpHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             if req:
-                self.wfile.write(json.dumps({
-                    "has_request": True,
-                    "request_id": req.request_id,
-                    "payload": req.payload,
-                }).encode("utf-8"))
+                self.wfile.write(
+                    json.dumps(
+                        {
+                            "has_request": True,
+                            "request_id": req.request_id,
+                            "payload": req.payload,
+                        }
+                    ).encode("utf-8")
+                )
             else:
                 self.wfile.write(b'{"has_request":false}\n')
             return
@@ -245,7 +256,9 @@ class GatewayHttpHandler(BaseHTTPRequestHandler):
             ok = self.server.state.submit_device_response(req_id, resp_payload)
             self.send_response(200 if ok else 404)
             self.end_headers()
-            self.wfile.write(b'{"status":"received"}\n' if ok else b'{"error":"unknown_or_expired_request"}\n')
+            self.wfile.write(
+                b'{"status":"received"}\n' if ok else b'{"error":"unknown_or_expired_request"}\n'
+            )
             return
 
         # 4. Public MCP Client Inbound: POST /mcp or POST /device/<device_id>/mcp
@@ -263,11 +276,16 @@ class GatewayHttpHandler(BaseHTTPRequestHandler):
                         target_device = list(self.server.state.devices.keys())[0]
 
             if not target_device:
-                err = json.dumps({
-                    "jsonrpc": "2.0",
-                    "id": data.get("id"),
-                    "error": {"code": -32002, "message": "No active Android device available or device_id unspecified"}
-                }).encode("utf-8")
+                err = json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": data.get("id"),
+                        "error": {
+                            "code": -32002,
+                            "message": "No active Android device available or device_id unspecified",
+                        },
+                    }
+                ).encode("utf-8")
                 self.send_response(503)
                 self._cors_headers()
                 self.send_header("Content-Type", "application/json")
@@ -281,16 +299,23 @@ class GatewayHttpHandler(BaseHTTPRequestHandler):
                 "headers": {
                     "Authorization": self.headers.get("Authorization", ""),
                     "Mcp-Session-Id": self.headers.get("Mcp-Session-Id", ""),
-                }
+                },
             }
 
-            resp = self.server.state.queue_request_for_device(target_device, forward_payload, timeout=30.0)
+            resp = self.server.state.queue_request_for_device(
+                target_device, forward_payload, timeout=30.0
+            )
             if resp is None:
-                err = json.dumps({
-                    "jsonrpc": "2.0",
-                    "id": data.get("id"),
-                    "error": {"code": -32000, "message": "Device timeout: Android TACP agent did not respond within 30s"}
-                }).encode("utf-8")
+                err = json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "id": data.get("id"),
+                        "error": {
+                            "code": -32000,
+                            "message": "Device timeout: Android TACP agent did not respond within 30s",
+                        },
+                    }
+                ).encode("utf-8")
                 self.send_response(504)
                 self._cors_headers()
                 self.send_header("Content-Type", "application/json")

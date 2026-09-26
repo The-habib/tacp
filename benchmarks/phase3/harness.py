@@ -19,7 +19,7 @@ import os
 import statistics
 import time
 from dataclasses import asdict, dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
 
 @dataclass

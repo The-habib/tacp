@@ -112,7 +112,9 @@ class McpHttpTester:
             status, _, body = self.request("/ready", method="GET", auth=False)
             data = json.loads(body.decode("utf-8"))
             ok = status == 200 and data.get("ready") is True
-            self.log_result("2. Readiness Probe (/ready)", ok, f"HTTP {status}, ready={data.get('ready')}")
+            self.log_result(
+                "2. Readiness Probe (/ready)", ok, f"HTTP {status}, ready={data.get('ready')}"
+            )
         except Exception as exc:
             self.log_result("2. Readiness Probe (/ready)", False, str(exc))
 
@@ -126,7 +128,11 @@ class McpHttpTester:
                     auth=False,
                 )
                 ok = status == 401
-                self.log_result("3. Security Rejection on Unauthenticated POST", ok, f"HTTP {status} (Expected 401)")
+                self.log_result(
+                    "3. Security Rejection on Unauthenticated POST",
+                    ok,
+                    f"HTTP {status} (Expected 401)",
+                )
             except Exception as exc:
                 self.log_result("3. Security Rejection on Unauthenticated POST", False, str(exc))
         else:
@@ -212,7 +218,10 @@ class McpHttpTester:
                     "method": "tools/call",
                     "params": {
                         "name": "fs.read",
-                        "arguments": {"workspace_id": "non_existent_ws", "relative_path": "../../../../etc/shadow"},
+                        "arguments": {
+                            "workspace_id": "non_existent_ws",
+                            "relative_path": "../../../../etc/shadow",
+                        },
                     },
                 },
             )

@@ -24,9 +24,11 @@ import statistics
 import time
 import urllib.request
 from pathlib import Path
+
+from tacp.control.auth import VALID_SCOPES, TokenService
 from tacp.infrastructure.config import TacpConfig
 from tacp.infrastructure.database import Database
-from tacp.control.auth import TokenService, VALID_SCOPES
+
 
 def get_valid_token() -> str:
     cfg = TacpConfig.load()
@@ -39,7 +41,10 @@ def get_valid_token() -> str:
     )
     return token
 
-def make_request(url: str, token: str, method_name: str = "tools/list", params: dict = None) -> dict:
+
+def make_request(
+    url: str, token: str, method_name: str = "tools/list", params: dict = None
+) -> dict:
     req_payload = {
         "jsonrpc": "2.0",
         "id": "bench-p25",
@@ -71,6 +76,7 @@ def make_request(url: str, token: str, method_name: str = "tools/list", params: 
         "bytes": len(raw),
         "success": "result" in data,
     }
+
 
 def run_suite():
     # Load remote URL
@@ -119,6 +125,7 @@ def run_suite():
     def run_concurrent(n_workers, reqs_each=2):
         latencies = []
         errors = 0
+
         def worker():
             for _ in range(reqs_each):
                 try:
@@ -127,14 +134,15 @@ def run_suite():
                 except Exception:
                     nonlocal errors
                     errors += 1
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as ex:
             futs = [ex.submit(worker) for _ in range(n_workers)]
             concurrent.futures.wait(futs)
         latencies.sort()
         return {
             "p50": statistics.median(latencies) if latencies else 0,
-            "p95": latencies[int(len(latencies)*0.95)] if latencies else 0,
-            "p99": latencies[int(len(latencies)*0.99)] if latencies else 0,
+            "p95": latencies[int(len(latencies) * 0.95)] if latencies else 0,
+            "p99": latencies[int(len(latencies) * 0.99)] if latencies else 0,
             "errors": errors,
             "count": len(latencies),
         }
@@ -153,9 +161,9 @@ def run_suite():
         "cold_remote_ms": round(cold_remote_ms, 2),
         "warm_remote_ms": round(warm_remote_ms, 2),
         "seq10_p50_ms": round(statistics.median(seq10), 2),
-        "seq10_p95_ms": round(seq10[int(len(seq10)*0.95)], 2),
+        "seq10_p95_ms": round(seq10[int(len(seq10) * 0.95)], 2),
         "seq30_p50_ms": round(statistics.median(seq50), 2),
-        "seq30_p95_ms": round(seq50[int(len(seq50)*0.95)], 2),
+        "seq30_p95_ms": round(seq50[int(len(seq50) * 0.95)], 2),
         "concurrent_5": c5,
         "concurrent_10": c10,
         "concurrent_25": c25,
@@ -167,14 +175,25 @@ def run_suite():
 
     print("\n=== REMOTE END-TO-END LATENCY BREAKDOWN ===")
     print(f"Local Server Processing (P50):  {local_p50:.2f} ms")
-    print(f"Network RTT (Cloudflare/TLS):   {net_rtt_ms:.2f} ms ({net_rtt_ms / warm_remote_ms * 100:.1f}% of total)")
+    print(
+        f"Network RTT (Cloudflare/TLS):   {net_rtt_ms:.2f} ms ({net_rtt_ms / warm_remote_ms * 100:.1f}% of total)"
+    )
     print(f"Cold Request Latency:           {cold_remote_ms:.2f} ms")
     print(f"Warm Request Latency:           {warm_remote_ms:.2f} ms")
-    print(f"Sequential 30 (P50 / P95):      {report['seq30_p50_ms']} ms / {report['seq30_p95_ms']} ms")
-    print(f"Concurrent 5 (P50 / P95):       {c5['p50']:.2f} ms / {c5['p95']:.2f} ms (errors: {c5['errors']})")
-    print(f"Concurrent 10 (P50 / P95):      {c10['p50']:.2f} ms / {c10['p95']:.2f} ms (errors: {c10['errors']})")
-    print(f"Concurrent 25 (P50 / P95):      {c25['p50']:.2f} ms / {c25['p95']:.2f} ms (errors: {c25['errors']})")
+    print(
+        f"Sequential 30 (P50 / P95):      {report['seq30_p50_ms']} ms / {report['seq30_p95_ms']} ms"
+    )
+    print(
+        f"Concurrent 5 (P50 / P95):       {c5['p50']:.2f} ms / {c5['p95']:.2f} ms (errors: {c5['errors']})"
+    )
+    print(
+        f"Concurrent 10 (P50 / P95):      {c10['p50']:.2f} ms / {c10['p95']:.2f} ms (errors: {c10['errors']})"
+    )
+    print(
+        f"Concurrent 25 (P50 / P95):      {c25['p50']:.2f} ms / {c25['p95']:.2f} ms (errors: {c25['errors']})"
+    )
     print(f"Report saved to {out_path}")
+
 
 if __name__ == "__main__":
     run_suite()

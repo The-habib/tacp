@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
+import enum
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
 from tacp.backends.base import BackendStatus, BackendType
-
-
-import enum
 
 
 class RiskClassification(str, enum.Enum):
@@ -22,6 +20,7 @@ class RiskClassification(str, enum.Enum):
 @dataclass
 class CapabilityParameter:
     """Parameter schema definition for a capability."""
+
     name: str
     type_name: str
     description: str
@@ -33,6 +32,7 @@ class CapabilityParameter:
 @dataclass
 class CapabilityDefinition:
     """Full architectural specification of a device capability."""
+
     id: str
     name: str
     description: str
@@ -112,7 +112,11 @@ class CapabilityDefinition:
             "inputSchema": input_schema,
         }
 
-    def to_dict(self, active_backend: Optional[BackendType] = None, availability: Optional[BackendStatus] = None) -> Dict[str, Any]:
+    def to_dict(
+        self,
+        active_backend: Optional[BackendType] = None,
+        availability: Optional[BackendStatus] = None,
+    ) -> Dict[str, Any]:
         """Serialize capability for capabilities.list and doctor reports."""
         return {
             "id": self.id,

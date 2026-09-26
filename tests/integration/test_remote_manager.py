@@ -65,7 +65,9 @@ def test_remote_manager_pairing(test_config: TacpConfig) -> None:
     assert paired["paired_principal"] == "remote_agent_test"
 
 
-def test_cli_remote_status_and_pair(temp_tacp_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_remote_status_and_pair(
+    temp_tacp_dir: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     with patch.dict(os.environ, {"TACP_DATA_DIR": str(temp_tacp_dir)}):
         main(["doctor"])
         capsys.readouterr()

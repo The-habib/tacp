@@ -6,12 +6,10 @@ import base64
 import fnmatch
 import hashlib
 import os
-import re
 import shutil
-import tarfile
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from tacp.backends.base import BaseBackend
 
@@ -37,16 +35,18 @@ def handle_fs_list(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str, An
         for p in sorted(target.iterdir()):
             try:
                 st = p.stat()
-                entries.append({
-                    "name": p.name,
-                    "path": str(p),
-                    "is_dir": p.is_dir(),
-                    "is_file": p.is_file(),
-                    "is_symlink": p.is_symlink(),
-                    "size_bytes": st.st_size if not p.is_dir() else 0,
-                    "modified_time": st.st_mtime,
-                    "mode": oct(st.st_mode),
-                })
+                entries.append(
+                    {
+                        "name": p.name,
+                        "path": str(p),
+                        "is_dir": p.is_dir(),
+                        "is_file": p.is_file(),
+                        "is_symlink": p.is_symlink(),
+                        "size_bytes": st.st_size if not p.is_dir() else 0,
+                        "modified_time": st.st_mtime,
+                        "mode": oct(st.st_mode),
+                    }
+                )
             except Exception:
                 entries.append({"name": p.name, "path": str(p), "accessible": False})
 
@@ -279,7 +279,15 @@ def handle_fs_hash(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str, An
     if not target.exists() or not target.is_file():
         return {"success": False, "error": f"File not found: {target}"}
 
-    h = hashlib.sha256() if algo == "sha256" else (hashlib.md5() if algo == "md5" else hashlib.sha1())
+    h = (
+        hashlib.sha256()
+        if algo == "sha256"
+        else (
+            hashlib.md5(usedforsecurity=False)  # noqa: S324
+            if algo == "md5"
+            else hashlib.sha1(usedforsecurity=False)  # noqa: S324
+        )
+    )
     try:
         with open(target, "rb") as f:
             while chunk := f.read(64 * 1024):
@@ -317,7 +325,12 @@ def handle_fs_zip(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str, Any
             else:
                 zf.write(source, source.name)
                 count += 1
-        return {"success": True, "archive": str(archive), "files_compressed": count, "size_bytes": archive.stat().st_size}
+        return {
+            "success": True,
+            "archive": str(archive),
+            "files_compressed": count,
+            "size_bytes": archive.stat().st_size,
+        }
     except Exception as exc:
         return {"success": False, "error": f"Zip failed: {exc}"}
 

@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from tacp.control.identity import Principal, RequestContext
 from tacp.control.policy import PolicyEngine
 from tacp.core.audit_service import AuditService
-from tacp.core.capability_service import CapabilityService, _CAPABILITIES_BY_NAME
+from tacp.core.capability_service import _CAPABILITIES_BY_NAME, CapabilityService
 from tacp.core.execution_service import ExecutionService
 from tacp.core.filesystem_service import FilesystemService
 from tacp.core.patch_service import PatchService
@@ -111,7 +111,9 @@ class McpToolRegistry:
             return self._normalized_cache[name]
 
         if self._valid_names_cache is None:
-            include_mutating = bool(self.patch_service and self.patch_service.config.mutation_enabled)
+            include_mutating = bool(
+                self.patch_service and self.patch_service.config.mutation_enabled
+            )
             include_batch = bool(
                 include_mutating
                 and self.patch_service
@@ -178,6 +180,7 @@ class McpToolRegistry:
         )
 
         from tacp.core.admission import get_admission_controller
+
         with get_admission_controller().acquire(cap_name):
             # 3. For mutating and execution capabilities, dispatch directly
             # to services (unified pipeline)
@@ -304,7 +307,9 @@ class McpToolRegistry:
             ws_id = args.get("workspace_id")
             if not ws_id:
                 raise TacpValidationError("Missing required parameter: workspace_id")
-            subpath = args.get("subpath") if args.get("subpath") is not None else args.get("path", "")
+            subpath = (
+                args.get("subpath") if args.get("subpath") is not None else args.get("path", "")
+            )
             return self.filesystem_service.list_dir(
                 workspace_id=ws_id,
                 subpath=subpath,
@@ -313,7 +318,9 @@ class McpToolRegistry:
             ws_id = args.get("workspace_id")
             subpath = args.get("subpath") if args.get("subpath") is not None else args.get("path")
             if not ws_id or subpath is None:
-                raise TacpValidationError("Missing required parameters: workspace_id and subpath (or path)")
+                raise TacpValidationError(
+                    "Missing required parameters: workspace_id and subpath (or path)"
+                )
             return self.filesystem_service.stat_path(
                 workspace_id=ws_id,
                 subpath=subpath,
@@ -322,7 +329,9 @@ class McpToolRegistry:
             ws_id = args.get("workspace_id")
             subpath = args.get("subpath") if args.get("subpath") is not None else args.get("path")
             if not ws_id or subpath is None:
-                raise TacpValidationError("Missing required parameters: workspace_id and subpath (or path)")
+                raise TacpValidationError(
+                    "Missing required parameters: workspace_id and subpath (or path)"
+                )
             return self.filesystem_service.read_file(
                 workspace_id=ws_id,
                 subpath=subpath,
@@ -332,7 +341,9 @@ class McpToolRegistry:
             query = args.get("query")
             if not ws_id or not query:
                 raise TacpValidationError("Missing required parameters: workspace_id and query")
-            subpath = args.get("subpath") if args.get("subpath") is not None else args.get("path", "")
+            subpath = (
+                args.get("subpath") if args.get("subpath") is not None else args.get("path", "")
+            )
             return self.filesystem_service.search_files(
                 workspace_id=ws_id,
                 query=query,

@@ -1,6 +1,12 @@
 """Unit tests for RequestTracer."""
 
-from tacp.core.tracer import RequestTracer, NoopTracer, get_current_tracer, set_current_tracer, _NOOP_SPAN
+from tacp.core.tracer import (
+    _NOOP_SPAN,
+    NoopTracer,
+    RequestTracer,
+    get_current_tracer,
+    set_current_tracer,
+)
 
 
 def test_request_tracer_lifecycle():
@@ -8,7 +14,7 @@ def test_request_tracer_lifecycle():
     with tracer.span("phase_1", detail="init") as s:
         assert s.name == "phase_1"
         assert s.metadata == {"detail": "init"}
-    
+
     with tracer.span("phase_2"):
         pass
 
@@ -37,7 +43,7 @@ def test_noop_tracer():
 
 def test_context_var_tracer():
     tracer = RequestTracer("t1", "r1", enabled=True)
-    token = set_current_tracer(tracer)
+    _ = set_current_tracer(tracer)
     try:
         current = get_current_tracer()
         assert current is tracer

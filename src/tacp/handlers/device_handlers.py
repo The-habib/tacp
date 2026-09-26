@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import platform
 import subprocess
-import time
 from typing import Any, Dict
 
 from tacp.backends.base import BaseBackend
@@ -65,7 +64,9 @@ def handle_device_battery(backend: BaseBackend, params: Dict[str, Any]) -> Dict[
     """Query device battery and power supply telemetry."""
     # 1. Try dumpsys battery
     try:
-        p = subprocess.run(["/system/bin/dumpsys", "battery"], capture_output=True, text=True, timeout=2.0)
+        p = subprocess.run(
+            ["/system/bin/dumpsys", "battery"], capture_output=True, text=True, timeout=2.0
+        )
         if p.returncode == 0 and "level:" in p.stdout:
             data = {}
             for line in p.stdout.splitlines():
@@ -78,7 +79,9 @@ def handle_device_battery(backend: BaseBackend, params: Dict[str, Any]) -> Dict[
                 "percentage": level,
                 "status": "charging" if data.get("status") in ("2", "charging") else "discharging",
                 "health": data.get("health", "good"),
-                "temperature_c": round(int(data.get("temperature", 0)) / 10.0, 1) if data.get("temperature", "").isdigit() else None,
+                "temperature_c": round(int(data.get("temperature", 0)) / 10.0, 1)
+                if data.get("temperature", "").isdigit()
+                else None,
                 "source": "dumpsys",
             }
     except Exception:

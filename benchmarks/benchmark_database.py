@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-import time
 from pathlib import Path
 from typing import List
 
@@ -82,4 +81,6 @@ if __name__ == "__main__":
     out = Path("artifacts/benchmarks")
     results = run_benchmark(out)
     for m in results:
-        print(f"{m.name:34} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms")
+        print(
+            f"{m.name:34} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms"
+        )

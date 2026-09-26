@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-import time
 from pathlib import Path
 from typing import List
 
@@ -23,7 +22,6 @@ from tacp.control.auth import TokenService
 from tacp.control.identity import Principal, RequestContext
 from tacp.control.policy import PolicyEngine
 from tacp.engine.registry import CapabilityRegistry
-from tacp.engine.resolver import CapabilityResolver
 from tacp.infrastructure.config import TacpConfig
 from tacp.infrastructure.database import Database
 
@@ -48,7 +46,9 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
 
     principal = Principal.remote_ai(agent_id="bench_agent")
     ctx_read = RequestContext(capability="system.inspect", principal=principal, request_id="req-1")
-    ctx_mutate = RequestContext(capability="workspace.patch", principal=principal, request_id="req-2")
+    ctx_mutate = RequestContext(
+        capability="workspace.patch", principal=principal, request_id="req-2"
+    )
 
     metrics: List[MetricSummary] = []
 
@@ -88,4 +88,6 @@ if __name__ == "__main__":
     out = Path("artifacts/benchmarks")
     results = run_benchmark(out)
     for m in results:
-        print(f"{m.name:32} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms")
+        print(
+            f"{m.name:32} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms"
+        )

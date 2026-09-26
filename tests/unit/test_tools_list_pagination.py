@@ -1,10 +1,10 @@
 """Unit tests for tools/list pagination and category filtering."""
 
-from pathlib import Path
 from tacp.access.mcp.protocol import McpRequest
 from tacp.access.mcp.server import create_mcp_server
 from tacp.infrastructure.config import TacpConfig
 from tacp.infrastructure.database import Database
+
 
 def test_tools_list_pagination_and_filter(tmp_path):
     config = TacpConfig.load()
@@ -38,4 +38,6 @@ def test_tools_list_pagination_and_filter(tmp_path):
     resp_filt = server.handle_request(req_filt)
     filt_tools = resp_filt.result["tools"]
     assert len(filt_tools) > 0
-    assert all("system" in t["name"].lower() or "system" in t["description"].lower() for t in filt_tools)
+    assert all(
+        "system" in t["name"].lower() or "system" in t["description"].lower() for t in filt_tools
+    )

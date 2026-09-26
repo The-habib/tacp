@@ -148,7 +148,11 @@ class FilesystemProvider:
                         if pattern.search(content):
                             return DataClassification.SECRET
                 else:
-                    sz = file_size if file_size is not None else (path.stat().st_size if path.is_file() else 0)
+                    sz = (
+                        file_size
+                        if file_size is not None
+                        else (path.stat().st_size if path.is_file() else 0)
+                    )
                     if 0 < sz < 32768:
                         file_text = path.read_text(errors="ignore")
                         for pattern in SECRET_PATTERNS:
@@ -187,7 +191,9 @@ class FilesystemProvider:
                         "is_symlink": p.is_symlink(),
                         "size_bytes": stat.st_size,
                         "mtime": stat.st_mtime,
-                        "classification": self.classify_file(p, file_size=stat.st_size, check_content=False).value,
+                        "classification": self.classify_file(
+                            p, file_size=stat.st_size, check_content=False
+                        ).value,
                     }
                 )
             except OSError:
@@ -204,6 +210,7 @@ class FilesystemProvider:
     def stat_path(self, workspace_root: Path, subpath: str) -> Dict[str, Any]:
         target = self.resolve_safe_path(workspace_root, subpath)
         import stat as stat_mod
+
         try:
             st = target.stat()
             exists = True
@@ -212,7 +219,7 @@ class FilesystemProvider:
                 exists = False
                 st = None
             else:
-                raise TacpNotFoundError(f"Path not found: {subpath}")
+                raise TacpNotFoundError(f"Path not found: {subpath}") from None
         except OSError as exc:
             raise TacpSecurityError(
                 ErrorCode.PROVIDER_ERROR, f"Failed to stat path: {exc}"
@@ -250,12 +257,15 @@ class FilesystemProvider:
     def read_file(self, workspace_root: Path, subpath: str) -> Dict[str, Any]:
         target = self.resolve_safe_path(workspace_root, subpath)
         import stat as stat_mod
+
         try:
             st = target.stat()
         except FileNotFoundError:
-            raise TacpNotFoundError(f"File not found: {subpath}")
+            raise TacpNotFoundError(f"File not found: {subpath}") from None
         except OSError as exc:
-            raise TacpSecurityError(ErrorCode.PROVIDER_ERROR, f"Failed to access file: {exc}") from exc
+            raise TacpSecurityError(
+                ErrorCode.PROVIDER_ERROR, f"Failed to access file: {exc}"
+            ) from exc
 
         if not stat_mod.S_ISREG(st.st_mode):
             raise TacpSecurityError(ErrorCode.INVALID_INPUT, f"Path is not a file: {subpath}")
@@ -282,7 +292,9 @@ class FilesystemProvider:
                 else:
                     raw_data = raw_chunk
         except Exception as exc:
-            raise TacpSecurityError(ErrorCode.PROVIDER_ERROR, f"Failed to read file: {exc}") from exc
+            raise TacpSecurityError(
+                ErrorCode.PROVIDER_ERROR, f"Failed to read file: {exc}"
+            ) from exc
 
         # Binary check on initial bytes
         if b"\x00" in raw_data[:1024]:
@@ -296,7 +308,9 @@ class FilesystemProvider:
 
         # Check secret patterns in content if file is small (under 32KB)
         if total_bytes < 32768:
-            cls = self.classify_file(target, file_size=total_bytes, content=content, check_content=True)
+            cls = self.classify_file(
+                target, file_size=total_bytes, content=content, check_content=True
+            )
             if cls in (DataClassification.SECRET, DataClassification.CRITICAL):
                 raise TacpSecurityError(
                     ErrorCode.SECRET_PROTECTED,

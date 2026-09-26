@@ -76,7 +76,9 @@ class RemoteManager:
                 token_service=self.token_service,
                 auth_required=auth_required,
             )
-            self._http_thread = threading.Thread(target=self._http_server.serve_forever, daemon=True)
+            self._http_thread = threading.Thread(
+                target=self._http_server.serve_forever, daemon=True
+            )
             self._http_thread.start()
         except OSError as exc:
             if "Address already in use" in str(exc):
@@ -104,7 +106,9 @@ class RemoteManager:
             selected_provider = DirectTunnelProvider()
             t_info = selected_provider.start(local_port=port, custom_domain=custom_domain)
         else:
-            raise ValueError(f"Unknown provider '{provider}'. Must be 'cloudflare', 'relay', or 'direct'.")
+            raise ValueError(
+                f"Unknown provider '{provider}'. Must be 'cloudflare', 'relay', or 'direct'."
+            )
 
         self._provider = selected_provider
 
@@ -232,6 +236,7 @@ class RemoteManager:
         import sys
         import time
         from pathlib import Path
+
         from tacp.backends.manager import BackendManager
         from tacp.core.system_service import SystemService
         from tacp.core.workspace_service import WorkspaceService
@@ -255,9 +260,13 @@ class RemoteManager:
         print("\n[*] [2/8] Inspecting Android Device Environment...")
         sys_service = SystemService(self.db)
         sys_info = sys_service.inspect_system()
-        print(f"    OS / Arch  : {sys_info.get('os')} {sys_info.get('release')} / {sys_info.get('machine')} (Python {sys_info.get('python_version')})")
+        print(
+            f"    OS / Arch  : {sys_info.get('os')} {sys_info.get('release')} / {sys_info.get('machine')} (Python {sys_info.get('python_version')})"
+        )
         termux_info = sys_info.get("termux", {})
-        print(f"    Termux     : v{termux_info.get('version')}, Prefix: {termux_info.get('prefix')}")
+        print(
+            f"    Termux     : v{termux_info.get('version')}, Prefix: {termux_info.get('prefix')}"
+        )
 
         # 3. VERIFY CAPABILITIES & BACKENDS
         print("\n[*] [3/8] Auditing Device Capabilities & Multi-Backend Matrix...")
@@ -270,8 +279,14 @@ class RemoteManager:
         all_caps = default_registry.list_capabilities()
         avail_count = sum(1 for c in all_caps if c.get("availability") == "available")
         comp_count = sum(1 for c in all_caps if "companion" in str(c.get("availability")))
-        root_count = sum(1 for c in all_caps if "root" in str(c.get("availability")) or "shizuku" in str(c.get("availability")))
-        print(f"    [OK] Registered Capabilities: {len(all_caps)} total ({avail_count} available, {comp_count} companion-tier, {root_count} privileged-tier)")
+        root_count = sum(
+            1
+            for c in all_caps
+            if "root" in str(c.get("availability")) or "shizuku" in str(c.get("availability"))
+        )
+        print(
+            f"    [OK] Registered Capabilities: {len(all_caps)} total ({avail_count} available, {comp_count} companion-tier, {root_count} privileged-tier)"
+        )
 
         # 4. VERIFY WORKSPACES & DEVICE IDENTITY
         print("\n[*] [4/8] Initializing Device Identity & Workspaces...")
@@ -321,7 +336,7 @@ class RemoteManager:
         print("\n[*] [6/8] Starting Local Streamable HTTP MCP Server...")
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(0.5)
-        port_open = (sock.connect_ex(("127.0.0.1", port)) == 0)
+        port_open = sock.connect_ex(("127.0.0.1", port)) == 0
         sock.close()
 
         if port_open:
@@ -339,10 +354,13 @@ class RemoteManager:
 
         server_cmd = [
             sys.executable,
-            "-m", "tacp.cli.main",
+            "-m",
+            "tacp.cli.main",
             "serve-http",
-            "--host", "127.0.0.1",
-            "--port", str(port),
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
             "--auth",
             "--device-control",
         ]
@@ -374,7 +392,9 @@ class RemoteManager:
 
         if not server_ready:
             raise RuntimeError("Local MCP server failed to bind port within 10 seconds.")
-        print(f"    [OK] Local MCP HTTP Server running on http://127.0.0.1:{port} (PID: {s_proc.pid})")
+        print(
+            f"    [OK] Local MCP HTTP Server running on http://127.0.0.1:{port} (PID: {s_proc.pid})"
+        )
 
         # 7. ESTABLISH REMOTE OUTBOUND TUNNEL
         print(f"\n[*] [7/8] Establishing Outbound Remote Connectivity (provider: {provider})...")
@@ -410,6 +430,7 @@ class RemoteManager:
         if str(repo_root) not in sys.path:
             sys.path.insert(0, str(repo_root))
         from scripts.verify_remote_mcp import RemoteMcpVerifier
+
         verifier = RemoteMcpVerifier(mcp_url=remote_mcp_url, token=selected_token)
         verified = verifier.run_suite()
 

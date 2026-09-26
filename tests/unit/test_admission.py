@@ -1,9 +1,11 @@
 """Unit tests for Multi-Lane Resource-Aware Admission Control."""
 
 import time
-import pytest
 from concurrent.futures import ThreadPoolExecutor
-from tacp.core.admission import AdmissionController, LaneType, LaneConfig, get_admission_controller
+
+import pytest
+
+from tacp.core.admission import AdmissionController, LaneConfig, LaneType
 from tacp.domain.errors import TacpError
 
 
@@ -19,14 +21,16 @@ def test_lane_classification():
 
 
 def test_fast_read_isolation_under_mutation_saturation():
-    ac = AdmissionController({
-        LaneType.MUTATION: LaneConfig(slots=2, timeout=0.1),
-        LaneType.FAST_READ: LaneConfig(slots=64, timeout=0.2),
-        LaneType.FILESYSTEM: LaneConfig(slots=8, timeout=1.0),
-        LaneType.PROCESS: LaneConfig(slots=4, timeout=1.0),
-        LaneType.COMPANION: LaneConfig(slots=4, timeout=1.0),
-        LaneType.MEDIA: LaneConfig(slots=2, timeout=1.0),
-    })
+    ac = AdmissionController(
+        {
+            LaneType.MUTATION: LaneConfig(slots=2, timeout=0.1),
+            LaneType.FAST_READ: LaneConfig(slots=64, timeout=0.2),
+            LaneType.FILESYSTEM: LaneConfig(slots=8, timeout=1.0),
+            LaneType.PROCESS: LaneConfig(slots=4, timeout=1.0),
+            LaneType.COMPANION: LaneConfig(slots=4, timeout=1.0),
+            LaneType.MEDIA: LaneConfig(slots=2, timeout=1.0),
+        }
+    )
 
     # Saturate mutation lane with 2 slots holding for 0.2s
     mutation_started = []
@@ -49,21 +53,23 @@ def test_fast_read_isolation_under_mutation_saturation():
     with ac.acquire(LaneType.FAST_READ):
         read_duration = time.perf_counter() - t0
 
-    assert read_duration < 0.01 # < 10ms
+    assert read_duration < 0.01  # < 10ms
     f1.result()
     f2.result()
     ex.shutdown(wait=True)
 
 
 def test_admission_timeout():
-    ac = AdmissionController({
-        LaneType.MUTATION: LaneConfig(slots=1, timeout=0.05),
-        LaneType.FAST_READ: LaneConfig(slots=1, timeout=0.05),
-        LaneType.FILESYSTEM: LaneConfig(slots=1, timeout=0.05),
-        LaneType.PROCESS: LaneConfig(slots=1, timeout=0.05),
-        LaneType.COMPANION: LaneConfig(slots=1, timeout=0.05),
-        LaneType.MEDIA: LaneConfig(slots=1, timeout=0.05),
-    })
+    ac = AdmissionController(
+        {
+            LaneType.MUTATION: LaneConfig(slots=1, timeout=0.05),
+            LaneType.FAST_READ: LaneConfig(slots=1, timeout=0.05),
+            LaneType.FILESYSTEM: LaneConfig(slots=1, timeout=0.05),
+            LaneType.PROCESS: LaneConfig(slots=1, timeout=0.05),
+            LaneType.COMPANION: LaneConfig(slots=1, timeout=0.05),
+            LaneType.MEDIA: LaneConfig(slots=1, timeout=0.05),
+        }
+    )
 
     def hold():
         with ac.acquire(LaneType.MUTATION):

@@ -56,11 +56,13 @@ class RelayTunnelProvider(BaseTunnelProvider):
 
         # 1. Register with gateway
         reg_url = f"{self.gateway_url}/relay/register"
-        reg_payload = json.dumps({
-            "device_id": self.identity.device_id,
-            "device_name": self.identity.device_name,
-            "device_secret": self.identity.device_secret,
-        }).encode("utf-8")
+        reg_payload = json.dumps(
+            {
+                "device_id": self.identity.device_id,
+                "device_name": self.identity.device_name,
+                "device_secret": self.identity.device_secret,
+            }
+        ).encode("utf-8")
 
         req = urllib.request.Request(
             reg_url,
@@ -110,10 +112,12 @@ class RelayTunnelProvider(BaseTunnelProvider):
 
         while self._running:
             try:
-                poll_payload = json.dumps({
-                    "device_id": self.identity.device_id,
-                    "device_secret": self.identity.device_secret,
-                }).encode("utf-8")
+                poll_payload = json.dumps(
+                    {
+                        "device_id": self.identity.device_id,
+                        "device_secret": self.identity.device_secret,
+                    }
+                ).encode("utf-8")
 
                 req = urllib.request.Request(
                     poll_url,
@@ -127,7 +131,9 @@ class RelayTunnelProvider(BaseTunnelProvider):
                         backoff = 1.0
                         data = json.loads(resp.read().decode("utf-8"))
                         if data.get("has_request"):
-                            self._handle_dispatched_request(resp_url, data["request_id"], data["payload"])
+                            self._handle_dispatched_request(
+                                resp_url, data["request_id"], data["payload"]
+                            )
 
             except Exception:
                 if not self._running:
@@ -135,7 +141,9 @@ class RelayTunnelProvider(BaseTunnelProvider):
                 time.sleep(backoff)
                 backoff = min(backoff * 1.5, 10.0)
 
-    def _handle_dispatched_request(self, resp_url: str, request_id: str, payload_info: Dict[str, Any]) -> None:
+    def _handle_dispatched_request(
+        self, resp_url: str, request_id: str, payload_info: Dict[str, Any]
+    ) -> None:
         """Process incoming MCP request and post result back to gateway."""
         jsonrpc = payload_info.get("jsonrpc_payload", {})
         headers = payload_info.get("headers", {})
@@ -178,10 +186,12 @@ class RelayTunnelProvider(BaseTunnelProvider):
 
         # Send response to gateway
         try:
-            submit_data = json.dumps({
-                "request_id": request_id,
-                "payload": response_payload,
-            }).encode("utf-8")
+            submit_data = json.dumps(
+                {
+                    "request_id": request_id,
+                    "payload": response_payload,
+                }
+            ).encode("utf-8")
             req = urllib.request.Request(
                 resp_url,
                 data=submit_data,
@@ -199,7 +209,9 @@ class RelayTunnelProvider(BaseTunnelProvider):
         return True
 
     def get_status(self) -> TunnelInfo:
-        endpoint = f"{self.gateway_url}/device/{self.identity.device_id}/mcp" if self._running else ""
+        endpoint = (
+            f"{self.gateway_url}/device/{self.identity.device_id}/mcp" if self._running else ""
+        )
         return TunnelInfo(
             provider_name=self.name,
             public_url=self.gateway_url if self._running else "",

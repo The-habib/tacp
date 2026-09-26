@@ -10,7 +10,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from tacp.backends.base import BaseBackend
 
@@ -33,12 +33,14 @@ def handle_network_interfaces(backend: BaseBackend, params: Dict[str, Any]) -> D
                 mask_match = re.search(r"netmask\s+(\d+\.\d+\.\d+\.\d+)", block)
                 flags_match = re.search(r"flags=\d+<([^>]+)>", block)
 
-                interfaces.append({
-                    "name": iface_name,
-                    "ip": inet_match.group(1) if inet_match else None,
-                    "netmask": mask_match.group(1) if mask_match else None,
-                    "flags": flags_match.group(1).split(",") if flags_match else [],
-                })
+                interfaces.append(
+                    {
+                        "name": iface_name,
+                        "ip": inet_match.group(1) if inet_match else None,
+                        "netmask": mask_match.group(1) if mask_match else None,
+                        "flags": flags_match.group(1).split(",") if flags_match else [],
+                    }
+                )
     except Exception as exc:
         return {"success": False, "error": str(exc)}
 
@@ -51,15 +53,24 @@ def handle_network_ping(backend: BaseBackend, params: Dict[str, Any]) -> Dict[st
     count = int(params.get("count", 3))
 
     try:
-        p = subprocess.run(["ping", "-c", str(count), "-W", "2", host], capture_output=True, text=True, timeout=10.0)
+        p = subprocess.run(
+            ["ping", "-c", str(count), "-W", "2", host],
+            capture_output=True,
+            text=True,
+            timeout=10.0,
+        )
         output = p.stdout
 
         # Parse packet loss
         loss_match = re.search(r"(\d+)%\s+packet loss", output)
-        loss_percent = float(loss_match.group(1)) if loss_match else (0.0 if p.returncode == 0 else 100.0)
+        loss_percent = (
+            float(loss_match.group(1)) if loss_match else (0.0 if p.returncode == 0 else 100.0)
+        )
 
         # Parse rtt min/avg/max/mdev
-        rtt_match = re.search(r"rtt\s+min/avg/max/mdev\s*=\s*([\d\.]+)/([\d\.]+)/([\d\.]+)/([\d\.]+)", output)
+        rtt_match = re.search(
+            r"rtt\s+min/avg/max/mdev\s*=\s*([\d\.]+)/([\d\.]+)/([\d\.]+)/([\d\.]+)", output
+        )
         avg_ms = float(rtt_match.group(2)) if rtt_match else None
 
         return {

@@ -1,13 +1,14 @@
-import tempfile
-import time
 import json
+import tempfile
 import threading
-import sqlite3
+import time
 from pathlib import Path
-from tacp.infrastructure.database import Database
-from tacp.core.audit_service import AuditService, compute_audit_entry_hash, GENESIS_HASH
+
+from tacp.core.audit_service import GENESIS_HASH, AuditService, compute_audit_entry_hash
 from tacp.domain.audit import AuditEvent
+from tacp.infrastructure.database import Database
 from tacp.infrastructure.logging import redact_dict
+
 
 class BatchedAuditService(AuditService):
     def __init__(self, db: Database) -> None:
@@ -19,10 +20,10 @@ class BatchedAuditService(AuditService):
     def record_event(self, event: AuditEvent) -> str:
         clean_params = redact_dict(event.parameters_redacted)
         params_json = json.dumps(clean_params, sort_keys=True)
-        
+
         # [event, done_event, entry_hash, exc, params_json]
         item = [event, threading.Event(), None, None, params_json]
-        
+
         with self._queue_lock:
             self._pending_queue.append(item)
             is_leader = len(self._pending_queue) == 1
@@ -47,7 +48,9 @@ class BatchedAuditService(AuditService):
                 try:
                     if self._latest_entry_hash is None:
                         cursor = conn.cursor()
-                        cursor.execute("SELECT entry_hash FROM audit_logs ORDER BY rowid DESC LIMIT 1;")
+                        cursor.execute(
+                            "SELECT entry_hash FROM audit_logs ORDER BY rowid DESC LIMIT 1;"
+                        )
                         row = cursor.fetchone()
                         prev_hash = row["entry_hash"] if row and row["entry_hash"] else GENESIS_HASH
                     else:
@@ -71,12 +74,23 @@ class BatchedAuditService(AuditService):
                             duration_ms=evt.duration_ms,
                             parameters_json=p_json,
                         )
-                        rows_to_insert.append((
-                            evt.id, evt.timestamp, evt.request_id, evt.principal,
-                            evt.capability, evt.workspace_id, evt.action,
-                            evt.policy_decision, evt.result, evt.duration_ms,
-                            p_json, prev_hash, entry_hash
-                        ))
+                        rows_to_insert.append(
+                            (
+                                evt.id,
+                                evt.timestamp,
+                                evt.request_id,
+                                evt.principal,
+                                evt.capability,
+                                evt.workspace_id,
+                                evt.action,
+                                evt.policy_decision,
+                                evt.result,
+                                evt.duration_ms,
+                                p_json,
+                                prev_hash,
+                                entry_hash,
+                            )
+                        )
                         it[2] = entry_hash
                         prev_hash = entry_hash
 
@@ -108,6 +122,7 @@ class BatchedAuditService(AuditService):
                 raise item[3]
             return item[2]
 
+
 def run():
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = Path(tmpdir) / "bench.db"
@@ -122,26 +137,33 @@ def run():
         def worker(wid):
             barrier.wait()
             for i in range(events_per_thread):
-                service.record_event(AuditEvent(
-                    capability="fs.read",
-                    action="read",
-                    policy_decision="ALLOW",
-                    result="SUCCESS",
-                    duration_ms=1,
-                    principal=f"agent-{wid}",
-                    parameters_redacted={"step": i},
-                ))
+                service.record_event(
+                    AuditEvent(
+                        capability="fs.read",
+                        action="read",
+                        policy_decision="ALLOW",
+                        result="SUCCESS",
+                        duration_ms=1,
+                        principal=f"agent-{wid}",
+                        parameters_redacted={"step": i},
+                    )
+                )
 
         threads = [threading.Thread(target=worker, args=(i,)) for i in range(num_threads)]
-        for t in threads: t.start()
-        for t in threads: t.join()
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
 
         elapsed = time.perf_counter() - start
         total_events = num_threads * events_per_thread
         throughput = total_events / elapsed
-        print(f"BatchedAuditService 10-thread throughput: {throughput:.1f} ops/sec in {elapsed:.3f}s")
+        print(
+            f"BatchedAuditService 10-thread throughput: {throughput:.1f} ops/sec in {elapsed:.3f}s"
+        )
         assert service.verify_integrity() is True
         print("Cryptographic integrity verification: 100% PASSED!")
+
 
 if __name__ == "__main__":
     run()

@@ -9,7 +9,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from tacp.control.identity import Authority, CredentialSource, Principal, PrincipalType, TrustTier
 from tacp.domain.errors import ErrorCode, TacpValidationError
@@ -69,7 +69,10 @@ class AuthToken:
             return True
         if scope in self.scopes:
             return True
-        if scope in (SCOPE_FILES_READ, SCOPE_SYSTEM_READ, SCOPE_PROCESS_READ) and SCOPE_READ in self.scopes:
+        if (
+            scope in (SCOPE_FILES_READ, SCOPE_SYSTEM_READ, SCOPE_PROCESS_READ)
+            and SCOPE_READ in self.scopes
+        ):
             return True
         return False
 

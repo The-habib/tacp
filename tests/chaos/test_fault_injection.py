@@ -1,19 +1,16 @@
 """Chaos Fault Injection Suite for TACP Phase 3."""
 
-import os
 import sqlite3
 import threading
 import time
+
 import pytest
-from pathlib import Path
-from tacp.access.mcp.protocol import McpRequest
-from tacp.access.mcp.server import create_mcp_server
-from tacp.backends.companion_transport import HttpCompanionTransport, CircuitState
+
+from tacp.backends.companion_transport import CircuitState, HttpCompanionTransport
 from tacp.control.identity import RequestContext
 from tacp.core.audit_service import AuditService
 from tacp.domain.audit import AuditEvent
 from tacp.domain.errors import ErrorCode, TacpError
-from tacp.infrastructure.config import TacpConfig
 from tacp.infrastructure.database import Database
 
 
@@ -71,7 +68,7 @@ def test_chaos_corrupted_database_detection(tmp_path):
 def test_chaos_companion_disconnection_resilience():
     """Verify circuit breaker trips and fails fast without blocking control plane."""
     transport = HttpCompanionTransport(port=59996, failure_threshold=2, recovery_timeout=0.2)
-    
+
     # 2 failures trip circuit
     for _ in range(2):
         with pytest.raises(TacpError):
@@ -84,7 +81,7 @@ def test_chaos_companion_disconnection_resilience():
     fail_fast_time = (time.perf_counter() - t0) * 1000.0
 
     assert exc_info.value.code == ErrorCode.UNAVAILABLE
-    assert fail_fast_time < 0.5 # < 0.5ms fail fast
+    assert fail_fast_time < 0.5  # < 0.5ms fail fast
 
 
 def test_chaos_cancellation_propagation():

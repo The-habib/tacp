@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import sys
-import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -61,6 +60,7 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
 
     from tacp.control.auth import TokenService
     from tacp.infrastructure.database import Database
+
     db = Database(config.db_path)
     tok_svc = TokenService(db)
     if not token or tok_svc.validate_token(token) is None:
@@ -86,8 +86,12 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
 
     # 2. Local Unauthenticated Rejection (HTTP 401 Gate)
     def _test_unauth() -> None:
-        body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}).encode("utf-8")
-        req = urllib.request.Request(local_url, data=body, headers={"Content-Type": "application/json"})
+        body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}).encode(
+            "utf-8"
+        )
+        req = urllib.request.Request(
+            local_url, data=body, headers={"Content-Type": "application/json"}
+        )
         try:
             with urllib.request.urlopen(req, timeout=3.0) as resp:
                 resp.read()
@@ -102,13 +106,20 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
 
     # 3. Local Authenticated Initialize Request
     if token:
+
         def _test_auth_init() -> None:
-            body = json.dumps({
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "initialize",
-                "params": {"protocolVersion": "2026-07-28", "capabilities": {}, "clientInfo": {"name": "bench"}},
-            }).encode("utf-8")
+            body = json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2026-07-28",
+                        "capabilities": {},
+                        "clientInfo": {"name": "bench"},
+                    },
+                }
+            ).encode("utf-8")
             req = urllib.request.Request(
                 local_url,
                 data=body,
@@ -122,12 +133,14 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
 
         # 4. Local Authenticated tools/call: system.inspect
         def _test_auth_call() -> None:
-            body = json.dumps({
-                "jsonrpc": "2.0",
-                "id": 2,
-                "method": "tools/call",
-                "params": {"name": "system.inspect", "arguments": {}},
-            }).encode("utf-8")
+            body = json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {"name": "system.inspect", "arguments": {}},
+                }
+            ).encode("utf-8")
             req = urllib.request.Request(
                 local_url,
                 data=body,
@@ -141,6 +154,7 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
 
     # 5. Remote HTTPS Endpoint (if reachable)
     if remote_url and token and "trycloudflare.com" in remote_url:
+
         def _test_remote_health() -> None:
             r_health = remote_url.replace("/mcp", "/health")
             req = urllib.request.Request(r_health)
@@ -166,4 +180,6 @@ if __name__ == "__main__":
     out = Path("artifacts/benchmarks")
     results = run_benchmark(out)
     for m in results:
-        print(f"{m.name:34} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms")
+        print(
+            f"{m.name:34} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms"
+        )

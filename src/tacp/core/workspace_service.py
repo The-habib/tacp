@@ -160,4 +160,3 @@ class WorkspaceService:
         conn.commit()
         self.invalidate_cache()
         return cursor.rowcount > 0
-

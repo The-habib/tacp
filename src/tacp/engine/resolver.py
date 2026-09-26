@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional, Tuple
 
-from tacp.backends.base import BackendStatus, BackendType, BaseBackend
+from tacp.backends.base import BackendStatus, BaseBackend
 from tacp.backends.manager import BackendManager
 from tacp.engine.capability import CapabilityDefinition
 

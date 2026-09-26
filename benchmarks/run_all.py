@@ -90,7 +90,7 @@ def run_all(output_dir: Path, report_prefix: str = "baseline-report") -> Dict[st
     with open(md_path, "w", encoding="utf-8") as f:
         f.write("\n".join(md_lines))
 
-    print(f"\n[OK] Benchmark reports written to:")
+    print("\n[OK] Benchmark reports written to:")
     print(f"     - {json_path}")
     print(f"     - {md_path}")
     print("============================================================\n")

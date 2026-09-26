@@ -6,7 +6,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 from tacp.access.mcp.protocol import (
     DEFAULT_PROTOCOL_VERSION,
@@ -129,8 +129,10 @@ class McpServer:
             if category:
                 cat_lower = str(category).lower()
                 tools = [
-                    t for t in tools
-                    if cat_lower in t.get("name", "").lower() or cat_lower in t.get("description", "").lower()
+                    t
+                    for t in tools
+                    if cat_lower in t.get("name", "").lower()
+                    or cat_lower in t.get("description", "").lower()
                 ]
 
             total_tools = len(tools)
@@ -340,9 +342,13 @@ class McpServer:
                     data = self.tool_registry.system_service.get_health()
                 elif uri == "tacp://capabilities/list":
                     if self.tool_registry.device_registry:
-                        data = {"capabilities": self.tool_registry.device_registry.list_capabilities()}
+                        data = {
+                            "capabilities": self.tool_registry.device_registry.list_capabilities()
+                        }
                     else:
-                        data = {"capabilities": self.tool_registry.capability_service.list_capabilities()}
+                        data = {
+                            "capabilities": self.tool_registry.capability_service.list_capabilities()
+                        }
                 else:
                     return McpResponse(
                         id=req_id,
@@ -364,7 +370,10 @@ class McpServer:
             except Exception as exc:
                 return McpResponse(
                     id=req_id,
-                    error={"code": INTERNAL_ERROR, "message": f"Failed to read resource '{uri}': {exc}"},
+                    error={
+                        "code": INTERNAL_ERROR,
+                        "message": f"Failed to read resource '{uri}': {exc}",
+                    },
                 )
 
         elif method == "prompts/list":

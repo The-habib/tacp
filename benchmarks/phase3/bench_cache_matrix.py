@@ -1,9 +1,11 @@
 """Benchmark Cold, Warm, and Stale-Fallback Latencies for all 10 State Fields."""
 
-import time
 import json
 import statistics
+import time
+
 from tacp.core.state import DeviceStateManager
+
 
 def benchmark_cache_matrix():
     sm = DeviceStateManager.get_default()
@@ -24,7 +26,9 @@ def benchmark_cache_matrix():
     N_COLD = 5
     results = {}
 
-    print("Field | Cold P50 (us) | Cold Mean (us) | Warm P50 (us) | Warm Mean (us) | Stale Fallback (us)")
+    print(
+        "Field | Cold P50 (us) | Cold Mean (us) | Warm P50 (us) | Warm Mean (us) | Stale Fallback (us)"
+    )
     print("---|---|---|---|---|---")
 
     for name, getter in fields:
@@ -35,7 +39,7 @@ def benchmark_cache_matrix():
             t0 = time.perf_counter_ns()
             getter(force=True)
             t1 = time.perf_counter_ns()
-            cold_times.append((t1 - t0) / 1000.0) # microseconds
+            cold_times.append((t1 - t0) / 1000.0)  # microseconds
 
         # Warm up cache
         getter(force=False)
@@ -46,12 +50,12 @@ def benchmark_cache_matrix():
             t0 = time.perf_counter_ns()
             getter(force=False)
             t1 = time.perf_counter_ns()
-            warm_times.append((t1 - t0) / 1000.0) # microseconds
+            warm_times.append((t1 - t0) / 1000.0)  # microseconds
 
         # 3. Stale fallback measurement (simulate expired entry by backdating timestamp)
         entry = sm._cache.get(name)
         if entry:
-            entry["timestamp"] = time.time() - 999999.0 # expired
+            entry["timestamp"] = time.time() - 999999.0  # expired
         t0 = time.perf_counter_ns()
         sm.get_field(name)
         t1 = time.perf_counter_ns()
@@ -73,10 +77,13 @@ def benchmark_cache_matrix():
             "stale_fallback_us": round(stale_us, 2),
         }
 
-        print(f"{name} | {cold_p50:.2f} | {cold_mean:.2f} | {warm_p50:.2f} | {warm_mean:.2f} | {stale_us:.2f}")
+        print(
+            f"{name} | {cold_p50:.2f} | {cold_mean:.2f} | {warm_p50:.2f} | {warm_mean:.2f} | {stale_us:.2f}"
+        )
 
-    with open('artifacts/phase3/cache_matrix_results.json', 'w') as f:
+    with open("artifacts/phase3/cache_matrix_results.json", "w") as f:
         json.dump(results, f, indent=2)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     benchmark_cache_matrix()

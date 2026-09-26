@@ -41,11 +41,15 @@ class StateTransition:
 class LifecycleManager:
     """Thread-safe device lifecycle coordinator."""
 
-    def __init__(self, initial_state: DeviceLifecycleState = DeviceLifecycleState.CONNECTED) -> None:
+    def __init__(
+        self, initial_state: DeviceLifecycleState = DeviceLifecycleState.CONNECTED
+    ) -> None:
         self._current_state = initial_state
         self._lock = threading.Lock()
         self._history: List[StateTransition] = []
-        self._listeners: List[Callable[[DeviceLifecycleState, DeviceLifecycleState, str], None]] = []
+        self._listeners: List[
+            Callable[[DeviceLifecycleState, DeviceLifecycleState, str], None]
+        ] = []
 
     @property
     def current_state(self) -> DeviceLifecycleState:
@@ -66,7 +70,12 @@ class LifecycleManager:
                 reason=reason,
             )
             self._history.append(record)
-            logger.info("Device lifecycle transition: %s -> %s (reason: %s)", old_state.value, new_state.value, reason)
+            logger.info(
+                "Device lifecycle transition: %s -> %s (reason: %s)",
+                old_state.value,
+                new_state.value,
+                reason,
+            )
 
         # Notify listeners outside lock
         for listener in self._listeners:
@@ -76,7 +85,9 @@ class LifecycleManager:
                 logger.error("Lifecycle listener error: %s", e)
         return True
 
-    def register_listener(self, fn: Callable[[DeviceLifecycleState, DeviceLifecycleState, str], None]) -> None:
+    def register_listener(
+        self, fn: Callable[[DeviceLifecycleState, DeviceLifecycleState, str], None]
+    ) -> None:
         self._listeners.append(fn)
 
     def get_ttl_multiplier(self) -> float:

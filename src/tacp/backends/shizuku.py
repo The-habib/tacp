@@ -6,7 +6,7 @@ import os
 import shutil
 import subprocess
 import time
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from tacp.backends.base import BackendStatus, BackendType, BaseBackend, ExecutionResult
 
@@ -33,7 +33,9 @@ class ShizukuBackend(BaseBackend):
         self.server_running = False
         try:
             p = subprocess.run(["ps", "-A"], capture_output=True, text=True, timeout=2.0)
-            if p.returncode == 0 and ("shizuku" in p.stdout.lower() or "moe.shizuku" in p.stdout.lower()):
+            if p.returncode == 0 and (
+                "shizuku" in p.stdout.lower() or "moe.shizuku" in p.stdout.lower()
+            ):
                 self.server_running = True
         except Exception:
             pass
@@ -46,7 +48,9 @@ class ShizukuBackend(BaseBackend):
 
         if rish_exists:
             try:
-                p = subprocess.run([self.rish_path, "-c", "id"], capture_output=True, text=True, timeout=2.0)
+                p = subprocess.run(
+                    [self.rish_path, "-c", "id"], capture_output=True, text=True, timeout=2.0
+                )
                 if p.returncode == 0:
                     self._available = True
                     self._status = BackendStatus.AVAILABLE

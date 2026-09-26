@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import shutil
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -37,12 +36,14 @@ def handle_storage_mounts(backend: BaseBackend, params: Dict[str, Any]) -> Dict[
                 device, mount_point, fs_type = parts[0], parts[1], parts[2]
                 if filter_type and filter_type not in fs_type:
                     continue
-                results.append({
-                    "device": device,
-                    "mount_point": mount_point,
-                    "fs_type": fs_type,
-                    "options": parts[3] if len(parts) > 3 else "",
-                })
+                results.append(
+                    {
+                        "device": device,
+                        "mount_point": mount_point,
+                        "fs_type": fs_type,
+                        "options": parts[3] if len(parts) > 3 else "",
+                    }
+                )
     except Exception as exc:
         return {"success": False, "error": f"Failed reading mounts: {exc}"}
 
@@ -68,12 +69,14 @@ def handle_storage_large_files(backend: BaseBackend, params: Dict[str, Any]) -> 
                 if not full.is_symlink():
                     size = full.stat().st_size
                     if size >= threshold_bytes:
-                        large_files.append({
-                            "path": str(full),
-                            "name": f,
-                            "size_mb": round(size / (1024 * 1024), 2),
-                            "size_bytes": size,
-                        })
+                        large_files.append(
+                            {
+                                "path": str(full),
+                                "name": f,
+                                "size_mb": round(size / (1024 * 1024), 2),
+                                "size_bytes": size,
+                            }
+                        )
             except Exception:
                 pass
         if len(large_files) >= limit:
@@ -125,12 +128,14 @@ def handle_storage_duplicates(backend: BaseBackend, params: Dict[str, Any]) -> D
                     pass
             for digest, match_list in hashes.items():
                 if len(match_list) > 1:
-                    duplicates.append({
-                        "size_bytes": sz,
-                        "size_mb": round(sz / (1024 * 1024), 3),
-                        "hash_sample": digest[:16],
-                        "paths": match_list,
-                    })
+                    duplicates.append(
+                        {
+                            "size_bytes": sz,
+                            "size_mb": round(sz / (1024 * 1024), 3),
+                            "hash_sample": digest[:16],
+                            "paths": match_list,
+                        }
+                    )
                     if len(duplicates) >= limit:
                         break
         if len(duplicates) >= limit:
@@ -144,7 +149,9 @@ def handle_storage_duplicates(backend: BaseBackend, params: Dict[str, Any]) -> D
     }
 
 
-def handle_storage_cleanup_candidates(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str, Any]:
+def handle_storage_cleanup_candidates(
+    backend: BaseBackend, params: Dict[str, Any]
+) -> Dict[str, Any]:
     """Identify temp, cache, and disposable files for safe cleanup."""
     root_str = params.get("path", "/data/data/com.termux/files/home")
     root = Path(root_str).expanduser().resolve()
@@ -152,18 +159,28 @@ def handle_storage_cleanup_candidates(backend: BaseBackend, params: Dict[str, An
     candidates: List[Dict[str, Any]] = []
     total_reclaimable_bytes = 0
 
-    cache_patterns = [".cache", "__pycache__", ".pytest_cache", ".ruff_cache", "tmp", "temp", ".swp"]
-    for r, dirs, files in os.walk(root):
+    cache_patterns = [
+        ".cache",
+        "__pycache__",
+        ".pytest_cache",
+        ".ruff_cache",
+        "tmp",
+        "temp",
+        ".swp",
+    ]
+    for r, dirs, _files in os.walk(root):
         for d in dirs:
             if any(pat in d for pat in cache_patterns):
                 target_dir = Path(r) / d
                 try:
                     sz = sum(f.stat().st_size for f in target_dir.glob("**/*") if f.is_file())
-                    candidates.append({
-                        "path": str(target_dir),
-                        "type": "cache_directory",
-                        "size_mb": round(sz / (1024 * 1024), 2),
-                    })
+                    candidates.append(
+                        {
+                            "path": str(target_dir),
+                            "type": "cache_directory",
+                            "size_mb": round(sz / (1024 * 1024), 2),
+                        }
+                    )
                     total_reclaimable_bytes += sz
                 except Exception:
                     pass

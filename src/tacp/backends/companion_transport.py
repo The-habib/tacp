@@ -28,8 +28,8 @@ MAX_PAYLOAD_BYTES = 10 * 1024 * 1024  # 10 MB maximum payload
 
 
 class CircuitState(str, enum.Enum):
-    CLOSED = "CLOSED"        # Normal operation
-    OPEN = "OPEN"            # Failing fast, zero network attempts
+    CLOSED = "CLOSED"  # Normal operation
+    OPEN = "OPEN"  # Failing fast, zero network attempts
     HALF_OPEN = "HALF_OPEN"  # Probing single canary request
 
 
@@ -103,7 +103,10 @@ class HttpCompanionTransport(CompanionTransport):
             self._consecutive_failures += 1
             self._last_failure_time = time.time()
             self._connected = False
-            if self._consecutive_failures >= self.failure_threshold or self._circuit_state == CircuitState.HALF_OPEN:
+            if (
+                self._consecutive_failures >= self.failure_threshold
+                or self._circuit_state == CircuitState.HALF_OPEN
+            ):
                 self._circuit_state = CircuitState.OPEN
                 logger.warning(
                     "Companion circuit breaker TRIPPED to OPEN (%d consecutive failures, host=%s:%d, reason=%s)",
@@ -113,7 +116,8 @@ class HttpCompanionTransport(CompanionTransport):
                     reason,
                 )
                 try:
-                    from tacp.core.lifecycle import get_lifecycle_manager, DeviceLifecycleState
+                    from tacp.core.lifecycle import DeviceLifecycleState, get_lifecycle_manager
+
                     get_lifecycle_manager().transition_to(
                         DeviceLifecycleState.DEGRADED,
                         reason=f"Companion circuit tripped to OPEN: {reason}",
@@ -123,9 +127,7 @@ class HttpCompanionTransport(CompanionTransport):
 
     def _get_connection(self, timeout: float) -> http.client.HTTPConnection:
         if self._conn is None:
-            self._conn = http.client.HTTPConnection(
-                self.host, self.port, timeout=timeout
-            )
+            self._conn = http.client.HTTPConnection(self.host, self.port, timeout=timeout)
         return self._conn
 
     def is_connected(self) -> bool:
@@ -150,7 +152,9 @@ class HttpCompanionTransport(CompanionTransport):
         req_id = f"comp-{uuid.uuid4().hex[:8]}"
         body = json.dumps(payload or {}).encode("utf-8")
         if len(body) > MAX_PAYLOAD_BYTES:
-            raise ValueError(f"Request payload exceeds max bound ({len(body)} > {MAX_PAYLOAD_BYTES})")
+            raise ValueError(
+                f"Request payload exceeds max bound ({len(body)} > {MAX_PAYLOAD_BYTES})"
+            )
 
         headers = {
             "Content-Type": "application/json",
@@ -168,7 +172,9 @@ class HttpCompanionTransport(CompanionTransport):
             for attempt in range(2):
                 try:
                     conn = self._get_connection(timeout)
-                    conn.request(method, endpoint, body=body if method == "POST" else None, headers=headers)
+                    conn.request(
+                        method, endpoint, body=body if method == "POST" else None, headers=headers
+                    )
                     resp = conn.getresponse()
                     resp_data = resp.read(MAX_PAYLOAD_BYTES + 1)
                     if len(resp_data) > MAX_PAYLOAD_BYTES:
@@ -177,21 +183,32 @@ class HttpCompanionTransport(CompanionTransport):
                     if resp.status >= 400:
                         err_msg = resp_data.decode("utf-8", errors="replace")
                         self._record_failure(f"HTTP {resp.status}")
-                        raise TacpError(ErrorCode.PROVIDER_ERROR, f"Companion returned error HTTP {resp.status}: {err_msg}")
+                        raise TacpError(
+                            ErrorCode.PROVIDER_ERROR,
+                            f"Companion returned error HTTP {resp.status}: {err_msg}",
+                        )
 
                     data = json.loads(resp_data.decode("utf-8"))
                     self._record_success()
                     return data
 
-                except (http.client.RemoteDisconnected, BrokenPipeError, ConnectionResetError) as exc:
+                except (
+                    http.client.RemoteDisconnected,
+                    BrokenPipeError,
+                    ConnectionResetError,
+                ) as exc:
                     self.close()
                     if attempt == 1:
                         self._record_failure(str(exc))
-                        raise TacpError(ErrorCode.UNAVAILABLE, f"Companion disconnected: {exc}") from exc
+                        raise TacpError(
+                            ErrorCode.UNAVAILABLE, f"Companion disconnected: {exc}"
+                        ) from exc
                 except Exception as exc:
                     self.close()
                     self._record_failure(str(exc))
-                    raise TacpError(ErrorCode.UNAVAILABLE, f"Companion connection failed on {endpoint}: {exc}") from exc
+                    raise TacpError(
+                        ErrorCode.UNAVAILABLE, f"Companion connection failed on {endpoint}: {exc}"
+                    ) from exc
 
         return {}
 
@@ -206,6 +223,7 @@ class HttpCompanionTransport(CompanionTransport):
             self._connected = False
             try:
                 from tacp.core.state import DeviceStateManager
+
                 DeviceStateManager.get_default().invalidate("companion")
             except Exception:
                 pass

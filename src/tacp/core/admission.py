@@ -17,7 +17,6 @@ from __future__ import annotations
 import contextlib
 import enum
 import threading
-import time
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, Optional
 
@@ -52,7 +51,16 @@ LANE_CONFIGS: Dict[LaneType, LaneConfig] = {
 class AdmissionLane:
     """An isolated concurrency lane with bounded slots and wait timeouts."""
 
-    __slots__ = ("lane_type", "slots", "timeout", "_sem", "_lock", "active_count", "queued_count", "rejected_count")
+    __slots__ = (
+        "lane_type",
+        "slots",
+        "timeout",
+        "_sem",
+        "_lock",
+        "active_count",
+        "queued_count",
+        "rejected_count",
+    )
 
     def __init__(self, lane_type: LaneType, config: LaneConfig) -> None:
         self.lane_type = lane_type
@@ -108,33 +116,58 @@ class AdmissionController:
 
     def classify(self, capability: str) -> LaneType:
         cap = (capability or "").lower().strip()
-        if cap in (
-            "workspace.patch",
-            "workspace.patch_batch",
-            "execution.request",
-            "package.install",
-            "package.uninstall",
-            "filesystem.write",
-            "filesystem.delete",
-        ) or cap.startswith("device.action.create") or cap.startswith("input.inject"):
+        if (
+            cap
+            in (
+                "workspace.patch",
+                "workspace.patch_batch",
+                "execution.request",
+                "package.install",
+                "package.uninstall",
+                "filesystem.write",
+                "filesystem.delete",
+            )
+            or cap.startswith("device.action.create")
+            or cap.startswith("input.inject")
+        ):
             return LaneType.MUTATION
 
-        if cap.startswith("device.media") or cap.startswith("media.") or cap.startswith("device.camera"):
+        if (
+            cap.startswith("device.media")
+            or cap.startswith("media.")
+            or cap.startswith("device.camera")
+        ):
             return LaneType.MEDIA
 
-        if cap.startswith("companion.") or cap.startswith("device.screen.capture") or cap.startswith("device.sensor") or cap.startswith("device.location"):
+        if (
+            cap.startswith("companion.")
+            or cap.startswith("device.screen.capture")
+            or cap.startswith("device.sensor")
+            or cap.startswith("device.location")
+        ):
             return LaneType.COMPANION
 
-        if cap.startswith("process.") or cap.startswith("device.process") or cap.startswith("execution.") or cap.startswith("shell."):
+        if (
+            cap.startswith("process.")
+            or cap.startswith("device.process")
+            or cap.startswith("execution.")
+            or cap.startswith("shell.")
+        ):
             return LaneType.PROCESS
 
-        if cap.startswith("filesystem.") or cap.startswith("device.file") or cap.startswith("workspace."):
+        if (
+            cap.startswith("filesystem.")
+            or cap.startswith("device.file")
+            or cap.startswith("workspace.")
+        ):
             return LaneType.FILESYSTEM
 
         return LaneType.FAST_READ
 
     @contextlib.contextmanager
-    def acquire(self, lane_or_capability: str | LaneType, timeout: Optional[float] = None) -> Iterator[LaneType]:
+    def acquire(
+        self, lane_or_capability: str | LaneType, timeout: Optional[float] = None
+    ) -> Iterator[LaneType]:
         if isinstance(lane_or_capability, LaneType):
             lane_type = lane_or_capability
         else:
@@ -152,7 +185,7 @@ class AdmissionController:
             lane.release()
 
     def stats(self) -> Dict[str, Any]:
-        return {lane.value: l.stats() for lane, l in self.lanes.items()}
+        return {lane.value: lane_inst.stats() for lane, lane_inst in self.lanes.items()}
 
 
 _default_controller: Optional[AdmissionController] = None

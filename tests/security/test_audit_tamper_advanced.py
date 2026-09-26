@@ -1,11 +1,10 @@
 """Advanced Tamper Detection Test Suite for TACP Audit Hash Chain."""
 
-import json
 import sqlite3
-import tempfile
-from pathlib import Path
+
 import pytest
-from tacp.core.audit_service import AuditService, compute_audit_entry_hash, GENESIS_HASH
+
+from tacp.core.audit_service import GENESIS_HASH, AuditService
 from tacp.domain.audit import AuditEvent
 from tacp.infrastructure.database import Database
 
@@ -16,7 +15,7 @@ def clean_audit_env(tmp_path):
     db = Database(db_path)
     db.connect()
     svc = AuditService(db)
-    
+
     # Record 10 sequential events
     for i in range(10):
         evt = AuditEvent(

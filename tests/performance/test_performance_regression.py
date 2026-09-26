@@ -10,12 +10,12 @@ Verifies that core system hot paths stay within defined performance budgets:
 """
 
 import time
-import pytest
+
 from tacp.access.mcp.server import create_mcp_server
-from tacp.core.audit_service import compute_audit_entry_hash, GENESIS_HASH
-from tacp.core.capability_service import CapabilityService
 from tacp.control.identity import Principal, RequestContext
 from tacp.control.policy import PolicyEngine
+from tacp.core.audit_service import GENESIS_HASH, compute_audit_entry_hash
+from tacp.core.capability_service import CapabilityService
 
 
 def test_tools_list_dispatch_budget():
@@ -47,7 +47,9 @@ def test_capability_resolution_budget():
     elapsed_ms = ((time.perf_counter() - start) / N) * 1000
 
     # Hard ceiling: 0.05 ms (typically ~0.0003 ms)
-    assert elapsed_ms < 0.05, f"Capability resolution regression: {elapsed_ms:.4f} ms exceeds budget of 0.05 ms"
+    assert elapsed_ms < 0.05, (
+        f"Capability resolution regression: {elapsed_ms:.4f} ms exceeds budget of 0.05 ms"
+    )
 
 
 def test_policy_evaluation_budget():
@@ -63,7 +65,9 @@ def test_policy_evaluation_budget():
     elapsed_ms = ((time.perf_counter() - start) / N) * 1000
 
     # Hard ceiling: 0.20 ms (typically ~0.005 ms)
-    assert elapsed_ms < 0.20, f"Policy evaluation regression: {elapsed_ms:.4f} ms exceeds budget of 0.20 ms"
+    assert elapsed_ms < 0.20, (
+        f"Policy evaluation regression: {elapsed_ms:.4f} ms exceeds budget of 0.20 ms"
+    )
 
 
 def test_device_snapshot_warm_budget():
@@ -80,9 +84,17 @@ def test_device_snapshot_warm_budget():
         times_ms.append((time.perf_counter() - start) * 1000)
 
     elapsed_ms = sorted(times_ms)[len(times_ms) // 2]
-    assert "model" in res or "device" in res or "platform" in res or "android" in res or "success" in res
+    assert (
+        "model" in res
+        or "device" in res
+        or "platform" in res
+        or "android" in res
+        or "success" in res
+    )
     # Hard ceiling: 10.0 ms (formerly 261.9 ms; now ~2.5 ms)
-    assert elapsed_ms < 10.0, f"device.snapshot warm regression: {elapsed_ms:.3f} ms exceeds budget of 10.0 ms"
+    assert elapsed_ms < 10.0, (
+        f"device.snapshot warm regression: {elapsed_ms:.3f} ms exceeds budget of 10.0 ms"
+    )
 
 
 def test_audit_hash_computation_budget():
@@ -107,4 +119,6 @@ def test_audit_hash_computation_budget():
     elapsed_ms = ((time.perf_counter() - start) / N) * 1000
 
     # Hard ceiling: 0.10 ms per hash (typically ~0.013 ms)
-    assert elapsed_ms < 0.10, f"Audit hash computation regression: {elapsed_ms:.4f} ms exceeds budget of 0.10 ms"
+    assert elapsed_ms < 0.10, (
+        f"Audit hash computation regression: {elapsed_ms:.4f} ms exceeds budget of 0.10 ms"
+    )

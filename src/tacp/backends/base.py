@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import enum
-import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -35,6 +34,7 @@ class BackendStatus(str, enum.Enum):
 @dataclass
 class ExecutionResult:
     """Structured result returned by any backend execution."""
+
     exit_code: int
     stdout: str
     stderr: str

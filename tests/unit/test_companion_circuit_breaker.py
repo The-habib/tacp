@@ -1,9 +1,11 @@
 """Unit tests for Companion Transport Circuit Breaker and Lifecycle transitions."""
 
 import time
+
 import pytest
-from tacp.backends.companion_transport import HttpCompanionTransport, CircuitState
-from tacp.core.lifecycle import get_lifecycle_manager, DeviceLifecycleState
+
+from tacp.backends.companion_transport import CircuitState, HttpCompanionTransport
+from tacp.core.lifecycle import DeviceLifecycleState, get_lifecycle_manager
 from tacp.domain.errors import ErrorCode, TacpError
 
 
@@ -29,7 +31,7 @@ def test_circuit_breaker_tripping():
 
     assert exc_info.value.code == ErrorCode.UNAVAILABLE
     assert "circuit breaker is OPEN" in exc_info.value.message
-    assert duration_ms < 1.0 # sub-millisecond fail-fast!
+    assert duration_ms < 1.0  # sub-millisecond fail-fast!
 
     # Wait for recovery timeout to transition to HALF_OPEN
     time.sleep(0.25)

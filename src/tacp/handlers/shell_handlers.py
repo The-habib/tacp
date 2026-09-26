@@ -54,7 +54,13 @@ def handle_shell_which(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str
     for sp in ["/system/bin", "/system/xbin", "/vendor/bin", "/apex/com.android.runtime/bin"]:
         p = Path(sp) / binary
         if p.exists() and os.access(p, os.X_OK):
-            return {"success": True, "binary": binary, "found": True, "path": str(p), "source": "system"}
+            return {
+                "success": True,
+                "binary": binary,
+                "found": True,
+                "path": str(p),
+                "source": "system",
+            }
 
     return {"success": True, "binary": binary, "found": False, "path": None}
 

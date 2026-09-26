@@ -1,7 +1,7 @@
 """Comprehensive Security Red Team Suite for TACP Phase 3."""
 
 import pytest
-from pathlib import Path
+
 from tacp.access.mcp.protocol import McpRequest
 from tacp.access.mcp.server import create_mcp_server
 from tacp.control.auth import TokenService
@@ -42,7 +42,10 @@ def test_redteam_path_traversal_jail(redteam_env):
         req = McpRequest(
             id="trav_test",
             method="tools/call",
-            params={"name": "fs.read", "arguments": {"path": attack, "workspace_id": "termux-home"}},
+            params={
+                "name": "fs.read",
+                "arguments": {"path": attack, "workspace_id": "termux-home"},
+            },
         )
         resp = server.handle_request(req)
         assert resp is not None
@@ -54,7 +57,10 @@ def test_redteam_null_byte_injection(redteam_env):
     req = McpRequest(
         id="null_byte",
         method="tools/call",
-        params={"name": "fs.read", "arguments": {"path": "valid.txt" + chr(0) + "/../../etc/passwd"}},
+        params={
+            "name": "fs.read",
+            "arguments": {"path": "valid.txt" + chr(0) + "/../../etc/passwd"},
+        },
     )
     resp = server.handle_request(req)
     assert resp is not None

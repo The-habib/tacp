@@ -17,7 +17,9 @@ class AndroidBridgeBackend(BaseBackend):
 
     DEFAULT_PORT = 8766
 
-    def __init__(self, port: int = DEFAULT_PORT, transport: Optional[CompanionTransport] = None) -> None:
+    def __init__(
+        self, port: int = DEFAULT_PORT, transport: Optional[CompanionTransport] = None
+    ) -> None:
         super().__init__(BackendType.ANDROID_BRIDGE)
         self.port = port
         self.base_url = f"http://127.0.0.1:{port}"
@@ -51,16 +53,24 @@ class AndroidBridgeBackend(BaseBackend):
         self._available = False
         self._status = BackendStatus.COMPANION_REQUIRED
         self._details = "TACP Android Bridge companion app not running on localhost:8766"
-        self.services_active = {"accessibility": False, "media_projection": False, "notification_listener": False}
+        self.services_active = {
+            "accessibility": False,
+            "media_projection": False,
+            "notification_listener": False,
+        }
         return self._status
 
     def is_service_active(self, service_name: str) -> bool:
         return self._available and self.services_active.get(service_name, False)
 
-    def call_bridge(self, endpoint: str, payload: Optional[Dict[str, Any]] = None, timeout: float = 10.0) -> Dict[str, Any]:
+    def call_bridge(
+        self, endpoint: str, payload: Optional[Dict[str, Any]] = None, timeout: float = 10.0
+    ) -> Dict[str, Any]:
         """Make an authenticated request to the Android Bridge via CompanionTransport."""
         if not self._available:
-            raise RuntimeError(f"Android Bridge companion service is not currently active on {self.base_url}")
+            raise RuntimeError(
+                f"Android Bridge companion service is not currently active on {self.base_url}"
+            )
 
         return self.transport.send_request(endpoint, payload=payload, timeout=timeout)
 

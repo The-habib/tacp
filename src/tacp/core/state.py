@@ -8,10 +8,10 @@ import platform
 import shutil
 import subprocess
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 
 @dataclass
@@ -42,15 +42,15 @@ class DeviceStateManager:
 
     # Formal TTL tiers per CACHE-CONSISTENCY specification
     TTL_SELINUX = 86400.0 * 365  # Permanent
-    TTL_BATTERY = 15.0           # 15s
-    TTL_NETWORK = 5.0            # 5s
-    TTL_PACKAGES = 300.0         # 300s (5 minutes)
-    TTL_COMPANION = 10.0         # 10s
-    TTL_MEMORY = 3.0             # 3s
-    TTL_STORAGE = 30.0           # 30s
-    TTL_PROCESSES = 2.0          # 2s
-    TTL_AUDIO = 30.0             # 30s
-    TTL_SCREEN = 10.0            # 10s
+    TTL_BATTERY = 15.0  # 15s
+    TTL_NETWORK = 5.0  # 5s
+    TTL_PACKAGES = 300.0  # 300s (5 minutes)
+    TTL_COMPANION = 10.0  # 10s
+    TTL_MEMORY = 3.0  # 3s
+    TTL_STORAGE = 30.0  # 30s
+    TTL_PROCESSES = 2.0  # 2s
+    TTL_AUDIO = 30.0  # 30s
+    TTL_SCREEN = 10.0  # 10s
 
     STATIC_TTL = 86400.0
     SLOW_TTL = 60.0
@@ -107,7 +107,9 @@ class DeviceStateManager:
             )
         return None
 
-    def _get_stale_fallback(self, key: str, fallback_value: Any, fallback_source: str) -> StateField:
+    def _get_stale_fallback(
+        self, key: str, fallback_value: Any, fallback_source: str
+    ) -> StateField:
         """Return stale cached entry if available, otherwise return safe fallback and store negative cache."""
         entry = self._cache.get(key)
         now = time.time()
@@ -141,7 +143,9 @@ class DeviceStateManager:
             confidence="fallback",
         )
 
-    def _store_field(self, key: str, value: Any, source: str, confidence: str = "verified") -> StateField:
+    def _store_field(
+        self, key: str, value: Any, source: str, confidence: str = "verified"
+    ) -> StateField:
         now = time.time()
         now_str = datetime.now(timezone.utc).isoformat()
         self._cache[key] = {
@@ -173,12 +177,17 @@ class DeviceStateManager:
                 try:
                     val = enforce_path.read_text().strip()
                     status = "Enforcing" if val == "1" else "Permissive"
-                    return self._store_field("selinux", status, source="/sys/fs/selinux/enforce", confidence="verified")
+                    return self._store_field(
+                        "selinux", status, source="/sys/fs/selinux/enforce", confidence="verified"
+                    )
                 except Exception:
                     pass
             from tacp.core.discovery import DeviceDiscovery
+
             status = DeviceDiscovery.check_selinux()
-            return self._store_field("selinux", status, source="DeviceDiscovery.check_selinux", confidence="verified")
+            return self._store_field(
+                "selinux", status, source="DeviceDiscovery.check_selinux", confidence="verified"
+            )
         except Exception:
             return self._get_stale_fallback("selinux", "Permissive", "fallback.default")
 
@@ -188,7 +197,12 @@ class DeviceStateManager:
             cached = self._get_cached_field("battery", self.TTL_BATTERY)
             if cached:
                 return cached
-        val: Dict[str, Any] = {"percentage": 100, "status": "unknown", "plugged": "unknown", "temperature": 0.0}
+        val: Dict[str, Any] = {
+            "percentage": 100,
+            "status": "unknown",
+            "plugged": "unknown",
+            "temperature": 0.0,
+        }
         source = "sysfs"
         sys_batt = Path("/sys/class/power_supply/battery")
         try:
@@ -201,10 +215,14 @@ class DeviceStateManager:
                 val["temperature"] = int(temp) / 10.0
                 return self._store_field("battery", val, source=source, confidence="probed")
             elif shutil.which("termux-battery-status"):
-                p = subprocess.run(["termux-battery-status"], capture_output=True, text=True, timeout=1.0)
+                p = subprocess.run(
+                    ["termux-battery-status"], capture_output=True, text=True, timeout=1.0
+                )
                 if p.returncode == 0:
                     val = json.loads(p.stdout)
-                    return self._store_field("battery", val, source="termux_api", confidence="probed")
+                    return self._store_field(
+                        "battery", val, source="termux_api", confidence="probed"
+                    )
         except Exception:
             pass
         return self._get_stale_fallback("battery", val, "fallback.battery")
@@ -242,7 +260,11 @@ class DeviceStateManager:
                 "has_connectivity": any(i != "lo" for i in interfaces),
             }
             return self._store_field("network", val, source="ifconfig", confidence="verified")
-        return self._get_stale_fallback("network", {"interfaces": ["lo"], "count": 1, "has_connectivity": False}, "fallback.offline")
+        return self._get_stale_fallback(
+            "network",
+            {"interfaces": ["lo"], "count": 1, "has_connectivity": False},
+            "fallback.offline",
+        )
 
     # 4. Packages (300s TTL)
     def get_packages(self, force: bool = False) -> StateField:
@@ -251,14 +273,24 @@ class DeviceStateManager:
             if cached:
                 return cached
         try:
-            p = subprocess.run(["pm", "list", "packages"], capture_output=True, text=True, timeout=3.0)
+            p = subprocess.run(
+                ["pm", "list", "packages"], capture_output=True, text=True, timeout=3.0
+            )
             if p.returncode == 0:
-                pkgs = [line.replace("package:", "").strip() for line in p.stdout.splitlines() if line.startswith("package:")]
+                pkgs = [
+                    line.replace("package:", "").strip()
+                    for line in p.stdout.splitlines()
+                    if line.startswith("package:")
+                ]
                 val = {"total_count": len(pkgs), "sample": pkgs[:10]}
-                return self._store_field("packages", val, source="android.pm", confidence="verified")
+                return self._store_field(
+                    "packages", val, source="android.pm", confidence="verified"
+                )
         except Exception:
             pass
-        return self._get_stale_fallback("packages", {"total_count": 0, "sample": []}, "fallback.packages")
+        return self._get_stale_fallback(
+            "packages", {"total_count": 0, "sample": []}, "fallback.packages"
+        )
 
     # 5. Companion (10s TTL)
     def get_companion(self, force: bool = False) -> StateField:
@@ -268,10 +300,15 @@ class DeviceStateManager:
                 return cached
         try:
             from tacp.core.discovery import DeviceDiscovery
+
             val = DeviceDiscovery.check_termux_api()
-            return self._store_field("companion", val, source="companion.probe", confidence="probed")
+            return self._store_field(
+                "companion", val, source="companion.probe", confidence="probed"
+            )
         except Exception:
-            return self._get_stale_fallback("companion", {"status": "disconnected", "available": False}, "fallback.companion")
+            return self._get_stale_fallback(
+                "companion", {"status": "disconnected", "available": False}, "fallback.companion"
+            )
 
     # 6. Memory (3s TTL)
     def get_memory(self, force: bool = False) -> StateField:
@@ -281,10 +318,15 @@ class DeviceStateManager:
                 return cached
         try:
             from tacp.core.discovery import DeviceDiscovery
+
             val = DeviceDiscovery.get_memory_info()
-            return self._store_field("memory", val, source="linux.proc.meminfo", confidence="verified")
+            return self._store_field(
+                "memory", val, source="linux.proc.meminfo", confidence="verified"
+            )
         except Exception:
-            return self._get_stale_fallback("memory", {"total_mb": 0, "available_mb": 0}, "fallback.memory")
+            return self._get_stale_fallback(
+                "memory", {"total_mb": 0, "available_mb": 0}, "fallback.memory"
+            )
 
     # 7. Storage (30s TTL)
     def get_storage(self, force: bool = False) -> StateField:
@@ -294,6 +336,7 @@ class DeviceStateManager:
                 return cached
         try:
             from tacp.core.discovery import DeviceDiscovery
+
             mounts = DeviceDiscovery.get_storage_mounts()
             val = {
                 "mount_count": len(mounts),
@@ -301,7 +344,9 @@ class DeviceStateManager:
             }
             return self._store_field("storage", val, source="posix.statvfs", confidence="verified")
         except Exception:
-            return self._get_stale_fallback("storage", {"mount_count": 0, "storage_roots": []}, "fallback.storage")
+            return self._get_stale_fallback(
+                "storage", {"mount_count": 0, "storage_roots": []}, "fallback.storage"
+            )
 
     # 8. Processes (2s TTL)
     def get_processes(self, force: bool = False) -> StateField:
@@ -318,9 +363,13 @@ class DeviceStateManager:
                 "total_processes": count,
                 "accessible_scope": "procfs_pid_scan",
             }
-            return self._store_field("processes", val, source="linux.proc.pids", confidence="verified")
+            return self._store_field(
+                "processes", val, source="linux.proc.pids", confidence="verified"
+            )
         except Exception:
-            return self._get_stale_fallback("processes", {"total_processes": 1, "accessible_scope": "fallback"}, "fallback.proc")
+            return self._get_stale_fallback(
+                "processes", {"total_processes": 1, "accessible_scope": "fallback"}, "fallback.proc"
+            )
 
     # 9. Audio (30s TTL)
     def get_audio(self, force: bool = False) -> StateField:
@@ -334,7 +383,9 @@ class DeviceStateManager:
                 p = subprocess.run(["termux-volume"], capture_output=True, text=True, timeout=1.0)
                 if p.returncode == 0:
                     val = {"status": "active", "streams": json.loads(p.stdout)}
-                    return self._store_field("audio", val, source="termux-volume", confidence="probed")
+                    return self._store_field(
+                        "audio", val, source="termux-volume", confidence="probed"
+                    )
             except Exception:
                 pass
         return self._store_field("audio", val, source="audio.fallback", confidence="fallback")
@@ -349,6 +400,7 @@ class DeviceStateManager:
         source = "companion.screen"
         try:
             from tacp.backends.companion_transport import HttpCompanionTransport
+
             transport = HttpCompanionTransport()
             if transport.is_connected():
                 res = transport.send_request("/screen/info", timeout=0.5)
@@ -366,6 +418,7 @@ class DeviceStateManager:
             if cached:
                 return cached
         from tacp.core.discovery import DeviceDiscovery
+
         props = DeviceDiscovery.get_all_props()
         val = {
             "brand": props.get("ro.product.brand", "vivo"),
@@ -374,7 +427,9 @@ class DeviceStateManager:
             "device": props.get("ro.product.device", "crow"),
             "build_id": props.get("ro.build.id", "unknown"),
         }
-        return self._store_field("identity", val, source="android.os.SystemProperties", confidence="verified")
+        return self._store_field(
+            "identity", val, source="android.os.SystemProperties", confidence="verified"
+        )
 
     # Runtime (STATIC)
     def get_runtime(self, force: bool = False) -> StateField:
@@ -383,6 +438,7 @@ class DeviceStateManager:
             if cached:
                 return cached
         from tacp.core.discovery import DeviceDiscovery
+
         props = DeviceDiscovery.get_all_props()
         cpu = DeviceDiscovery.get_cpu_info()
         val = {
@@ -405,14 +461,21 @@ class DeviceStateManager:
             if cached:
                 return cached
         from tacp.engine.registry import default_registry
+
         caps = default_registry.list_capabilities()
         val = {
             "total_count": len(caps),
             "available_count": sum(1 for c in caps if c.get("availability") == "available"),
             "companion_count": sum(1 for c in caps if "companion" in str(c.get("availability"))),
-            "privileged_count": sum(1 for c in caps if "root" in str(c.get("availability")) or "shizuku" in str(c.get("availability"))),
+            "privileged_count": sum(
+                1
+                for c in caps
+                if "root" in str(c.get("availability")) or "shizuku" in str(c.get("availability"))
+            ),
         }
-        return self._store_field("capabilities", val, source="tacp.engine.registry", confidence="verified")
+        return self._store_field(
+            "capabilities", val, source="tacp.engine.registry", confidence="verified"
+        )
 
     # Providers / Backends (SLOW)
     def get_providers(self, force: bool = False) -> StateField:
@@ -421,21 +484,27 @@ class DeviceStateManager:
             if cached:
                 return cached
         from tacp.backends.manager import BackendManager
+
         bm = BackendManager.get_default()
         backends = bm.probe_all(force=force)
         val = {b: info.get("status") for b, info in backends.items()}
-        return self._store_field("providers", val, source="tacp.backends.manager", confidence="verified")
+        return self._store_field(
+            "providers", val, source="tacp.backends.manager", confidence="verified"
+        )
 
     # Complete DeviceState Snapshot (All 10 fields + identity/runtime/providers)
     def get_state_snapshot(self, force: bool = False) -> Dict[str, Any]:
         """Aggregate stratified DeviceState with per-field timestamps, sources, and freshness.
-        
+
         Protected by SingleFlight coalescing to prevent stampedes when multiple concurrent
         callers request expensive hardware refresh simultaneously.
         """
         if force:
             from tacp.core.coalesce import get_singleflight_group
-            return get_singleflight_group().do("state_snapshot_force", self._build_state_snapshot, True)
+
+            return get_singleflight_group().do(
+                "state_snapshot_force", self._build_state_snapshot, True
+            )
         return self._build_state_snapshot(False)
 
     def _build_state_snapshot(self, force: bool) -> Dict[str, Any]:

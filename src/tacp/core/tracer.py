@@ -28,7 +28,12 @@ class TraceSpan:
 
     __slots__ = ("name", "start_ns", "end_ns", "duration_ns", "metadata", "_tracer")
 
-    def __init__(self, name: str, tracer: Optional[RequestTracer] = None, metadata: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        tracer: Optional[RequestTracer] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
         self.name = name
         self.start_ns = 0
         self.end_ns = 0
@@ -90,7 +95,15 @@ _NOOP_SPAN = NoopSpan()
 class RequestTracer:
     """Deterministic request lifecycle tracer."""
 
-    __slots__ = ("trace_id", "request_id", "enabled", "start_ns", "end_ns", "spans", "_active_spans")
+    __slots__ = (
+        "trace_id",
+        "request_id",
+        "enabled",
+        "start_ns",
+        "end_ns",
+        "spans",
+        "_active_spans",
+    )
 
     def __init__(
         self,

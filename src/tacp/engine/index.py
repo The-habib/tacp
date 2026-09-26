@@ -19,6 +19,7 @@ from tacp.engine.capability import CapabilityDefinition
 
 class ProviderState(str, Enum):
     """Categorized provider operational state."""
+
     AVAILABLE = "available"
     UNAVAILABLE = "unavailable"
     DEGRADED = "degraded"
@@ -29,7 +30,11 @@ class ProviderState(str, Enum):
     def from_backend_status(cls, status: BackendStatus) -> "ProviderState":
         if status == BackendStatus.AVAILABLE:
             return cls.AVAILABLE
-        elif status in (BackendStatus.PERMISSION_REQUIRED, BackendStatus.SHIZUKU_REQUIRED, BackendStatus.ROOT_REQUIRED):
+        elif status in (
+            BackendStatus.PERMISSION_REQUIRED,
+            BackendStatus.SHIZUKU_REQUIRED,
+            BackendStatus.ROOT_REQUIRED,
+        ):
             return cls.REQUIRES_PERMISSION
         elif status == BackendStatus.COMPANION_REQUIRED:
             return cls.DISCONNECTED
@@ -41,6 +46,7 @@ class ProviderState(str, Enum):
 @dataclass(frozen=True)
 class IndexedCapability:
     """Pre-indexed, immutable capability record for O(1) dispatch."""
+
     id: str
     definition: CapabilityDefinition
     category: str
@@ -57,7 +63,9 @@ class ProviderIndex:
         self._states: Dict[BackendType, ProviderState] = {}
         self._timestamps: Dict[BackendType, float] = {}
 
-    def get_state(self, backend_type: BackendType, backend: Optional[BaseBackend] = None) -> ProviderState:
+    def get_state(
+        self, backend_type: BackendType, backend: Optional[BaseBackend] = None
+    ) -> ProviderState:
         now = time.monotonic()
         last = self._timestamps.get(backend_type, 0.0)
         if (now - last) < self.ttl_seconds and backend_type in self._states:
@@ -131,6 +139,7 @@ class CapabilityIndex:
 @dataclass(frozen=True)
 class PolicyCapabilityRule:
     """Pre-computed policy categorization and risk tier for O(1) checks."""
+
     capability: str
     category: str  # "READONLY", "MUTATING", "EXECUTION", "DEVICE", "ADMIN"
     risk_level: str  # "R0", "R1", "R2", "R3"
@@ -150,10 +159,19 @@ class PolicyIndex:
     def _build_default_rules(self) -> None:
         # Standard Core Readonly
         core_ro = [
-            "system.inspect", "system.health", "system.version",
-            "capabilities.list", "workspace.list", "workspace.inspect",
-            "fs.list", "fs.stat", "fs.read", "fs.search",
-            "process.list", "process.inspect", "audit.recent",
+            "system.inspect",
+            "system.health",
+            "system.version",
+            "capabilities.list",
+            "workspace.list",
+            "workspace.inspect",
+            "fs.list",
+            "fs.stat",
+            "fs.read",
+            "fs.search",
+            "process.list",
+            "process.inspect",
+            "audit.recent",
         ]
         for cap in core_ro:
             self._rules[cap] = PolicyCapabilityRule(
@@ -178,7 +196,12 @@ class PolicyIndex:
         )
 
         # Core Mutating
-        for cap in ("workspace.patch", "workspace.patch_batch", "workspace.rollback", "workspace.batch_rollback"):
+        for cap in (
+            "workspace.patch",
+            "workspace.patch_batch",
+            "workspace.rollback",
+            "workspace.batch_rollback",
+        ):
             self._rules[cap] = PolicyCapabilityRule(
                 capability=cap,
                 category="MUTATING",

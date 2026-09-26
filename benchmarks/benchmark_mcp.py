@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import sys
 import time
 from pathlib import Path
@@ -78,7 +77,10 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
         suite_name="benchmark_mcp",
         metrics=metrics,
         output_dir=output_dir,
-        extra={"tools_count": len(server.tool_registry.list_tools()), "rss_mb": get_current_rss_mb()},
+        extra={
+            "tools_count": len(server.tool_registry.list_tools()),
+            "rss_mb": get_current_rss_mb(),
+        },
     )
     return metrics
 
@@ -87,4 +89,6 @@ if __name__ == "__main__":
     out = Path("artifacts/benchmarks")
     results = run_benchmark(out)
     for m in results:
-        print(f"{m.name:32} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms")
+        print(
+            f"{m.name:32} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms"
+        )

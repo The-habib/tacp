@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from tacp.backends.base import BackendStatus, BackendType, BaseBackend, ExecutionResult
 
@@ -16,8 +16,21 @@ class AndroidShellBackend(BaseBackend):
     """Executes standard Android platform utilities from /system/bin and /system/xbin."""
 
     KNOWN_SYSTEM_BINS = [
-        "getprop", "pm", "am", "cmd", "dumpsys", "logcat", "screencap",
-        "input", "settings", "toybox", "df", "sh", "top", "ps", "ip"
+        "getprop",
+        "pm",
+        "am",
+        "cmd",
+        "dumpsys",
+        "logcat",
+        "screencap",
+        "input",
+        "settings",
+        "toybox",
+        "df",
+        "sh",
+        "top",
+        "ps",
+        "ip",
     ]
 
     def __init__(self) -> None:
@@ -52,7 +65,9 @@ class AndroidShellBackend(BaseBackend):
         if self._available_bins:
             self._available = True
             self._status = BackendStatus.AVAILABLE
-            self._details = f"Android /system/bin utilities active ({len(self._available_bins)} verified tools)"
+            self._details = (
+                f"Android /system/bin utilities active ({len(self._available_bins)} verified tools)"
+            )
         else:
             self._available = False
             self._status = BackendStatus.UNAVAILABLE

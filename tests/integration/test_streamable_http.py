@@ -77,7 +77,9 @@ def test_health_and_readiness_endpoints(running_http_server: tuple[str, TokenSer
 def test_unauthenticated_post_rejected(running_http_server: tuple[str, TokenService, str]) -> None:
     base_url, _, _ = running_http_server
 
-    payload = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}).encode("utf-8")
+    payload = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}).encode(
+        "utf-8"
+    )
     req = urllib.request.Request(
         f"{base_url}/mcp",
         data=payload,
@@ -97,7 +99,9 @@ def test_unauthenticated_post_rejected(running_http_server: tuple[str, TokenServ
 def test_invalid_bearer_token_rejected(running_http_server: tuple[str, TokenService, str]) -> None:
     base_url, _, _ = running_http_server
 
-    payload = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}).encode("utf-8")
+    payload = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}).encode(
+        "utf-8"
+    )
     req = urllib.request.Request(
         f"{base_url}/mcp",
         data=payload,
@@ -115,21 +119,23 @@ def test_invalid_bearer_token_rejected(running_http_server: tuple[str, TokenServ
 
 
 def test_authenticated_mcp_initialize_and_tools_list(
-    running_http_server: tuple[str, TokenService, str]
+    running_http_server: tuple[str, TokenService, str],
 ) -> None:
     base_url, _, valid_token = running_http_server
 
     # 1. Initialize
-    init_payload = json.dumps({
-        "jsonrpc": "2.0",
-        "id": "req-init",
-        "method": "initialize",
-        "params": {
-            "protocolVersion": "2026-07-28",
-            "capabilities": {},
-            "clientInfo": {"name": "test-client", "version": "1.0"},
-        },
-    }).encode("utf-8")
+    init_payload = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": "req-init",
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2026-07-28",
+                "capabilities": {},
+                "clientInfo": {"name": "test-client", "version": "1.0"},
+            },
+        }
+    ).encode("utf-8")
 
     req_init = urllib.request.Request(
         f"{base_url}/mcp",
@@ -150,12 +156,14 @@ def test_authenticated_mcp_initialize_and_tools_list(
         assert body["result"]["serverInfo"]["name"] == "tacp"
 
     # 2. tools/list
-    list_payload = json.dumps({
-        "jsonrpc": "2.0",
-        "id": "req-list",
-        "method": "tools/list",
-        "params": {},
-    }).encode("utf-8")
+    list_payload = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": "req-list",
+            "method": "tools/list",
+            "params": {},
+        }
+    ).encode("utf-8")
 
     req_list = urllib.request.Request(
         f"{base_url}/mcp",
@@ -179,15 +187,17 @@ def test_authenticated_mcp_initialize_and_tools_list(
 def test_authenticated_tool_call(running_http_server: tuple[str, TokenService, str]) -> None:
     base_url, _, valid_token = running_http_server
 
-    call_payload = json.dumps({
-        "jsonrpc": "2.0",
-        "id": "req-call",
-        "method": "tools/call",
-        "params": {
-            "name": "system.inspect",
-            "arguments": {},
-        },
-    }).encode("utf-8")
+    call_payload = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": "req-call",
+            "method": "tools/call",
+            "params": {
+                "name": "system.inspect",
+                "arguments": {},
+            },
+        }
+    ).encode("utf-8")
 
     req_call = urllib.request.Request(
         f"{base_url}/mcp",
@@ -212,12 +222,14 @@ def test_authenticated_tool_call(running_http_server: tuple[str, TokenService, s
 def test_sse_streaming_response(running_http_server: tuple[str, TokenService, str]) -> None:
     base_url, _, valid_token = running_http_server
 
-    payload = json.dumps({
-        "jsonrpc": "2.0",
-        "id": "req-sse",
-        "method": "tools/list",
-        "params": {},
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": "req-sse",
+            "method": "tools/list",
+            "params": {},
+        }
+    ).encode("utf-8")
 
     req = urllib.request.Request(
         f"{base_url}/mcp",
@@ -242,7 +254,9 @@ def test_session_id_tracking(running_http_server: tuple[str, TokenService, str])
     base_url, _, valid_token = running_http_server
 
     custom_session = "custom-mcp-session-xyz-123"
-    payload = json.dumps({"jsonrpc": "2.0", "id": "s-1", "method": "tools/list", "params": {}}).encode("utf-8")
+    payload = json.dumps(
+        {"jsonrpc": "2.0", "id": "s-1", "method": "tools/list", "params": {}}
+    ).encode("utf-8")
     req = urllib.request.Request(
         f"{base_url}/mcp",
         data=payload,
@@ -271,19 +285,21 @@ def test_read_only_token_cannot_mutate(
         scopes=[SCOPE_READ],
     )
 
-    call_payload = json.dumps({
-        "jsonrpc": "2.0",
-        "id": "req-mutate",
-        "method": "tools/call",
-        "params": {
-            "name": "workspace.patch",
-            "arguments": {
-                "workspace_id": test_services["workspace"].id,
-                "relative_path": "hello.txt",
-                "hunks": [],
+    call_payload = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": "req-mutate",
+            "method": "tools/call",
+            "params": {
+                "name": "workspace.patch",
+                "arguments": {
+                    "workspace_id": test_services["workspace"].id,
+                    "relative_path": "hello.txt",
+                    "hunks": [],
+                },
             },
-        },
-    }).encode("utf-8")
+        }
+    ).encode("utf-8")
 
     req = urllib.request.Request(
         f"{base_url}/mcp",
@@ -301,4 +317,3 @@ def test_read_only_token_cannot_mutate(
         assert body["id"] == "req-mutate"
         # Tool call should return error indicating lack of mutation permissions
         assert body["result"]["isError"] is True
-

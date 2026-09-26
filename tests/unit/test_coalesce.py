@@ -1,8 +1,9 @@
 """Unit tests for SingleFlight request coalescing."""
 
-import time
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
+
 from tacp.core.coalesce import SingleFlight
 
 
@@ -15,7 +16,7 @@ def test_singleflight_coalescing():
         nonlocal execution_count
         with lock:
             execution_count += 1
-        time.sleep(0.05) # simulate work
+        time.sleep(0.05)  # simulate work
         return {"result": "computed"}
 
     N = 50

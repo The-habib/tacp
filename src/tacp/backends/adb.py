@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import time
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from tacp.backends.base import BackendStatus, BackendType, BaseBackend, ExecutionResult
 
@@ -29,13 +28,21 @@ class AdbBackend(BaseBackend):
         if not self.adb_bin:
             self._available = False
             self._status = BackendStatus.UNAVAILABLE
-            self._details = "adb binary not installed in Termux (install via 'pkg install android-tools')"
+            self._details = (
+                "adb binary not installed in Termux (install via 'pkg install android-tools')"
+            )
             return self._status
 
         try:
-            p = subprocess.run([self.adb_bin, "devices"], capture_output=True, text=True, timeout=2.0)
-            lines = [line for line in p.stdout.splitlines() if line and not line.startswith("List of devices")]
-            active_devices = [l for l in lines if "\tdevice" in l]
+            p = subprocess.run(
+                [self.adb_bin, "devices"], capture_output=True, text=True, timeout=2.0
+            )
+            lines = [
+                line
+                for line in p.stdout.splitlines()
+                if line and not line.startswith("List of devices")
+            ]
+            active_devices = [dev_line for dev_line in lines if "\tdevice" in dev_line]
             if active_devices:
                 self._available = True
                 self._status = BackendStatus.AVAILABLE
@@ -46,7 +53,9 @@ class AdbBackend(BaseBackend):
 
         self._available = False
         self._status = BackendStatus.PERMISSION_REQUIRED
-        self._details = "adb binary present, but no authorized device connected (pair via Wireless Debugging)"
+        self._details = (
+            "adb binary present, but no authorized device connected (pair via Wireless Debugging)"
+        )
         return self._status
 
     def execute(

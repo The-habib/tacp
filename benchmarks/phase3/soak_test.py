@@ -6,6 +6,7 @@ import os
 import threading
 import time
 from pathlib import Path
+
 from tacp.access.mcp.protocol import McpRequest
 from tacp.access.mcp.server import create_mcp_server
 from tacp.infrastructure.config import TacpConfig
@@ -50,8 +51,14 @@ def run_soak_test(cycles: int = 1000, duration_minutes: float = 0.0, pace_hz: fl
     start_time = time.perf_counter()
 
     milestones = []
-    mode_str = f"{duration_minutes:.1f} minutes timed soak" if duration_minutes > 0 else f"{cycles} cycles burst soak"
-    print(f"Starting Soak Test: {mode_str}. Baseline RSS: {start_rss_kb/1024:.2f} MB, FDs: {start_fds}, Threads: {start_threads}")
+    mode_str = (
+        f"{duration_minutes:.1f} minutes timed soak"
+        if duration_minutes > 0
+        else f"{cycles} cycles burst soak"
+    )
+    print(
+        f"Starting Soak Test: {mode_str}. Baseline RSS: {start_rss_kb / 1024:.2f} MB, FDs: {start_fds}, Threads: {start_threads}"
+    )
 
     i = 0
     duration_s = duration_minutes * 60.0
@@ -79,15 +86,19 @@ def run_soak_test(cycles: int = 1000, duration_minutes: float = 0.0, pace_hz: fl
         if i % 200 == 0 or should_stop:
             current_rss_kb = get_rss_kb()
             current_fds = get_open_fds()
-            milestones.append({
-                "cycle": i,
-                "elapsed_s": round(elapsed, 2),
-                "rss_mb": round(current_rss_kb / 1024.0, 2),
-                "delta_rss_mb": round((current_rss_kb - start_rss_kb) / 1024.0, 2),
-                "fds": current_fds,
-                "threads": threading.active_count(),
-            })
-            print(f"[{elapsed:.1f}s] Cycle {i}: RSS = {current_rss_kb/1024:.2f} MB (Delta: {(current_rss_kb - start_rss_kb)/1024:.2f} MB), FDs: {current_fds}")
+            milestones.append(
+                {
+                    "cycle": i,
+                    "elapsed_s": round(elapsed, 2),
+                    "rss_mb": round(current_rss_kb / 1024.0, 2),
+                    "delta_rss_mb": round((current_rss_kb - start_rss_kb) / 1024.0, 2),
+                    "fds": current_fds,
+                    "threads": threading.active_count(),
+                }
+            )
+            print(
+                f"[{elapsed:.1f}s] Cycle {i}: RSS = {current_rss_kb / 1024:.2f} MB (Delta: {(current_rss_kb - start_rss_kb) / 1024:.2f} MB), FDs: {current_fds}"
+            )
 
         if should_stop:
             break
@@ -124,9 +135,19 @@ def run_soak_test(cycles: int = 1000, duration_minutes: float = 0.0, pace_hz: fl
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="TACP Soak & Resource Leak Benchmark")
-    parser.add_argument("--cycles", type=int, default=1000, help="Total request cycles (burst mode)")
-    parser.add_argument("--duration-minutes", type=float, default=0.0, help="Run duration in minutes (endurance mode)")
-    parser.add_argument("--pace-hz", type=float, default=0.0, help="Target request frequency (ops/sec)")
+    parser.add_argument(
+        "--cycles", type=int, default=1000, help="Total request cycles (burst mode)"
+    )
+    parser.add_argument(
+        "--duration-minutes",
+        type=float,
+        default=0.0,
+        help="Run duration in minutes (endurance mode)",
+    )
+    parser.add_argument(
+        "--pace-hz", type=float, default=0.0, help="Target request frequency (ops/sec)"
+    )
     args = parser.parse_args()
     run_soak_test(cycles=args.cycles, duration_minutes=args.duration_minutes, pace_hz=args.pace_hz)

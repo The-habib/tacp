@@ -1,24 +1,15 @@
 """Unit and integration tests for TACP Device Control Plane."""
 
-import json
 from pathlib import Path
-import pytest
-from tacp.backends.base import BackendType, BackendStatus
-from tacp.backends.manager import BackendManager
-from tacp.backends.termux import TermuxBackend
-from tacp.backends.android_shell import AndroidShellBackend
-from tacp.backends.shizuku import ShizukuBackend
-from tacp.backends.root import RootBackend
-from tacp.backends.adb import AdbBackend
-from tacp.backends.android_bridge import AndroidBridgeBackend
-from tacp.backends.termux_api import TermuxApiBackend
-from tacp.engine.capability import CapabilityDefinition
-from tacp.engine.registry import CapabilityRegistry, default_registry
-from tacp.engine.resolver import CapabilityResolver
+
 from tacp.access.mcp.protocol import McpRequest
 from tacp.access.mcp.server import create_mcp_server
+from tacp.backends.base import BackendStatus
+from tacp.backends.manager import BackendManager
+from tacp.backends.shizuku import ShizukuBackend
+from tacp.engine.registry import default_registry
+from tacp.engine.resolver import CapabilityResolver
 from tacp.infrastructure.config import OutputLimits, TacpConfig
-from tacp.infrastructure.database import Database
 
 
 def test_backends_registration_and_status():
@@ -64,7 +55,7 @@ def test_capability_registry_counts_and_categories():
 def test_resolver_selection():
     bm = BackendManager()
     resolver = CapabilityResolver(bm)
-    
+
     cap = default_registry.get("device.info")
     assert cap is not None
     backend, status, reason = resolver.resolve(cap)
@@ -77,7 +68,7 @@ def test_resolver_selection():
 
 def test_handlers_execution_live():
     reg = default_registry
-    
+
     # 1. shell.pwd
     cap = reg.get("shell.pwd")
     assert cap is not None
@@ -125,7 +116,6 @@ def test_mcp_tools_list_flag(tmp_path: Path):
     req1 = McpRequest(id=1, method="tools/list", params={})
     resp1 = server_disabled.handle_request(req1)
     assert resp1 is not None
-    base_count = len(resp1.result["tools"])
 
     # Server with device capabilities enabled
     server_enabled = create_mcp_server(config=cfg, enable_device_capabilities=True)
@@ -133,7 +123,9 @@ def test_mcp_tools_list_flag(tmp_path: Path):
     resp2 = server_enabled.handle_request(req2)
     assert resp2 is not None
     dev_tools = default_registry.get_mcp_tools()
-    expected_unique = len({t["name"] for t in resp1.result["tools"]}.union({t["name"] for t in dev_tools}))
+    expected_unique = len(
+        {t["name"] for t in resp1.result["tools"]}.union({t["name"] for t in dev_tools})
+    )
     assert len(resp2.result["tools"]) == expected_unique
     tool_names = [t["name"] for t in resp2.result["tools"]]
     assert "device.info" in tool_names or "device_info" in tool_names
@@ -176,7 +168,7 @@ def test_mcp_server_resources_and_prompts(tmp_path: Path):
         limits=OutputLimits(),
     )
     server = create_mcp_server(config=cfg, enable_device_capabilities=True)
-    
+
     # Check resources list
     res_list = server.handle_request(McpRequest(id=1, method="resources/list", params={}))
     assert res_list is not None
@@ -186,11 +178,9 @@ def test_mcp_server_resources_and_prompts(tmp_path: Path):
     assert "tacp://capabilities/list" in uris
 
     # Check resource read
-    res_read = server.handle_request(McpRequest(
-        id=2,
-        method="resources/read",
-        params={"uri": "tacp://device/info"}
-    ))
+    res_read = server.handle_request(
+        McpRequest(id=2, method="resources/read", params={"uri": "tacp://device/info"})
+    )
     assert res_read is not None
     contents = res_read.result["contents"]
     assert len(contents) == 1
@@ -205,11 +195,11 @@ def test_mcp_server_resources_and_prompts(tmp_path: Path):
     assert "inspect-device" in p_names
 
     # Check prompt get
-    p_get = server.handle_request(McpRequest(
-        id=4,
-        method="prompts/get",
-        params={"name": "device-diagnostics", "arguments": {}}
-    ))
+    p_get = server.handle_request(
+        McpRequest(
+            id=4, method="prompts/get", params={"name": "device-diagnostics", "arguments": {}}
+        )
+    )
     assert p_get is not None
     messages = p_get.result["messages"]
     assert len(messages) >= 1

@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from tacp.backends.base import BaseBackend
 
@@ -57,13 +57,20 @@ def handle_package_path(backend: BaseBackend, params: Dict[str, Any]) -> Dict[st
         return {"success": False, "error": "Missing required parameter 'package'"}
 
     try:
-        p = subprocess.run(["/system/bin/pm", "path", pkg], capture_output=True, text=True, timeout=3.0)
+        p = subprocess.run(
+            ["/system/bin/pm", "path", pkg], capture_output=True, text=True, timeout=3.0
+        )
         if p.returncode == 0 and "package:" in p.stdout:
             paths = []
             for line in p.stdout.splitlines():
                 if line.startswith("package:"):
                     paths.append(line.replace("package:", "").strip())
-            return {"success": True, "package": pkg, "paths": paths, "primary_apk": paths[0] if paths else None}
+            return {
+                "success": True,
+                "package": pkg,
+                "paths": paths,
+                "primary_apk": paths[0] if paths else None,
+            }
         return {"success": False, "error": f"Package '{pkg}' not found"}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
@@ -121,7 +128,12 @@ def handle_app_launch(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str,
             timeout=5.0,
         )
         if "Events injected: 1" in p.stdout or p.returncode == 0:
-            return {"success": True, "package": pkg, "method": "monkey_launcher", "message": f"Application {pkg} launched successfully"}
+            return {
+                "success": True,
+                "package": pkg,
+                "method": "monkey_launcher",
+                "message": f"Application {pkg} launched successfully",
+            }
     except Exception:
         pass
 
@@ -129,7 +141,9 @@ def handle_app_launch(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str,
     termux_am = shutil.which("termux-am")
     if termux_am:
         try:
-            p = subprocess.run([termux_am, "start", "-n", pkg], capture_output=True, text=True, timeout=3.0)
+            p = subprocess.run(
+                [termux_am, "start", "-n", pkg], capture_output=True, text=True, timeout=3.0
+            )
             if p.returncode == 0:
                 return {"success": True, "package": pkg, "method": "termux-am"}
         except Exception:
@@ -163,6 +177,7 @@ def handle_package_install(backend: BaseBackend, params: Dict[str, Any]) -> Dict
     """Install APK package (requires Shizuku or root)."""
     try:
         from tacp.core.state import DeviceStateManager
+
         DeviceStateManager.get_default().invalidate("packages")
     except Exception:
         pass
@@ -182,6 +197,7 @@ def handle_package_uninstall(backend: BaseBackend, params: Dict[str, Any]) -> Di
     """Uninstall package (requires Shizuku or root)."""
     try:
         from tacp.core.state import DeviceStateManager
+
         DeviceStateManager.get_default().invalidate("packages")
     except Exception:
         pass

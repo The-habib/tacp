@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import sys
-import time
 from pathlib import Path
 from typing import List
 
@@ -76,7 +75,10 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
         # 1. fs.stat (MCP tool call)
         req_stat = McpRequest(
             method="tools/call",
-            params={"name": "fs.stat", "arguments": {"workspace_id": ws_id, "subpath": f".bench_scratch/{paths['1k']}"}},
+            params={
+                "name": "fs.stat",
+                "arguments": {"workspace_id": ws_id, "subpath": f".bench_scratch/{paths['1k']}"},
+            },
             id=20,
         )
         d_stat = time_callable(lambda: server.handle_request(req_stat), iterations=50)
@@ -90,7 +92,10 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
         # 3. fs.read (1KB)
         req_read_1k = McpRequest(
             method="tools/call",
-            params={"name": "fs.read", "arguments": {"workspace_id": ws_id, "subpath": f".bench_scratch/{paths['1k']}"}},
+            params={
+                "name": "fs.read",
+                "arguments": {"workspace_id": ws_id, "subpath": f".bench_scratch/{paths['1k']}"},
+            },
             id=21,
         )
         d_read_1k = time_callable(lambda: server.handle_request(req_read_1k), iterations=50)
@@ -99,7 +104,10 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
         # 4. fs.read (100KB)
         req_read_100k = McpRequest(
             method="tools/call",
-            params={"name": "fs.read", "arguments": {"workspace_id": ws_id, "subpath": f".bench_scratch/{paths['100k']}"}},
+            params={
+                "name": "fs.read",
+                "arguments": {"workspace_id": ws_id, "subpath": f".bench_scratch/{paths['100k']}"},
+            },
             id=22,
         )
         d_read_100k = time_callable(lambda: server.handle_request(req_read_100k), iterations=30)
@@ -108,7 +116,13 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
         # 5. fs.list (med_dir with 50 files)
         req_list_med = McpRequest(
             method="tools/call",
-            params={"name": "fs.list", "arguments": {"workspace_id": ws_id, "subpath": f".bench_scratch/{paths['med_dir']}"}},
+            params={
+                "name": "fs.list",
+                "arguments": {
+                    "workspace_id": ws_id,
+                    "subpath": f".bench_scratch/{paths['med_dir']}",
+                },
+            },
             id=23,
         )
         d_list_med = time_callable(lambda: server.handle_request(req_list_med), iterations=30)
@@ -117,7 +131,14 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
         # 6. fs.search
         req_search = McpRequest(
             method="tools/call",
-            params={"name": "fs.search", "arguments": {"workspace_id": ws_id, "subpath": ".bench_scratch", "query": "item_2"}},
+            params={
+                "name": "fs.search",
+                "arguments": {
+                    "workspace_id": ws_id,
+                    "subpath": ".bench_scratch",
+                    "query": "item_2",
+                },
+            },
             id=24,
         )
         d_search = time_callable(lambda: server.handle_request(req_search), iterations=20)
@@ -126,6 +147,7 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
     finally:
         # Cleanup scratch files
         import shutil
+
         if bench_scratch.exists():
             shutil.rmtree(bench_scratch, ignore_errors=True)
 
@@ -142,4 +164,6 @@ if __name__ == "__main__":
     out = Path("artifacts/benchmarks")
     results = run_benchmark(out)
     for m in results:
-        print(f"{m.name:32} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms")
+        print(
+            f"{m.name:32} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms"
+        )

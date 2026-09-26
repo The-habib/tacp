@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from tacp.backends.adb import AdbBackend
 from tacp.backends.android_bridge import AndroidBridgeBackend
 from tacp.backends.android_shell import AndroidShellBackend
-from tacp.backends.base import BackendStatus, BackendType, BaseBackend, ExecutionResult
+from tacp.backends.base import BackendType, BaseBackend, ExecutionResult
 from tacp.backends.root import RootBackend
 from tacp.backends.shizuku import ShizukuBackend
 from tacp.backends.termux import TermuxBackend

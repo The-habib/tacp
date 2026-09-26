@@ -21,9 +21,11 @@ import statistics
 import time
 import urllib.request
 from pathlib import Path
+
+from tacp.control.auth import VALID_SCOPES, TokenService
 from tacp.infrastructure.config import TacpConfig
 from tacp.infrastructure.database import Database
-from tacp.control.auth import TokenService, VALID_SCOPES
+
 
 def get_token() -> str:
     cfg = TacpConfig.load()
@@ -35,6 +37,7 @@ def get_token() -> str:
         expires_days=1,
     )
     return token
+
 
 def call_mcp(url: str, token: str, tool_name: str, arguments: dict = None) -> dict:
     payload = {
@@ -69,6 +72,7 @@ def call_mcp(url: str, token: str, tool_name: str, arguments: dict = None) -> di
         "success": "result" in data and not data.get("result", {}).get("isError", False),
     }
 
+
 def benchmark_task(url: str, token: str, task_fn, iterations=5):
     samples = []
     total_bytes = 0
@@ -82,7 +86,7 @@ def benchmark_task(url: str, token: str, task_fn, iterations=5):
             samples.append((t1 - t0) * 1000)
             total_bytes = b
             num_calls = calls
-        except Exception as e:
+        except Exception:
             errors += 1
     samples.sort()
     p50 = statistics.median(samples) if samples else 0.0
@@ -95,38 +99,52 @@ def benchmark_task(url: str, token: str, task_fn, iterations=5):
         "errors": errors,
     }
 
+
 # Task Implementations:
 def run_task_a_optimized(url, token):
     res = call_mcp(url, token, "device.snapshot", {})
     return 1, res["bytes"]
 
+
 def run_task_a_unoptimized(url, token):
     total_b = 0
     # 5 discrete calls
-    for tool in ["device.info", "device.battery", "storage.overview", "network.interfaces", "system.inspect"]:
+    for tool in [
+        "device.info",
+        "device.battery",
+        "storage.overview",
+        "network.interfaces",
+        "system.inspect",
+    ]:
         r = call_mcp(url, token, tool, {})
         total_b += r["bytes"]
     return 5, total_b
+
 
 def run_task_b(url, token):
     res = call_mcp(url, token, "fs.list", {"workspace_id": "default", "subpath": ""})
     return 1, res["bytes"]
 
+
 def run_task_c(url, token):
     res = call_mcp(url, token, "fs.search", {"workspace_id": "default", "query": "json"})
     return 1, res["bytes"]
+
 
 def run_task_d(url, token):
     res = call_mcp(url, token, "process.list", {})
     return 1, res["bytes"]
 
+
 def run_task_e(url, token):
     res = call_mcp(url, token, "screen.capture", {})
     return 1, res["bytes"]
 
+
 def run_task_f(url, token):
     res = call_mcp(url, token, "system.health", {})
     return 1, res["bytes"]
+
 
 def run_all():
     remote_cfg_path = Path.home() / ".tacp" / "remote.json"
@@ -150,22 +168,27 @@ def run_all():
     for name, fn in tasks:
         loc = benchmark_task(local_url, token, fn, iterations=5)
         rem = benchmark_task(remote_url, token, fn, iterations=3)
-        results.append({
-            "task": name,
-            "calls": loc["calls"],
-            "payload_bytes": loc["payload_bytes"],
-            "local_p50_ms": loc["p50_ms"],
-            "local_p95_ms": loc["p95_ms"],
-            "remote_p50_ms": rem["p50_ms"],
-            "remote_p95_ms": rem["p95_ms"],
-            "errors": loc["errors"] + rem["errors"],
-        })
-        print(f"  {name:38} | Calls: {loc['calls']} | Local P50: {loc['p50_ms']:6.2f} ms | Remote P50: {rem['p50_ms']:6.2f} ms | Bytes: {loc['payload_bytes']}")
+        results.append(
+            {
+                "task": name,
+                "calls": loc["calls"],
+                "payload_bytes": loc["payload_bytes"],
+                "local_p50_ms": loc["p50_ms"],
+                "local_p95_ms": loc["p95_ms"],
+                "remote_p50_ms": rem["p50_ms"],
+                "remote_p95_ms": rem["p95_ms"],
+                "errors": loc["errors"] + rem["errors"],
+            }
+        )
+        print(
+            f"  {name:38} | Calls: {loc['calls']} | Local P50: {loc['p50_ms']:6.2f} ms | Remote P50: {rem['p50_ms']:6.2f} ms | Bytes: {loc['payload_bytes']}"
+        )
 
     out_file = Path("artifacts/phase2/benchmark_agent_tasks.json")
     out_file.parent.mkdir(parents=True, exist_ok=True)
     out_file.write_text(json.dumps(results, indent=2))
     print(f"\nSaved agent task benchmark results to {out_file}")
+
 
 if __name__ == "__main__":
     run_all()

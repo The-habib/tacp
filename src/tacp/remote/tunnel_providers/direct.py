@@ -40,7 +40,11 @@ class DirectTunnelProvider(BaseTunnelProvider):
         if custom_domain:
             self._custom_host = custom_domain
             scheme = "https" if kwargs.get("https", False) else "http"
-            public_url = f"{scheme}://{custom_domain}:{local_port}" if ":" not in custom_domain else f"{scheme}://{custom_domain}"
+            public_url = (
+                f"{scheme}://{custom_domain}:{local_port}"
+                if ":" not in custom_domain
+                else f"{scheme}://{custom_domain}"
+            )
         else:
             local_ip = get_local_ip()
             self._custom_host = local_ip

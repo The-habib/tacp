@@ -1,6 +1,7 @@
 """Unit tests for Mutation Idempotency."""
 
 import pytest
+
 from tacp.core.idempotency import IdempotencyManager
 from tacp.domain.errors import ErrorCode, TacpError
 

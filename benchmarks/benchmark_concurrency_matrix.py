@@ -69,7 +69,7 @@ def run_isolated_concurrency_test(
 def run_matrix(output_dir: Path) -> Dict[str, Any]:
     config = TacpConfig.load()
     server = create_mcp_server(config=config, enable_device_capabilities=True)
-    
+
     workspaces = server.tool_registry.workspace_service.list_workspaces()
     if not workspaces:
         ws_root = Path.cwd()
@@ -87,7 +87,10 @@ def run_matrix(output_dir: Path) -> Dict[str, Any]:
         ),
         "FILESYSTEM": lambda cid, rid: McpRequest(
             method="tools/call",
-            params={"name": "fs.stat", "arguments": {"workspace_id": ws_id, "subpath": "README.md"}},
+            params={
+                "name": "fs.stat",
+                "arguments": {"workspace_id": ws_id, "subpath": "README.md"},
+            },
             id=cid * 10000 + rid,
         ),
         "DEVICE": lambda cid, rid: McpRequest(
@@ -111,7 +114,9 @@ def run_matrix(output_dir: Path) -> Dict[str, Any]:
     matrix_results: Dict[str, Any] = {}
     all_metrics: List[MetricSummary] = []
 
-    print(f"{'Subsystem':24} | {'Clients':7} | {'Reqs':5} | {'Throughput':11} | {'P50 (ms)':9} | {'P95 (ms)':9} | {'Errors':6}")
+    print(
+        f"{'Subsystem':24} | {'Clients':7} | {'Reqs':5} | {'Throughput':11} | {'P50 (ms)':9} | {'P95 (ms)':9} | {'Errors':6}"
+    )
     print("-" * 85)
 
     for sub_name, req_builder in subsystems.items():
@@ -140,7 +145,9 @@ def run_matrix(output_dir: Path) -> Dict[str, Any]:
                 "errors": errors,
             }
             matrix_results[sub_name].append(rec)
-            print(f"{sub_name:24} | {c:7} | {total:5} | {rps:9.1f} rps | {summary.p50_ms:7.3f} ms | {summary.p95_ms:7.3f} ms | {errors:6}")
+            print(
+                f"{sub_name:24} | {c:7} | {total:5} | {rps:9.1f} rps | {summary.p50_ms:7.3f} ms | {summary.p95_ms:7.3f} ms | {errors:6}"
+            )
 
     out_file = output_dir / "concurrency-matrix.json"
     with open(out_file, "w", encoding="utf-8") as f:

@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import sys
-import time
 from pathlib import Path
 from typing import List
 
@@ -77,15 +75,21 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
 
     # 6. LATENCY CLASS DECOMPOSITION (for system.inspect):
     # A: Tool name normalization
-    d_norm = time_callable(lambda: server.tool_registry.normalize_tool_name("system.inspect"), iterations=200)
+    d_norm = time_callable(
+        lambda: server.tool_registry.normalize_tool_name("system.inspect"), iterations=200
+    )
     metrics.append(compute_metrics("latency_class_name_normalization", d_norm))
 
     # B: Tool execution inside registry (policy + dispatch + audit)
-    d_reg_exec = time_callable(lambda: server.tool_registry.execute_tool("system.inspect", {}), iterations=50)
+    d_reg_exec = time_callable(
+        lambda: server.tool_registry.execute_tool("system.inspect", {}), iterations=50
+    )
     metrics.append(compute_metrics("latency_class_registry_execute_tool", d_reg_exec))
 
     # C: Raw system service (pure Python / uname / /proc without policy or audit)
-    d_raw = time_callable(lambda: server.tool_registry.system_service.inspect_system(), iterations=100)
+    d_raw = time_callable(
+        lambda: server.tool_registry.system_service.inspect_system(), iterations=100
+    )
     metrics.append(compute_metrics("latency_class_raw_system_inspect", d_raw))
 
     # D: Audit log insert overhead (single audit event with fresh ID)
@@ -117,4 +121,6 @@ if __name__ == "__main__":
     out = Path("artifacts/benchmarks")
     results = run_benchmark(out)
     for m in results:
-        print(f"{m.name:34} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms")
+        print(
+            f"{m.name:34} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms"
+        )

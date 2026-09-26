@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import subprocess
 import sys
-import time
 from pathlib import Path
 from typing import List
 
@@ -46,7 +45,9 @@ def run_benchmark(output_dir: Path) -> List[MetricSummary]:
     metrics.append(compute_metrics("exec_process_list_e2e", d_plist))
 
     # 3. Direct ProcessService.list_processes()
-    d_raw_plist = time_callable(lambda: server.tool_registry.process_service.list_processes(), iterations=20)
+    d_raw_plist = time_callable(
+        lambda: server.tool_registry.process_service.list_processes(), iterations=20
+    )
     metrics.append(compute_metrics("exec_raw_process_service_list", d_raw_plist))
 
     # 4. Process inspect: inspect current pid
@@ -69,4 +70,6 @@ if __name__ == "__main__":
     out = Path("artifacts/benchmarks")
     results = run_benchmark(out)
     for m in results:
-        print(f"{m.name:34} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms")
+        print(
+            f"{m.name:34} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms"
+        )

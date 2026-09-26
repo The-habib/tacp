@@ -61,7 +61,9 @@ class StreamableMcpHandler(BaseHTTPRequestHandler):
 
         # Health endpoint (unauthenticated)
         if path in ("/health", "/healthz"):
-            body = json.dumps({"status": "ok", "version": self.server.mcp_server.config.version}).encode("utf-8")
+            body = json.dumps(
+                {"status": "ok", "version": self.server.mcp_server.config.version}
+            ).encode("utf-8")
             self.send_response(200)
             self._send_cors_headers()
             self.send_header("Content-Type", "application/json")
@@ -73,7 +75,9 @@ class StreamableMcpHandler(BaseHTTPRequestHandler):
         # Readiness endpoint
         if path in ("/ready", "/readyz"):
             db_ok = self.server.mcp_server.tool_registry.system_service.db.is_healthy()
-            workspaces = len(self.server.mcp_server.tool_registry.workspace_service.list_workspaces())
+            workspaces = len(
+                self.server.mcp_server.tool_registry.workspace_service.list_workspaces()
+            )
             body = json.dumps(
                 {
                     "ready": db_ok,
@@ -125,14 +129,16 @@ class StreamableMcpHandler(BaseHTTPRequestHandler):
                 return
 
             # Default JSON metadata
-            body = json.dumps({
-                "name": "tacp",
-                "version": self.server.mcp_server.config.version,
-                "protocolVersion": "2026-07-28",
-                "transport": "streamable-http",
-                "auth_required": self.server.auth_required,
-                "endpoint": "/mcp",
-            }).encode("utf-8")
+            body = json.dumps(
+                {
+                    "name": "tacp",
+                    "version": self.server.mcp_server.config.version,
+                    "protocolVersion": "2026-07-28",
+                    "transport": "streamable-http",
+                    "auth_required": self.server.auth_required,
+                    "endpoint": "/mcp",
+                }
+            ).encode("utf-8")
             self.send_response(200)
             self._send_cors_headers()
             self.send_header("Content-Type", "application/json")
@@ -200,7 +206,9 @@ class StreamableMcpHandler(BaseHTTPRequestHandler):
         try:
             parsed_json = json.loads(raw_body)
         except json.JSONDecodeError as exc:
-            err_resp = McpResponse(id=None, error={"code": PARSE_ERROR, "message": f"Parse error: {exc}"})
+            err_resp = McpResponse(
+                id=None, error={"code": PARSE_ERROR, "message": f"Parse error: {exc}"}
+            )
             self._send_response_body(err_resp.to_json().encode("utf-8"), session_id=session_id)
             return
 
@@ -216,9 +224,18 @@ class StreamableMcpHandler(BaseHTTPRequestHandler):
                 if resp is not None:
                     responses.append(resp.to_dict())
             except McpProtocolError as exc:
-                responses.append(McpResponse(id=item.get("id") if isinstance(item, dict) else None, error=exc.to_dict()).to_dict())
+                responses.append(
+                    McpResponse(
+                        id=item.get("id") if isinstance(item, dict) else None, error=exc.to_dict()
+                    ).to_dict()
+                )
             except Exception as exc:
-                responses.append(McpResponse(id=item.get("id") if isinstance(item, dict) else None, error={"code": INTERNAL_ERROR, "message": str(exc)}).to_dict())
+                responses.append(
+                    McpResponse(
+                        id=item.get("id") if isinstance(item, dict) else None,
+                        error={"code": INTERNAL_ERROR, "message": str(exc)},
+                    ).to_dict()
+                )
 
         if not responses:
             # Notifications only

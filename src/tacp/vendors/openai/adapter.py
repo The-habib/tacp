@@ -81,7 +81,9 @@ class OpenAiTunnelAdapter(BaseTunnelProvider):
         active = bool(self._process and self._process.poll() is None)
         return TunnelInfo(
             provider_name=self.name,
-            public_url="https://platform.openai.com/settings/organization/tunnels" if active else "",
+            public_url="https://platform.openai.com/settings/organization/tunnels"
+            if active
+            else "",
             mcp_endpoint="https://chatgpt.com/#settings/Connectors" if active else "",
             is_active=active,
             status_message="Active" if active else "Stopped",

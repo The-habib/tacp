@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from tacp.backends.base import BackendStatus, BackendType, BaseBackend, ExecutionResult
 

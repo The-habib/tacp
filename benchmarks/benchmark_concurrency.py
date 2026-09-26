@@ -10,7 +10,7 @@ import concurrent.futures
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import List
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -142,4 +142,6 @@ if __name__ == "__main__":
         if "throughput" in m.name:
             print(f"{m.name:42} | Throughput: {m.mean_ms:6.1f} req/s")
         else:
-            print(f"{m.name:42} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms")
+            print(
+                f"{m.name:42} | P50: {m.p50_ms:6.3f} ms | P95: {m.p95_ms:6.3f} ms | Max: {m.max_ms:6.3f} ms"
+            )

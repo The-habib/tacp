@@ -1,34 +1,36 @@
 """Benchmark Fast-Read latency under 50 concurrent mutations with and without Multi-Lane Admission."""
 
-import time
 import json
 import statistics
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
-from tacp.core.admission import AdmissionController, LaneType, LaneConfig
+
+from tacp.core.admission import AdmissionController, LaneType
+
 
 def benchmark_admission():
     # 1. Monolithic single-queue simulation (monolithic 32 slots shared by all)
     monolithic_sem = threading.Semaphore(32)
     mono_read_times = []
-    
+
     def monolithic_slow_mutation():
         with monolithic_sem:
-            time.sleep(0.08) # 80ms mutation lock
+            time.sleep(0.08)  # 80ms mutation lock
 
     def monolithic_fast_read():
         t0 = time.perf_counter_ns()
         with monolithic_sem:
-            time.sleep(0.0001) # 0.1ms read
+            time.sleep(0.0001)  # 0.1ms read
         t1 = time.perf_counter_ns()
-        mono_read_times.append((t1 - t0) / 1_000_000.0) # ms
+        mono_read_times.append((t1 - t0) / 1_000_000.0)  # ms
 
     # Launch 50 concurrent mutations
     ex1 = ThreadPoolExecutor(max_workers=60)
     for _ in range(50):
         ex1.submit(monolithic_slow_mutation)
-    time.sleep(0.01) # ensure mutations acquire slots
-    
+    time.sleep(0.01)  # ensure mutations acquire slots
+
     # Measure 50 fast reads during mutation saturation
     read_futures = [ex1.submit(monolithic_fast_read) for _ in range(50)]
     for f in read_futures:
@@ -48,7 +50,7 @@ def benchmark_admission():
         with ac.acquire(LaneType.FAST_READ):
             time.sleep(0.0001)
         t1 = time.perf_counter_ns()
-        lane_read_times.append((t1 - t0) / 1_000_000.0) # ms
+        lane_read_times.append((t1 - t0) / 1_000_000.0)  # ms
 
     ex2 = ThreadPoolExecutor(max_workers=60)
     for _ in range(50):
@@ -78,14 +80,15 @@ def benchmark_admission():
             "mean_ms": round(statistics.mean(lane_read_times), 3),
         },
         "improvement": {
-            "p50_speedup": f"{mono_sorted[int(len(mono_sorted)*0.5)] / lane_sorted[int(len(lane_sorted)*0.5)]:.1f}x faster",
-            "p95_speedup": f"{mono_sorted[int(len(mono_sorted)*0.95)] / lane_sorted[int(len(lane_sorted)*0.95)]:.1f}x faster",
-        }
+            "p50_speedup": f"{mono_sorted[int(len(mono_sorted) * 0.5)] / lane_sorted[int(len(lane_sorted) * 0.5)]:.1f}x faster",
+            "p95_speedup": f"{mono_sorted[int(len(mono_sorted) * 0.95)] / lane_sorted[int(len(lane_sorted) * 0.95)]:.1f}x faster",
+        },
     }
 
     print(json.dumps(results, indent=2))
-    with open('artifacts/phase3/admission_benchmark.json', 'w') as f:
+    with open("artifacts/phase3/admission_benchmark.json", "w") as f:
         json.dump(results, f, indent=2)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     benchmark_admission()

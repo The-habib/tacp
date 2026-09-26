@@ -1,8 +1,10 @@
 """Unit tests for Cancellation and Deadline Propagation."""
 
-import time
 import threading
+import time
+
 import pytest
+
 from tacp.control.identity import RequestContext
 from tacp.domain.errors import ErrorCode, TacpError
 

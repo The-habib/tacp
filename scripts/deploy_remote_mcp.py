@@ -5,13 +5,12 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import socket
 import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from tacp.backends.manager import BackendManager
 from tacp.control.auth import TokenService
@@ -52,9 +51,11 @@ def run_deployment(
     print("\n[*] [2/8] Inspecting Android Device Environment...")
     sys_service = SystemService(db)
     sys_info = sys_service.inspect_system()
-    platform_info = sys_info.get("platform", {})
+    _platform_info = sys_info.get("platform", {})
     termux_info = sys_info.get("termux", {})
-    print(f"    OS / Arch  : {sys_info.get('os')} {sys_info.get('release')} / {sys_info.get('machine')} (Python {sys_info.get('python_version')})")
+    print(
+        f"    OS / Arch  : {sys_info.get('os')} {sys_info.get('release')} / {sys_info.get('machine')} (Python {sys_info.get('python_version')})"
+    )
     print(f"    Termux     : v{termux_info.get('version')}, Prefix: {termux_info.get('prefix')}")
 
     # 3. VERIFY CAPABILITIES & BACKENDS
@@ -68,8 +69,14 @@ def run_deployment(
     all_caps = default_registry.list_capabilities()
     avail_count = sum(1 for c in all_caps if c.get("availability") == "available")
     comp_count = sum(1 for c in all_caps if "companion" in str(c.get("availability")))
-    root_count = sum(1 for c in all_caps if "root" in str(c.get("availability")) or "shizuku" in str(c.get("availability")))
-    print(f"    [OK] Registered Capabilities: {len(all_caps)} total ({avail_count} available, {comp_count} companion-tier, {root_count} privileged-tier)")
+    root_count = sum(
+        1
+        for c in all_caps
+        if "root" in str(c.get("availability")) or "shizuku" in str(c.get("availability"))
+    )
+    print(
+        f"    [OK] Registered Capabilities: {len(all_caps)} total ({avail_count} available, {comp_count} companion-tier, {root_count} privileged-tier)"
+    )
 
     # 4. VERIFY WORKSPACES & DEVICE IDENTITY
     print("\n[*] [4/8] Initializing Device Identity & Workspaces...")
@@ -95,8 +102,8 @@ def run_deployment(
     # 5. CREATE AUTHENTICATION CREDENTIAL
     print("\n[*] [5/8] Managing Authentication Credentials...")
     token_service = TokenService(db)
-    active_tokens = token_service.list_tokens(include_revoked=False)
-    
+    _active_tokens = token_service.list_tokens(include_revoked=False)
+
     selected_token: Optional[str] = None
     token_record = None
 
@@ -115,7 +122,7 @@ def run_deployment(
     # Check if port is already open
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(0.5)
-    port_open = (sock.connect_ex(("127.0.0.1", port)) == 0)
+    port_open = sock.connect_ex(("127.0.0.1", port)) == 0
     sock.close()
 
     if port_open:
@@ -126,7 +133,7 @@ def run_deployment(
 
     http_log = data_dir / "tacp-http.log"
     http_pid = data_dir / "tacp-http.pid"
-    
+
     server_env = os.environ.copy()
     server_env["TACP_DEVICE_CONTROL"] = "1"
     server_env["TACP_REMOTE_ENABLED"] = "1"
@@ -134,10 +141,13 @@ def run_deployment(
 
     server_cmd = [
         sys.executable,
-        "-m", "tacp.cli.main",
+        "-m",
+        "tacp.cli.main",
         "serve-http",
-        "--host", "127.0.0.1",
-        "--port", str(port),
+        "--host",
+        "127.0.0.1",
+        "--port",
+        str(port),
         "--auth",
         "--device-control",
     ]
@@ -208,6 +218,7 @@ def run_deployment(
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
     from scripts.verify_remote_mcp import RemoteMcpVerifier
+
     verifier = RemoteMcpVerifier(mcp_url=remote_mcp_url, token=selected_token)
     verified = verifier.run_suite()
 
@@ -216,7 +227,7 @@ def run_deployment(
 
     # 9. GENERATE CONNECTION BUNDLE ARTIFACTS
     print("\n[*] Generating Connection Bundle Artifacts...")
-    
+
     # Artifact 1: TACP_CONNECTION_INFO.json
     conn_info = {
         "status": "verified",

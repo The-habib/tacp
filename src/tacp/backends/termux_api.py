@@ -6,7 +6,7 @@ import os
 import shutil
 import subprocess
 import time
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from tacp.backends.base import BackendStatus, BackendType, BaseBackend, ExecutionResult
 
@@ -32,7 +32,12 @@ class TermuxApiBackend(BaseBackend):
         self.apk_installed = False
         pm_bin = "/system/bin/pm" if os.path.exists("/system/bin/pm") else "pm"
         try:
-            p = subprocess.run([pm_bin, "list", "packages", "com.termux.api"], capture_output=True, text=True, timeout=2.0)
+            p = subprocess.run(
+                [pm_bin, "list", "packages", "com.termux.api"],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+            )
             if p.returncode == 0 and "package:com.termux.api" in p.stdout:
                 self.apk_installed = True
         except Exception:

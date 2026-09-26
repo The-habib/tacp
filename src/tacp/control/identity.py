@@ -160,7 +160,10 @@ class RequestContext:
     cancellation_event: Optional[Any] = None
 
     def is_cancelled(self) -> bool:
-        if self.cancellation_event is not None and getattr(self.cancellation_event, "is_set", lambda: False)():
+        if (
+            self.cancellation_event is not None
+            and getattr(self.cancellation_event, "is_set", lambda: False)()
+        ):
             return True
         if self.deadline_monotonic is not None and time.monotonic() >= self.deadline_monotonic:
             return True
@@ -175,6 +178,11 @@ class RequestContext:
     def check_cancelled(self) -> None:
         if self.is_cancelled():
             from tacp.domain.errors import ErrorCode, TacpError
+
             if self.deadline_monotonic is not None and time.monotonic() >= self.deadline_monotonic:
-                raise TacpError(ErrorCode.DEADLINE_EXCEEDED, f"Request {self.request_id} exceeded deadline")
-            raise TacpError(ErrorCode.CANCELLED, f"Request {self.request_id} was cancelled by client")
+                raise TacpError(
+                    ErrorCode.DEADLINE_EXCEEDED, f"Request {self.request_id} exceeded deadline"
+                )
+            raise TacpError(
+                ErrorCode.CANCELLED, f"Request {self.request_id} was cancelled by client"
+            )

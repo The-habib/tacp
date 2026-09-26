@@ -20,9 +20,10 @@ from mcp.client.sse import sse_client
 TACP_URL = "https://unique-subdomain.trycloudflare.com/mcp"
 BEARER_TOKEN = "<TACP_AUTH_TOKEN>"
 
+
 async def main():
     headers = {"Authorization": f"Bearer {BEARER_TOKEN}"}
-    
+
     async with sse_client(TACP_URL, headers=headers) as (read_stream, write_stream):
         async with ClientSession(read_stream, write_stream) as session:
             # 1. Initialize session
@@ -44,6 +45,7 @@ async def main():
             workspaces = await session.call_tool("workspace.list", arguments={})
             print("\nRegistered Workspaces:")
             print(workspaces.content[0].text)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -111,13 +113,16 @@ import urllib.request
 TACP_URL = "https://unique-subdomain.trycloudflare.com/mcp"
 TOKEN = "<TACP_AUTH_TOKEN>"
 
+
 def mcp_call(method: str, params: dict, req_id: int = 1) -> dict:
-    payload = json.dumps({
-        "jsonrpc": "2.0",
-        "id": req_id,
-        "method": method,
-        "params": params,
-    }).encode("utf-8")
+    payload = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "method": method,
+            "params": params,
+        }
+    ).encode("utf-8")
 
     req = urllib.request.Request(
         TACP_URL,
@@ -131,6 +136,7 @@ def mcp_call(method: str, params: dict, req_id: int = 1) -> dict:
 
     with urllib.request.urlopen(req) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
 
 # Handshake
 init_resp = mcp_call("initialize", {"protocolVersion": "2026-07-28"}, req_id=1)

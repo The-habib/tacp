@@ -6,7 +6,7 @@ import os
 import shutil
 import subprocess
 import time
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from tacp.backends.base import BackendStatus, BackendType, BaseBackend, ExecutionResult
 
@@ -26,8 +26,11 @@ class RootBackend(BaseBackend):
 
         self._last_probed = now
         su_paths = [
-            "/system/bin/su", "/system/xbin/su", "/sbin/su",
-            "/data/local/tmp/su", "/data/data/com.termux/files/usr/bin/su"
+            "/system/bin/su",
+            "/system/xbin/su",
+            "/sbin/su",
+            "/data/local/tmp/su",
+            "/data/data/com.termux/files/usr/bin/su",
         ]
         found_su = None
         for path in su_paths:

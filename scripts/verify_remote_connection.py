@@ -67,9 +67,9 @@ class RemoteMcpClient:
                     f"HTTP {exc.code} Error: {err_json.get('error', {}).get('message', err_body)}"
                 )
             except Exception:
-                raise RuntimeError(f"HTTP {exc.code} Error: {err_body}")
+                raise RuntimeError(f"HTTP {exc.code} Error: {err_body}") from exc
         except Exception as exc:
-            raise RuntimeError(f"Connection failed to {self.mcp_url}: {exc}")
+            raise RuntimeError(f"Connection failed to {self.mcp_url}: {exc}") from exc
 
     def verify(self) -> bool:
         print("============================================================")
@@ -92,7 +92,9 @@ class RemoteMcpClient:
             res = init_resp.get("result", {})
             srv_info = res.get("serverInfo", {})
             negotiated_ver = res.get("protocolVersion")
-            print(f"      [PASS] Connected to server: {srv_info.get('name')} v{srv_info.get('version')}")
+            print(
+                f"      [PASS] Connected to server: {srv_info.get('name')} v{srv_info.get('version')}"
+            )
             print(f"      [PASS] Negotiated Protocol Version: {negotiated_ver}")
         except Exception as exc:
             print(f"      [FAIL] Handshake failed: {exc}")
@@ -124,7 +126,9 @@ class RemoteMcpClient:
                 return False
             content = res.get("content", [{}])[0].get("text", "")
             data = json.loads(content)
-            print(f"      [PASS] OS Release: {data.get('release', 'N/A')}, Architecture: {data.get('machine', 'N/A')}")
+            print(
+                f"      [PASS] OS Release: {data.get('release', 'N/A')}, Architecture: {data.get('machine', 'N/A')}"
+            )
         except Exception as exc:
             print(f"      [FAIL] system.inspect invocation failed: {exc}")
             return False

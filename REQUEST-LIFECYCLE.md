@@ -116,8 +116,9 @@ Located in `src/tacp/core/tracer.py`.
 
 ```python
 class RequestTracer:
-    def __init__(self, trace_id: Optional[str] = None, request_id: Optional[str] = None, enabled: bool = True):
-        ...
+    def __init__(
+        self, trace_id: Optional[str] = None, request_id: Optional[str] = None, enabled: bool = True
+    ): ...
 
     def span(self, name: str, **meta: Any) -> TraceSpan:
         """Context manager for timing an execution block."""

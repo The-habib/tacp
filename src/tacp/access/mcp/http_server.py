@@ -29,7 +29,9 @@ def run_http_server(
         token_service=token_service,
         auth_required=auth_required,
     )
-    sys.stderr.write(f"[INFO] TACP Streamable HTTP MCP server listening at http://{host}:{port}/mcp\n")
+    sys.stderr.write(
+        f"[INFO] TACP Streamable HTTP MCP server listening at http://{host}:{port}/mcp\n"
+    )
     if auth_required:
         sys.stderr.write("[INFO] Bearer token authentication is ENABLED.\n")
     try:

@@ -6,7 +6,7 @@ import os
 import signal
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from tacp.backends.base import BaseBackend
 
@@ -22,7 +22,6 @@ def handle_process_list(backend: BaseBackend, params: Dict[str, Any]) -> Dict[st
             if entry.name.isdigit():
                 pid = int(entry.name)
                 cmdline_file = entry / "cmdline"
-                status_file = entry / "status"
                 comm_file = entry / "comm"
 
                 name = ""
@@ -36,16 +35,20 @@ def handle_process_list(backend: BaseBackend, params: Dict[str, Any]) -> Dict[st
                 if cmdline_file.exists():
                     try:
                         raw = cmdline_file.read_bytes()
-                        cmdline = " ".join([part.decode("utf-8", "ignore") for part in raw.split(b"\x00") if part])
+                        cmdline = " ".join(
+                            [part.decode("utf-8", "ignore") for part in raw.split(b"\x00") if part]
+                        )
                     except Exception:
                         pass
 
                 if name or cmdline:
-                    processes.append({
-                        "pid": pid,
-                        "name": name or cmdline.split()[0],
-                        "command": cmdline or name,
-                    })
+                    processes.append(
+                        {
+                            "pid": pid,
+                            "name": name or cmdline.split()[0],
+                            "command": cmdline or name,
+                        }
+                    )
     except Exception:
         pass
 
@@ -59,12 +62,14 @@ def handle_process_list(backend: BaseBackend, params: Dict[str, Any]) -> Dict[st
                 for line in lines[1:]:
                     parts = line.split(None, 8)
                     if len(parts) >= 4 and parts[1].isdigit():
-                        processes.append({
-                            "pid": int(parts[1]),
-                            "name": parts[-1],
-                            "command": parts[-1],
-                            "user": parts[0],
-                        })
+                        processes.append(
+                            {
+                                "pid": int(parts[1]),
+                                "name": parts[-1],
+                                "command": parts[-1],
+                                "user": parts[0],
+                            }
+                        )
         except Exception:
             pass
 
@@ -138,7 +143,12 @@ def handle_process_signal(backend: BaseBackend, params: Dict[str, Any]) -> Dict[
     sig_num = int(params.get("signal", signal.SIGTERM))
     try:
         os.kill(int(pid), sig_num)
-        return {"success": True, "pid": int(pid), "signal": sig_num, "message": f"Signal {sig_num} sent successfully"}
+        return {
+            "success": True,
+            "pid": int(pid),
+            "signal": sig_num,
+            "message": f"Signal {sig_num} sent successfully",
+        }
     except ProcessLookupError:
         return {"success": False, "error": f"Process {pid} does not exist"}
     except PermissionError:

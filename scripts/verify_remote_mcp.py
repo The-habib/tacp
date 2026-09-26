@@ -20,7 +20,6 @@ import argparse
 import json
 import os
 import sys
-import time
 import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Optional, Tuple
@@ -84,7 +83,13 @@ class RemoteMcpVerifier:
         except Exception as exc:
             raise RuntimeError(f"Network error connecting to {url}: {exc}") from exc
 
-    def rpc(self, method: str, params: Optional[Dict[str, Any]] = None, req_id: Any = 1, auth: bool = True) -> Tuple[int, Dict[str, Any]]:
+    def rpc(
+        self,
+        method: str,
+        params: Optional[Dict[str, Any]] = None,
+        req_id: Any = 1,
+        auth: bool = True,
+    ) -> Tuple[int, Dict[str, Any]]:
         body = {
             "jsonrpc": "2.0",
             "id": req_id,
@@ -102,7 +107,9 @@ class RemoteMcpVerifier:
         print("============================================================")
         print(" TACP Remote MCP Protocol Verification Suite (Python)       ")
         print(f" Target Endpoint: {self.mcp_url}")
-        print(f" Auth Token     : {'[PROVIDED: ' + self.token[:12] + '...]' if self.token else '[NONE]'}")
+        print(
+            f" Auth Token     : {'[PROVIDED: ' + self.token[:12] + '...]' if self.token else '[NONE]'}"
+        )
         print("============================================================")
 
         # 1. Health Probe
@@ -110,7 +117,11 @@ class RemoteMcpVerifier:
             status, _, raw = self.http_request("/health", method="GET", auth=False)
             data = json.loads(raw.decode("utf-8"))
             ok = status == 200 and data.get("status") == "ok"
-            self.log("1. Infrastructure Health Probe (GET /health)", ok, f"HTTP {status}, status={data.get('status')}, version={data.get('version')}")
+            self.log(
+                "1. Infrastructure Health Probe (GET /health)",
+                ok,
+                f"HTTP {status}, status={data.get('status')}, version={data.get('version')}",
+            )
         except Exception as exc:
             self.log("1. Infrastructure Health Probe (GET /health)", False, str(exc))
 
@@ -119,7 +130,11 @@ class RemoteMcpVerifier:
             status, _, raw = self.http_request("/ready", method="GET", auth=False)
             data = json.loads(raw.decode("utf-8"))
             ok = status == 200 and data.get("ready") is True
-            self.log("2. Daemon Readiness Probe (GET /ready)", ok, f"HTTP {status}, ready={data.get('ready')}, workspaces={data.get('workspaces')}")
+            self.log(
+                "2. Daemon Readiness Probe (GET /ready)",
+                ok,
+                f"HTTP {status}, ready={data.get('ready')}, workspaces={data.get('workspaces')}",
+            )
         except Exception as exc:
             self.log("2. Daemon Readiness Probe (GET /ready)", False, str(exc))
 
@@ -128,7 +143,11 @@ class RemoteMcpVerifier:
             try:
                 status, parsed = self.rpc("tools/list", req_id="unauth-test", auth=False)
                 ok = status == 401
-                self.log("3. Authentication Gate (Unauthenticated Request Rejection)", ok, f"HTTP {status} (Expected 401)")
+                self.log(
+                    "3. Authentication Gate (Unauthenticated Request Rejection)",
+                    ok,
+                    f"HTTP {status} (Expected 401)",
+                )
             except Exception as exc:
                 self.log("3. Authentication Gate", False, str(exc))
         else:
@@ -206,7 +225,9 @@ class RemoteMcpVerifier:
 
         # 8. Safe Tool Execution: system.inspect
         try:
-            status, parsed = self.rpc("tools/call", params={"name": "system.inspect", "arguments": {}}, req_id="call-sys")
+            status, parsed = self.rpc(
+                "tools/call", params={"name": "system.inspect", "arguments": {}}, req_id="call-sys"
+            )
             res = parsed.get("result", {})
             is_err = res.get("isError", True)
             ok = status == 200 and not is_err
@@ -217,7 +238,9 @@ class RemoteMcpVerifier:
 
         # 9. Safe Tool Execution: device.info
         try:
-            status, parsed = self.rpc("tools/call", params={"name": "device.info", "arguments": {}}, req_id="call-dev")
+            status, parsed = self.rpc(
+                "tools/call", params={"name": "device.info", "arguments": {}}, req_id="call-dev"
+            )
             res = parsed.get("result", {})
             is_err = res.get("isError", True)
             ok = status == 200 and not is_err
@@ -228,7 +251,11 @@ class RemoteMcpVerifier:
 
         # 10. Safe Tool Execution: storage.overview
         try:
-            status, parsed = self.rpc("tools/call", params={"name": "storage.overview", "arguments": {}}, req_id="call-storage")
+            status, parsed = self.rpc(
+                "tools/call",
+                params={"name": "storage.overview", "arguments": {}},
+                req_id="call-storage",
+            )
             res = parsed.get("result", {})
             is_err = res.get("isError", True)
             ok = status == 200 and not is_err
@@ -248,7 +275,13 @@ class RemoteMcpVerifier:
             is_err = res.get("isError", False)
             # Must be rejected either with isError=True or structured policy error
             txt = res.get("content", [{}])[0].get("text", "") if is_err else ""
-            denied = is_err or "Access denied" in str(parsed) or "POLICY_DENIED" in str(parsed) or "prohibited" in str(parsed) or "disabled" in str(parsed)
+            denied = (
+                is_err
+                or "Access denied" in str(parsed)
+                or "POLICY_DENIED" in str(parsed)
+                or "prohibited" in str(parsed)
+                or "disabled" in str(parsed)
+            )
             self.log(
                 "11. Policy Engine Boundary (Mutating Call Rejection under Read Policy)",
                 denied,
@@ -274,7 +307,9 @@ def main() -> int:
 
     url = args.url or os.environ.get("TACP_MCP_URL") or os.environ.get("TACP_URL")
     if not url:
-        print("[ERROR] Missing MCP endpoint URL. Specify --url https://<HOST>/mcp or set TACP_MCP_URL.")
+        print(
+            "[ERROR] Missing MCP endpoint URL. Specify --url https://<HOST>/mcp or set TACP_MCP_URL."
+        )
         return 1
 
     token = args.token or os.environ.get("TACP_MCP_TOKEN") or os.environ.get("TACP_TOKEN")

@@ -183,13 +183,35 @@ class PolicyEngine:
         cap = context.capability
 
         is_device_cap = self.device_control_enabled and (
-            any(cap.startswith(ns) for ns in (
-                "shell.", "device.", "filesystem.", "storage.",
-                "package.", "app.", "network.", "wifi.", "camera.", "microphone.",
-                "audio.", "tts.", "location.", "sensors.", "clipboard.",
-                "notifications.", "screen.", "input.", "settings.", "logs.",
-                "tasks.", "automation.", "diagnostics."
-            )) or cap in ("process.kill", "process.signal")
+            any(
+                cap.startswith(ns)
+                for ns in (
+                    "shell.",
+                    "device.",
+                    "filesystem.",
+                    "storage.",
+                    "package.",
+                    "app.",
+                    "network.",
+                    "wifi.",
+                    "camera.",
+                    "microphone.",
+                    "audio.",
+                    "tts.",
+                    "location.",
+                    "sensors.",
+                    "clipboard.",
+                    "notifications.",
+                    "screen.",
+                    "input.",
+                    "settings.",
+                    "logs.",
+                    "tasks.",
+                    "automation.",
+                    "diagnostics.",
+                )
+            )
+            or cap in ("process.kill", "process.signal")
         )
 
         # Invariant 1: Check known capabilities (Default Deny)
@@ -207,7 +229,11 @@ class PolicyEngine:
 
         # Invariant 1b: Trust Profile LOCKDOWN strictly forbids all mutation and execution
         if self.trust_profile == "LOCKDOWN":
-            if cap in self.MUTATING_CAPABILITIES or cap in self.EXECUTION_CAPABILITIES or (is_device_cap and cap in self.DEVICE_MUTATING_CAPABILITIES):
+            if (
+                cap in self.MUTATING_CAPABILITIES
+                or cap in self.EXECUTION_CAPABILITIES
+                or (is_device_cap and cap in self.DEVICE_MUTATING_CAPABILITIES)
+            ):
                 return PolicyDecision(
                     allowed=False,
                     reason=(
