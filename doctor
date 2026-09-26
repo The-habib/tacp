@@ -62,7 +62,7 @@ if [[ -d "$VENV_PATH" && -f "$VENV_PATH/bin/activate" ]]; then
   echo "[PASS] Virtual environment: Found at .venv"
   PASSED_CHECKS=$((PASSED_CHECKS + 1))
   
-  for tool in pytest; do
+  for tool in pytest ruff; do
     TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
     if "$VENV_PATH/bin/$tool" --version >/dev/null 2>&1; then
       tver="$("$VENV_PATH/bin/$tool" --version 2>&1 | head -n 1)"
