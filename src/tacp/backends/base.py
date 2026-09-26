@@ -28,6 +28,7 @@ class BackendStatus(str, enum.Enum):
     ROOT_REQUIRED = "root_required"
     SHIZUKU_REQUIRED = "shizuku_required"
     UNSUPPORTED = "unsupported"
+    DEGRADED = "degraded"
     ERROR = "error"
 
 

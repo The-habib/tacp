@@ -7,7 +7,7 @@ from tacp.infrastructure.migrations import apply_migrations
 
 
 class Database:
-    _migrated_paths: set = set()
+    _migrated_paths: set[str] = set()
     _migration_lock = threading.Lock()
 
     def __init__(self, db_path: Path) -> None:

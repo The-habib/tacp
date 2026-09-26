@@ -75,12 +75,12 @@ def cmd_capabilities(args: argparse.Namespace) -> int:
         print(f"\nTotal device capabilities: {len(caps)}\n")
         return 0
 
-    caps = CapabilityService.list_raw()
+    raw_caps = CapabilityService.list_raw()
     print(f"\n{'NAME':<20} {'DOMAIN':<15} {'DESCRIPTION'}")
     print("-" * 80)
-    for cap in caps:
+    for cap in raw_caps:
         print(f"{cap.name:<20} {cap.domain:<15} {cap.description}")
-    print(f"\nTotal capabilities: {len(caps)} (all read-only)\n")
+    print(f"\nTotal capabilities: {len(raw_caps)} (all read-only)\n")
     return 0
 
 
@@ -922,7 +922,7 @@ def cmd_execution(args: argparse.Namespace) -> int:
         operator_principal = Principal.human_operator("cli_operator")
         try:
             res = execution_service.cancel_execution(exec_id, principal=operator_principal)
-            st = res.status.value if hasattr(res.status, "value") else str(res.status)
+            st = res.get("status", "unknown")
             print(f"Successfully cancelled execution '{exec_id}': {st}")
             return 0
         except Exception as exc:
@@ -1234,7 +1234,7 @@ def cmd_shell(args: argparse.Namespace) -> int:
             sys.stdout.write(res["stdout"])
         if res.get("stderr"):
             sys.stderr.write(res["stderr"])
-    return res.get("exit_code", 0 if res.get("success", False) else 1)
+    return int(res.get("exit_code", 0 if res.get("success", False) else 1))
 
 
 def cmd_apps(args: argparse.Namespace) -> int:

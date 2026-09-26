@@ -23,7 +23,7 @@ class OpenAiTunnelAdapter(BaseTunnelProvider):
     def __init__(self, data_dir: Optional[Path] = None) -> None:
         self.data_dir = data_dir or (Path.home() / ".tacp")
         self.profile_path = Path.home() / ".config" / "tunnel-client" / "tacp-http.yaml"
-        self._process: Optional[subprocess.Popen[str]] = None
+        self._process: Optional[subprocess.Popen[Any]] = None
 
     @property
     def name(self) -> str:
@@ -45,14 +45,15 @@ class OpenAiTunnelAdapter(BaseTunnelProvider):
 
         cmd = ["tunnel-client", "run", "--profile", "tacp-http"]
         try:
-            self._process = subprocess.Popen(cmd)
+            proc = subprocess.Popen(cmd)
+            self._process = proc
             return TunnelInfo(
                 provider_name=self.name,
                 public_url="https://platform.openai.com/settings/organization/tunnels",
                 mcp_endpoint="https://chatgpt.com/#settings/Connectors",
                 is_active=True,
                 status_message="OpenAI tunnel-client running in background",
-                details={"pid": self._process.pid},
+                details={"pid": proc.pid},
             )
         except Exception as exc:
             return TunnelInfo(

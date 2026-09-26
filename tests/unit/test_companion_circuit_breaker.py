@@ -19,7 +19,7 @@ def test_circuit_breaker_tripping():
         with pytest.raises(TacpError):
             transport.send_request("/test", timeout=0.05)
 
-    assert transport.circuit_state == CircuitState.OPEN
+    assert transport.circuit_state.value == CircuitState.OPEN.value
     assert not transport.is_connected()
     assert get_lifecycle_manager().current_state == DeviceLifecycleState.DEGRADED
 

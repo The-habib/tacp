@@ -67,7 +67,7 @@ def handle_automation_list(backend: BaseBackend, params: Dict[str, Any]) -> Dict
 
 def handle_automation_start(backend: BaseBackend, params: Dict[str, Any]) -> Dict[str, Any]:
     """Execute an automation workflow sequentially."""
-    auto_id = params.get("automation_id")
+    auto_id = str(params.get("automation_id", ""))
     auto = _AUTOMATIONS.get(auto_id)
     if not auto:
         return {"success": False, "error": f"Automation '{auto_id}' not found"}

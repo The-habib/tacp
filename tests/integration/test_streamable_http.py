@@ -6,7 +6,7 @@ import json
 import threading
 import urllib.error
 import urllib.request
-from typing import Generator
+from typing import Any, Generator
 
 import pytest
 
@@ -25,7 +25,7 @@ from tacp.infrastructure.database import Database
 def running_http_server(
     test_config: TacpConfig,
     test_db: Database,
-    test_services: dict,
+    test_services: dict[str, Any],
 ) -> Generator[tuple[str, TokenService, str], None, None]:
     token_service = TokenService(test_db)
     _, valid_token = token_service.create_token(
@@ -275,7 +275,7 @@ def test_session_id_tracking(running_http_server: tuple[str, TokenService, str])
 
 def test_read_only_token_cannot_mutate(
     running_http_server: tuple[str, TokenService, str],
-    test_services: dict,
+    test_services: dict[str, Any],
 ) -> None:
     base_url, token_service, _ = running_http_server
 

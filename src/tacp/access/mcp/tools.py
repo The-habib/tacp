@@ -307,7 +307,7 @@ class McpToolRegistry:
             ws_id = args.get("workspace_id")
             if not ws_id:
                 raise TacpValidationError("Missing required parameter: workspace_id")
-            subpath = (
+            subpath = str(
                 args.get("subpath") if args.get("subpath") is not None else args.get("path", "")
             )
             return self.filesystem_service.list_dir(
@@ -341,7 +341,7 @@ class McpToolRegistry:
             query = args.get("query")
             if not ws_id or not query:
                 raise TacpValidationError("Missing required parameters: workspace_id and query")
-            subpath = (
+            subpath = str(
                 args.get("subpath") if args.get("subpath") is not None else args.get("path", "")
             )
             return self.filesystem_service.search_files(
@@ -450,7 +450,8 @@ class McpToolRegistry:
             return exec_res.to_dict()
 
         elif self.device_registry and self.device_registry.get(name):
-            return self.device_registry.dispatch(name, args)
+            res = self.device_registry.dispatch(name, args)
+            return dict(res) if isinstance(res, dict) else {"result": res}
 
         else:
             raise TacpNotFoundError(f"Unhandled tool: {name}")

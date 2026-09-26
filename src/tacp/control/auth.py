@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from tacp.control.identity import Authority, CredentialSource, Principal, PrincipalType, TrustTier
-from tacp.domain.errors import ErrorCode, TacpValidationError
+from tacp.domain.errors import TacpValidationError
 from tacp.infrastructure.database import Database
 
 SCOPE_READ = "tacp.read"
@@ -124,12 +124,12 @@ class TokenService:
         """Generate a cryptographically secure token and persist its hash."""
         clean_name = name.strip()
         if not clean_name:
-            raise TacpValidationError(ErrorCode.INVALID_INPUT, "Token name cannot be empty.")
+            raise TacpValidationError("Token name cannot be empty.")
 
         requested_scopes = scopes or DEFAULT_SCOPES
         for sc in requested_scopes:
             if sc not in VALID_SCOPES:
-                raise TacpValidationError(ErrorCode.INVALID_INPUT, f"Invalid token scope: {sc}")
+                raise TacpValidationError(f"Invalid token scope: {sc}")
 
         token_id = f"tok_{uuid.uuid4().hex[:12]}"
         raw_secret = f"tacp_sec_{secrets.token_hex(32)}"

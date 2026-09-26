@@ -512,11 +512,13 @@ class McpServer:
 
 def create_mcp_server(
     config: TacpConfig | None = None,
+    db: Database | None = None,
     enable_device_capabilities: bool | None = None,
 ) -> McpServer:
     """Factory creating a fully wired McpServer instance."""
     cfg = config or TacpConfig.load()
-    db = Database(cfg.db_path)
+    if db is None:
+        db = Database(cfg.db_path)
     db.connect()
 
     audit_service = AuditService(db)

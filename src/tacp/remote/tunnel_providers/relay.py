@@ -160,7 +160,7 @@ class RelayTunnelProvider(BaseTunnelProvider):
         try:
             req_obj = McpRequest.from_dict(jsonrpc)
             if req_obj.method == "tools/call" and principal is not None:
-                tool_name = req_obj.params.get("name")
+                tool_name = str(req_obj.params.get("name", ""))
                 args = req_obj.params.get("arguments", {})
                 tool_res = self.mcp_server.tool_registry.execute_tool(
                     tool_name, args, principal=principal, request_id=request_id

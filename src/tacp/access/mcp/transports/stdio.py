@@ -14,4 +14,4 @@ def run_stdio_transport(
     out_stream: Optional[TextIO] = None,
 ) -> None:
     """Launch stdio MCP server loop."""
-    mcp_server.run_stdio(in_stream=in_stream, out_stream=out_stream)
+    mcp_server.run_stdio(reader=in_stream, writer=out_stream)

@@ -268,7 +268,7 @@ class StreamableMcpHandler(BaseHTTPRequestHandler):
     ) -> Optional[McpResponse]:
         """Dispatch an MCP request while binding the authenticated principal."""
         if request.method == "tools/call" and principal is not None:
-            tool_name = request.params.get("name")
+            tool_name = str(request.params.get("name", ""))
             arguments = request.params.get("arguments", {})
             req_id = request.id
             _meta = request.params.get("_meta", {})

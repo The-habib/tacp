@@ -248,7 +248,7 @@ class AuditService:
 
     def verify_integrity(self) -> bool:
         """Verify the cryptographic hash chain and structural integrity of all audit records."""
-        return self.verify_chain_detailed()["valid"]
+        return bool(self.verify_chain_detailed()["valid"])
 
     def reanchor_chain(self) -> Dict[str, Any]:
         """Cryptographically recompute and repair hash pointers across all historical records."""

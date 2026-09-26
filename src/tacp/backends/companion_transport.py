@@ -190,7 +190,7 @@ class HttpCompanionTransport(CompanionTransport):
 
                     data = json.loads(resp_data.decode("utf-8"))
                     self._record_success()
-                    return data
+                    return dict(data) if isinstance(data, dict) else {"result": data}
 
                 except (
                     http.client.RemoteDisconnected,
