@@ -76,12 +76,21 @@ def test_verify_script_syntax(repo_root: Path) -> None:
 
 def test_doctor_script_execution(repo_root: Path) -> None:
     """Verify running doctor in current environment exits 0."""
-    result = subprocess.run(
-        ["./doctor"],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-    )
+    doctor_path = repo_root / "doctor"
+    try:
+        result = subprocess.run(
+            [str(doctor_path)],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        result = subprocess.run(
+            ["bash", str(doctor_path)],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+        )
     assert result.returncode == 0
     assert "Summary:" in result.stdout
     assert "Issues: 0" in result.stdout

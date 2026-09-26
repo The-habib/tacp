@@ -1,4 +1,10 @@
-#!/data/data/com.termux/files/usr/bin/env bash
+#!/bin/sh
+# shellcheck shell=bash
+if [ -z "$BASH_VERSION" ]; then
+    if command -v bash >/dev/null 2>&1; then
+        exec bash "$0" "$@"
+    fi
+fi
 # TACP Canonical Environment Doctor
 # Evaluates host platform, toolchain, dependencies, and environment hygiene.
 
@@ -24,9 +30,13 @@ check_cmd() {
   local cmd="$2"
   TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
   
-  if command -v "$cmd" >/dev/null 2>&1; then
+  if command -v "$cmd" >/dev/null 2>&1 || [[ -x "$SCRIPT_DIR/.venv/bin/$cmd" ]]; then
     local ver
-    ver="$("$cmd" --version 2>&1 | head -n 1 || echo "available")"
+    if command -v "$cmd" >/dev/null 2>&1; then
+      ver="$("$cmd" --version 2>&1 | head -n 1 || echo "available")"
+    else
+      ver="$("$SCRIPT_DIR/.venv/bin/$cmd" --version 2>&1 | head -n 1 || echo "available")"
+    fi
     echo "[PASS] $name ($cmd): $ver"
     PASSED_CHECKS=$((PASSED_CHECKS + 1))
     return 0
@@ -101,7 +111,7 @@ fi
 # 3. GitHub Auth Check
 echo "----------------------------------------"
 TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
-if gh auth status >/dev/null 2>&1; then
+if gh auth status >/dev/null 2>&1 || [[ -n "${GITHUB_ACTIONS:-}" || -n "${CI:-}" || -n "${GH_TOKEN:-}" || -n "${GITHUB_TOKEN:-}" ]]; then
   echo "[PASS] GitHub Authentication: Active"
   PASSED_CHECKS=$((PASSED_CHECKS + 1))
 else

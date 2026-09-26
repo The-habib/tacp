@@ -1,4 +1,10 @@
-#!/data/data/com.termux/files/usr/bin/env bash
+#!/bin/sh
+# shellcheck shell=bash
+if [ -z "$BASH_VERSION" ]; then
+    if command -v bash >/dev/null 2>&1; then
+        exec bash "$0" "$@"
+    fi
+fi
 # ==============================================================================
 # TACP 0.1 — Termux AI Control Plane Installer
 # ==============================================================================
@@ -92,7 +98,6 @@ else
 fi
 
 # Activate venv
-VENV_PYTHON="$SCRIPT_DIR/.venv/bin/python"
 VENV_PIP="$SCRIPT_DIR/.venv/bin/pip"
 
 # 3. Install TACP package in editable mode

@@ -1,4 +1,10 @@
-#!/data/data/com.termux/files/usr/bin/env bash
+#!/bin/sh
+# shellcheck shell=bash
+if [ -z "$BASH_VERSION" ]; then
+    if command -v bash >/dev/null 2>&1; then
+        exec bash "$0" "$@"
+    fi
+fi
 # TACP Canonical Local Verifier
 # Runs all deterministic local gates: format, lint, types, unit tests, security tests, and dependency audit.
 

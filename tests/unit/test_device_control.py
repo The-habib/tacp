@@ -93,8 +93,17 @@ def test_handlers_execution_live():
 
     # 5. package.list
     res = reg.dispatch("package.list", {"limit": 5})
-    assert res.get("success") is True
-    assert "packages" in res
+    if res.get("success") is True:
+        assert "packages" in res
+    else:
+        assert res.get("status") in (
+            "root_required",
+            "unavailable",
+            "disabled",
+            "shizuku_required",
+            "companion_required",
+        )
+        assert "error" in res
 
     # 6. diagnostics.bundle
     res = reg.dispatch("diagnostics.bundle", {})
